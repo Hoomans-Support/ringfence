@@ -5,5 +5,3 @@ node_modules/
 .next/
 next-env.d.ts
 *.tsbuildinfo
-/bryntum-scheduler-trial.zip
-/scheduler-*-trial/
