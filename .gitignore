@@ -1,6 +1,9 @@
 .env
+.env.local
 node_modules/
 .vendor/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+/bryntum-scheduler-trial.zip
+/scheduler-*-trial/
