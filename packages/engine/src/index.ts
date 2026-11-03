@@ -1,8 +1,8 @@
-export { aliasPatternKey, isDisposableDomain, normalizeEmail } from "./identity.js";
-export type { NormalizedEmail } from "./identity.js";
-export { buildGraph, communityHasHardLink, detectCommunities, EDGE_THRESHOLD } from "./graph.js";
-export type { GraphBuildResult } from "./graph.js";
-export { scoreRun } from "./score-run.js";
+export { aliasPatternKey, isDisposableDomain, normalizeEmail } from "./identity";
+export type { NormalizedEmail } from "./identity";
+export { buildGraph, communityHasHardLink, detectCommunities, EDGE_THRESHOLD } from "./graph";
+export type { GraphBuildResult } from "./graph";
+export { scoreRun } from "./score-run";
 export type {
   Decision,
   ItemDecision,
@@ -12,4 +12,4 @@ export type {
   RingSummary,
   ScoreRunContext,
   ScoreRunResult,
-} from "./types.js";
+} from "./types";

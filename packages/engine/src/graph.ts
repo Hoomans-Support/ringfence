@@ -15,8 +15,8 @@
  */
 import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
-import { aliasPatternKey, normalizeEmail } from "./identity.js";
-import type { PayoutItem } from "./types.js";
+import { aliasPatternKey, normalizeEmail } from "./identity";
+import type { PayoutItem } from "./types";
 
 const HARD_WEIGHT = 1.0;
 const SOFT_WEIGHT = 0.35;

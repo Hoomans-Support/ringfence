@@ -18,9 +18,9 @@
  * payee (a learned rule can still hold or block something this misses), but
  * nothing here can ever turn a hold back into a pay.
  */
-import { buildGraph, communityHasHardLink, connectedComponents, detectCommunities } from "./graph.js";
-import { normalizeEmail } from "./identity.js";
-import type { ItemDecision, PayoutItem, PayoutRun, RingSummary, ScoreRunContext, ScoreRunResult } from "./types.js";
+import { buildGraph, communityHasHardLink, connectedComponents, detectCommunities } from "./graph";
+import { normalizeEmail } from "./identity";
+import type { ItemDecision, PayoutItem, PayoutRun, RingSummary, ScoreRunContext, ScoreRunResult } from "./types";
 
 const ONBOARDING_SPEED_MAX_SECONDS = 120;
 

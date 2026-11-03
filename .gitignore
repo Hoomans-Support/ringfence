@@ -1,3 +1,6 @@
 .env
 node_modules/
 .vendor/
+.next/
+next-env.d.ts
+*.tsbuildinfo

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateWeek1 } from "../src/week1.js";
+import { generateWeek1 } from "../src/week1";
 
 describe("generateWeek1", () => {
   it("produces exactly 412 payees with unique account and item ids", () => {

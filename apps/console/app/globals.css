@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist);
+}
+
+body {
+  background: var(--rf-white);
+  color: var(--rf-ink);
+  font-family: var(--font-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/*
+ * Ringfence design tokens, from asset/Ringfence-Brand-Guidelines.html (V1, Nov 2026) — see
+ * design.md. Single source of truth for this shell (through the Tailwind colours below, e.g.
+ * bg-rf-spark), for AG Grid (app/review/data-grid.tsx) and later AG Studio. Deliberately no blue:
+ * the brand guide rules it out ("stay off payments blue").
+ */
+:root {
+  --rf-ink: #111114;
+  --rf-spark: #ff5a36; /* fills, icons, status dot — one highlight per view, never body text */
+  --rf-spark-text: #c2381a; /* coral words, passes AA */
+  --rf-mist: #f3f3f1;
+  --rf-white: #ffffff;
+  --rf-slate: #5e5e66; /* secondary text, 6.2:1 on white */
+  --rf-star-grey: #b5b5b0; /* idle/unlinked dots only — never text */
+  --rf-hairline: #e4e4e0;
+}
+
+@theme inline {
+  --color-rf-ink: var(--rf-ink);
+  --color-rf-spark: var(--rf-spark);
+  --color-rf-spark-text: var(--rf-spark-text);
+  --color-rf-mist: var(--rf-mist);
+  --color-rf-white: var(--rf-white);
+  --color-rf-slate: var(--rf-slate);
+  --color-rf-star-grey: var(--rf-star-grey);
+  --color-rf-hairline: var(--rf-hairline);
+}

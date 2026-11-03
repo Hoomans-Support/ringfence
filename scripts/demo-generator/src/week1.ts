@@ -6,9 +6,9 @@
  * final-prd.docx's demo data table and user journey (Week 1: the first run).
  */
 import type { PayoutItem } from "@ringfence/engine";
-import { COWORKER_ANSWERS, FIRST_NAMES, HONEST_ANSWERS, HONEST_EMAIL_DOMAINS, LAST_NAMES, RING_ANSWER_OUTLIERS, RING_ANSWER_VARIANTS } from "./pools.js";
-import { Rng } from "./rng.js";
-import type { GroundTruthLabel, WeekFixture } from "./types.js";
+import { COWORKER_ANSWERS, FIRST_NAMES, HONEST_ANSWERS, HONEST_EMAIL_DOMAINS, LAST_NAMES, RING_ANSWER_OUTLIERS, RING_ANSWER_VARIANTS } from "./pools";
+import { Rng } from "./rng";
+import type { GroundTruthLabel, WeekFixture } from "./types";
 
 export const WEEK1_RUN_ID = "run_2026w45";
 const WEEK1_PAYOUT_AT = Date.parse("2026-11-02T09:00:00Z"); // Monday 9:00

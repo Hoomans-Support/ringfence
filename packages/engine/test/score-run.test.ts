@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scoreRun } from "../src/score-run.js";
-import type { PayoutItem, PayoutRun } from "../src/types.js";
+import { scoreRun } from "../src/score-run";
+import type { PayoutItem, PayoutRun } from "../src/types";
 
 const BASE_TIME = new Date("2026-11-02T09:00:00Z").getTime();
 

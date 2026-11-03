@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aliasPatternKey, isDisposableDomain, normalizeEmail } from "../src/identity.js";
+import { aliasPatternKey, isDisposableDomain, normalizeEmail } from "../src/identity";
 
 describe("normalizeEmail", () => {
   it("strips Gmail dots", () => {

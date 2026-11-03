@@ -6,7 +6,7 @@
  */
 import { scoreRun } from "@ringfence/engine";
 import { describe, expect, it } from "vitest";
-import { generateWeek1 } from "../src/week1.js";
+import { generateWeek1 } from "../src/week1";
 
 describe("week 1 through scoreRun", () => {
   it("holds the 23-account ring as one ring", () => {

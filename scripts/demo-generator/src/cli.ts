@@ -7,7 +7,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { generateWeek1 } from "./week1.js";
+import { generateWeek1 } from "./week1";
 
 function readSeedArg(): number {
   const flagIndex = process.argv.indexOf("--seed");
