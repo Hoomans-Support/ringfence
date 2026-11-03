@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { checkClaims, investigate, type Claim } from "@ringfence/agents";
-import { buildGraph, scoreRun, type PayoutItem } from "@ringfence/engine";
+import { checkClaims, investigate, redTeamRule, type Claim } from "@ringfence/agents";
+import { scoreRun } from "@ringfence/engine";
 import { loadWeek1Run, loadWeek1Truth } from "@/lib/fixtures";
-import { computeLayout } from "@/lib/graph-layout";
+import { layoutRing } from "@/lib/ring-layout";
 import { RingGraph } from "./ring-graph";
 
 const GRAPH_WIDTH = 640;
@@ -40,31 +40,12 @@ export default async function RingDetailPage({ params }: { params: Promise<{ rin
   const ring = rings.find((r) => r.ring_id === ringId);
   if (!ring) notFound();
 
-  const bySenderItemId = new Map(run.items.map((it) => [it.sender_item_id, it] as const));
-  const members: PayoutItem[] = ring.member_sender_item_ids
-    .map((id) => bySenderItemId.get(id))
-    .filter((x): x is PayoutItem => Boolean(x));
-  const memberAccountIds = new Set(members.map((it) => it.context.account_id));
-
+  const { nodes, links, operatorIds } = layoutRing(ring, run, { width: GRAPH_WIDTH, height: GRAPH_HEIGHT });
+  const memberAccountIds = new Set(nodes.map((n) => n.id));
   const narrativeLabel = truth.find((t) => memberAccountIds.has(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
 
-  // Reuse the engine's own graph: the real edges that formed this ring, not a redrawn approximation.
-  const { graph } = buildGraph(run.items);
-  const links: { source: string; target: string }[] = [];
-  graph.forEachEdge((_edge, _attrs, source, target) => {
-    if (memberAccountIds.has(source) && memberAccountIds.has(target)) links.push({ source, target });
-  });
-
-  // The operator: whichever device the most members share (see ring-graph.tsx for the caveat on
-  // this standing in for design.md's broader "shared signal" operator concept).
-  const countByDevice = new Map<string, number>();
-  for (const it of members) countByDevice.set(it.context.device_hash, (countByDevice.get(it.context.device_hash) ?? 0) + 1);
-  const topDevice = [...countByDevice.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const operatorIds = new Set(members.filter((it) => it.context.device_hash === topDevice).map((it) => it.context.account_id));
-
-  const layout = computeLayout([...memberAccountIds], links, { width: GRAPH_WIDTH, height: GRAPH_HEIGHT });
-
   const caseFile = checkClaims(investigate(ring, run), run);
+  const proposedRule = redTeamRule(caseFile.proposed_rule);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 bg-rf-mist px-8 py-6 text-rf-ink">
@@ -81,7 +62,7 @@ export default async function RingDetailPage({ params }: { params: Promise<{ rin
       </div>
 
       <div className="rounded-[20px] border border-rf-hairline bg-rf-white p-4">
-        <RingGraph nodes={layout.nodes} links={layout.links} operatorIds={operatorIds} width={GRAPH_WIDTH} height={GRAPH_HEIGHT} />
+        <RingGraph nodes={nodes} links={links} operatorIds={operatorIds} width={GRAPH_WIDTH} height={GRAPH_HEIGHT} />
       </div>
 
       <section>
@@ -113,9 +94,28 @@ export default async function RingDetailPage({ params }: { params: Promise<{ rin
       </section>
 
       <section>
-        <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Proposed rule</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Proposed rule</h2>
+          <Link href="/rules" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+            All rules →
+          </Link>
+        </div>
+        {proposedRule.red_team && (
+          <p className="mt-2 text-[15px] font-medium">
+            Survived{" "}
+            <span className="text-rf-spark-text">
+              {proposedRule.red_team.caught} of {proposedRule.red_team.variants}
+            </span>{" "}
+            disguised attacks — {proposedRule.red_team.held_out_caught} of {proposedRule.red_team.held_out} held out.
+          </p>
+        )}
         <pre className="mt-3 overflow-x-auto rounded-[20px] border border-rf-hairline bg-rf-white p-4 font-mono text-sm">
-          {JSON.stringify(caseFile.proposed_rule, null, 2)}
+          {JSON.stringify(
+            // The miss list is for the rules page's own disclosure, not this raw-JSON preview.
+            { ...proposedRule, red_team: proposedRule.red_team && { ...proposedRule.red_team, misses: undefined } },
+            null,
+            2,
+          )}
         </pre>
       </section>
     </main>

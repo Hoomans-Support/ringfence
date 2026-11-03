@@ -62,7 +62,17 @@ export default async function ReviewPage() {
 
   return (
     <main className="flex h-dvh flex-col bg-rf-mist px-8 py-6 text-rf-ink">
-      <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Review queue</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Review queue</h1>
+        <div className="flex items-center gap-4">
+          <Link href="/control-tower" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+            Control tower →
+          </Link>
+          <Link href="/rules" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+            Rules →
+          </Link>
+        </div>
+      </div>
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[17px] leading-[1.55]">
         <span>{paidCount} paid on time</span>
         <span className="text-rf-hairline">·</span>

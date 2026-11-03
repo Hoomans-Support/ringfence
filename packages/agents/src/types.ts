@@ -53,7 +53,7 @@ export interface ProposedRule {
   source: string;
   /** Filled in later: A's backtester (FR-10) and our own red team (FR-13, task 7). */
   backtest?: { weeks: number; caught: number; usd: number; false_holds: number };
-  red_team?: { variants: number; caught: number; held_out: number; held_out_caught: number };
+  red_team?: { variants: number; caught: number; held_out: number; held_out_caught: number; misses: string[] };
   /** Filled in once a person actually approves it (FR-11) — never set by the agent itself. */
   approved_by?: string;
 }

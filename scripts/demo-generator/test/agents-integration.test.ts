@@ -1,8 +1,9 @@
 /**
  * Task 6's done-when, end to end: investigate the real week 1 ring, check its claims, and confirm
- * the case file shows "N of N claims checked" on honest data the engine actually held.
+ * the case file shows "N of N claims checked" on honest data the engine actually held. Task 7's
+ * done-when, same real ring: attackRule produces a believable caught/held-out score for its rule.
  */
-import { checkClaims, investigate } from "@ringfence/agents";
+import { attackRule, checkClaims, investigate } from "@ringfence/agents";
 import { scoreRun } from "@ringfence/engine";
 import { describe, expect, it } from "vitest";
 import { generateWeek1 } from "../src/week1";
@@ -33,5 +34,24 @@ describe("investigate + checkClaims on the real week 1 ring", () => {
 
     expect(caseFile.proposed_rule.source).toBe(`ring ${ring.ring_id}`);
     expect(caseFile.proposed_rule.action).toBe("HOLD");
+  });
+
+  it("red-teams R-01's proposed rule: 200 disguised copies, 50 held out, a believable score", () => {
+    const { run } = generateWeek1(42);
+    const { rings } = scoreRun(run);
+    const ring = rings.find((r) => r.size === 23);
+    expect(ring).toBeDefined();
+    if (!ring) return;
+
+    const { proposed_rule } = checkClaims(investigate(ring, run), run);
+    const redTeam = attackRule(proposed_rule);
+
+    expect(redTeam.variants).toBe(200);
+    expect(redTeam.held_out).toBe(50);
+    // A real rule built from real signals should catch the bulk of its own ring's disguises, but
+    // not literally all — if either bound is hit, the disguise model isn't exercising this rule.
+    expect(redTeam.caught).toBeGreaterThan(0);
+    expect(redTeam.caught).toBeLessThan(200);
+    expect(redTeam.held_out_caught).toBeLessThanOrEqual(redTeam.held_out);
   });
 });

@@ -8,14 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ringfence/agents": "*",
+    "@ringfence/engine": "*",
     "ag-grid-community": "36.2.0",
     "ag-grid-react": "36.2.0",
+    "ag-studio": "^3.0.0",
+    "ag-studio-react": "^3.0.0",
     "d3-force": "^3.0.0",
     "next": "16.4.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "@ringfence/agents": "*",
-    "@ringfence/engine": "*"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
