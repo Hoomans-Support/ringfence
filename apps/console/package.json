@@ -10,13 +10,16 @@
   "dependencies": {
     "ag-grid-community": "36.2.0",
     "ag-grid-react": "36.2.0",
+    "d3-force": "^3.0.0",
     "next": "16.4.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "@ringfence/agents": "*",
     "@ringfence/engine": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/d3-force": "^3.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

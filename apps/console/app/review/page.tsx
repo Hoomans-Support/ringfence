@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 import { scoreRun } from "@ringfence/engine";
 import { loadWeek1Run, loadWeek1Truth } from "@/lib/fixtures";
@@ -50,12 +51,12 @@ export default async function ReviewPage() {
     .filter((r): r is ReviewRow => Boolean(r))
     .sort((a, b) => a.group.localeCompare(b.group) || a.senderItemId.localeCompare(b.senderItemId));
 
-  const ringGroups = new Map<string, number>();
-  const pairGroups = new Set<string>();
-  for (const row of rows) {
-    if (row.kind === "ring") ringGroups.set(row.group, (ringGroups.get(row.group) ?? 0) + 1);
-    else pairGroups.add(row.group);
+  const ringGroups = new Map<string, { size: number; ringId: string }>();
+  for (const r of rings) {
+    const label = ringLabelById.get(r.ring_id) ?? r.ring_id;
+    ringGroups.set(label, { size: r.size, ringId: r.ring_id });
   }
+  const pairGroups = new Set(rows.filter((r) => r.kind === "pair").map((r) => r.group));
 
   const paidCount = decisions.length - held.length;
 
@@ -69,9 +70,12 @@ export default async function ReviewPage() {
           <span aria-hidden className="inline-block size-2 rounded-full bg-rf-spark" />
           {held.length} held
         </span>
-        {[...ringGroups].map(([label, size]) => (
+        {[...ringGroups].map(([label, { size, ringId }]) => (
           <span key={label} className="text-rf-slate">
-            — {size} under ring <code className="font-mono text-rf-ink">{label}</code>
+            — {size} under ring{" "}
+            <Link href={`/review/${ringId}`} className="font-mono text-rf-ink underline-offset-2 hover:underline">
+              {label}
+            </Link>
           </span>
         ))}
         {[...pairGroups].map((label) => (
