@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
-    "@ringfence/engine": "*"
+    "@ringfence/engine": "*",
+    "@ringfence/agents": "*"
   }
 }
