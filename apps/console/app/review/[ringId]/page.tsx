@@ -7,6 +7,7 @@ import { loadWeekRun, loadWeekTruth, parseDemoWeek } from "@/lib/fixtures";
 import { sharedLlmSpendCap } from "@/lib/llm-spend-cap";
 import { layoutRing } from "@/lib/ring-layout";
 import { buildRingTimelineData } from "@/lib/ring-timeline-data";
+import { AgentIcon, RuleIcon, TraceIcon } from "@/app/icons";
 import { RingGraph } from "./ring-graph";
 import { RingTimeline } from "./ring-timeline";
 
@@ -72,8 +73,8 @@ export default async function RingDetailPage({ params, searchParams }: { params:
         <Link href={`/review?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
           ← Review queue
         </Link>
-        <h1 className="mt-2 text-[32px] font-semibold tracking-[-0.03em]">
-          Ring <code className="font-mono">{narrativeLabel}</code>
+        <h1 className="mt-2 flex items-center gap-2 text-[32px] font-semibold tracking-[-0.03em]">
+          <TraceIcon className="size-7 shrink-0" aria-hidden /> Ring <code className="font-mono">{narrativeLabel}</code>
         </h1>
         <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
           {week === 2
@@ -83,13 +84,13 @@ export default async function RingDetailPage({ params, searchParams }: { params:
               : `${ring.size} accounts linked · ${caseFile?.claims_checked.checked ?? 0} of ${caseFile?.claims_checked.total ?? 0} claims checked`}
         </p>
         <nav aria-label="Demo week" className="mt-3 flex flex-wrap gap-2 text-sm">
-          <Link href="/review/R-01?week=0" className={`rounded-full border px-3 py-1.5 ${week === 0 ? "border-rf-ink bg-rf-ink text-white" : "border-rf-hairline hover:bg-rf-white"}`}>
+          <Link href="/review/R-01?week=0" className={`rounded-full border px-3 py-1.5 ${week === 0 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
             Week 0
           </Link>
-          <Link href="/review/R-01?week=1" className={`rounded-full border px-3 py-1.5 ${week === 1 ? "border-rf-ink bg-rf-ink text-white" : "border-rf-hairline hover:bg-rf-white"}`}>
+          <Link href="/review/R-01?week=1" className={`rounded-full border px-3 py-1.5 ${week === 1 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
             Week 1
           </Link>
-          <Link href="/review/R-07?week=2" className={`rounded-full border px-3 py-1.5 ${week === 2 ? "border-rf-ink bg-rf-ink text-white" : "border-rf-hairline hover:bg-rf-white"}`}>
+          <Link href="/review/R-07?week=2" className={`rounded-full border px-3 py-1.5 ${week === 2 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
             Week 2
           </Link>
         </nav>
@@ -118,7 +119,9 @@ export default async function RingDetailPage({ params, searchParams }: { params:
 
       {caseFile && (
       <section>
-        <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Case file</h2>
+        <h2 className="flex items-center gap-2 text-[22px] font-semibold tracking-[-0.03em]">
+          <AgentIcon className="size-5 shrink-0" aria-hidden /> Case file
+        </h2>
         <p className="mt-1 text-sm text-rf-slate">Each claim cites the accounts it's about — open one to see the evidence.</p>
         <ul className="mt-3 divide-y divide-rf-hairline rounded-[20px] border border-rf-hairline bg-rf-white">
           {caseFile.claims.map((claim) => (
@@ -149,14 +152,16 @@ export default async function RingDetailPage({ params, searchParams }: { params:
       {proposedRule && (
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Proposed rule</h2>
+          <h2 className="flex items-center gap-2 text-[22px] font-semibold tracking-[-0.03em]">
+            <RuleIcon className="size-5 shrink-0" aria-hidden /> Proposed rule
+          </h2>
           <Link href="/rules" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             All rules →
           </Link>
         </div>
         {proposedRule.red_team && (
           <p className="mt-2 text-[15px] font-medium">
-            Survived{" "}
+            Caught{" "}
             <span className="text-rf-spark-text">
               {proposedRule.red_team.caught} of {proposedRule.red_team.variants}
             </span>{" "}

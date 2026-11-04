@@ -28,6 +28,26 @@ body {
   --rf-hairline: #e4e4e0;
 }
 
+/*
+ * Dark mode isn't in the brand guide — design.md's own open question says to derive it rather
+ * than invent brand-approved-looking hex, so: invert ink/white, darken mist/hairline toward ink,
+ * keep spark as the one brand-fixed colour. --rf-spark-text is the one deviation from "keep spark
+ * values as-is": its light-mode darkening exists only to pass AA against a *white* page (#C2381A
+ * on white is ~5.1:1); against this dark page it drops to ~3.5:1 and fails AA for body text, so
+ * dark mode reuses full --rf-spark (~6.1:1 on #111114) for coral text instead.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rf-ink: #f2f2f0;
+    --rf-spark-text: #ff5a36;
+    --rf-mist: #1b1b1f;
+    --rf-white: #111114;
+    --rf-slate: #a3a3aa;
+    --rf-star-grey: #55555c;
+    --rf-hairline: #333338;
+  }
+}
+
 /* Keep the Scheduler legible in the Ringfence ink / coral / mist palette. */
 .ringfence-scheduler {
   font-family: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;

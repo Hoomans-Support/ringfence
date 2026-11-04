@@ -114,7 +114,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
               key={w}
               href={`/control-tower?week=${w}`}
               aria-current={week === w ? "page" : undefined}
-              className={`rounded-full px-3 py-1 font-medium ${week === w ? "bg-rf-ink text-white" : "text-rf-slate hover:bg-rf-mist"}`}
+              className={`rounded-full px-3 py-1 font-medium ${week === w ? "bg-rf-ink text-rf-white" : "text-rf-slate hover:bg-rf-mist"}`}
             >
               Week {w}
             </Link>

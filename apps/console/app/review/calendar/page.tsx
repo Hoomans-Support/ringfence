@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { buildHoldCalendarData } from "@/lib/hold-calendar-data";
 import { parseDemoWeek } from "@/lib/fixtures";
+import { HoldIcon } from "@/app/icons";
 import { HoldCalendar } from "./hold-calendar";
 
 export const metadata: Metadata = { title: "Hold calendar" };
@@ -20,7 +21,9 @@ export default async function HoldCalendarPage({ searchParams }: { searchParams:
         <Link href={`/review?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
           ← Review queue
         </Link>
-        <h1 className="mt-2 text-[32px] font-semibold tracking-[-0.03em]">Hold calendar</h1>
+        <h1 className="mt-2 flex items-center gap-2 text-[32px] font-semibold tracking-[-0.03em]">
+          <HoldIcon className="size-7 shrink-0" aria-hidden /> Hold calendar
+        </h1>
         <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
           When this week's holds expire, grouped by ring or pair — so a reviewer can plan which cases need attention first.
         </p>
@@ -29,7 +32,7 @@ export default async function HoldCalendarPage({ searchParams }: { searchParams:
             <Link
               key={w}
               href={`/review/calendar?week=${w}`}
-              className={`rounded-full border px-3 py-1.5 ${week === w ? "border-rf-ink bg-rf-ink text-white" : "border-rf-hairline hover:bg-rf-white"}`}
+              className={`rounded-full border px-3 py-1.5 ${week === w ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}
             >
               Week {w}
             </Link>

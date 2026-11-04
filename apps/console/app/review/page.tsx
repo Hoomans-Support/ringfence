@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { scoreRun, type ItemDecision } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek, type DemoWeek } from "@/lib/fixtures";
 import { prettifyReason } from "@/lib/reasons";
+import { HoldIcon, PayIcon, RuleIcon } from "@/app/icons";
 import { ReviewGrid, type ReviewRow } from "./data-grid";
 
 export const metadata: Metadata = { title: "Review queue" };
@@ -67,7 +68,9 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       };
     })
     .filter((r): r is ReviewRow => Boolean(r))
-    .sort((a, b) => a.group.localeCompare(b.group) || a.senderItemId.localeCompare(b.senderItemId));
+    // Soonest-expiring first, matching the caption below and the hold calendar's own ordering —
+    // a reviewer planning which cases need attention first sees the most urgent ones up top.
+    .sort((a, b) => Date.parse(a.holdExpiresAt) - Date.parse(b.holdExpiresAt) || a.senderItemId.localeCompare(b.senderItemId));
 
   const ringGroups = new Map<string, { size: number; ringId: string }>();
   for (const r of week === 0 ? [] : rings) {
@@ -88,14 +91,17 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       <div className="flex items-center justify-between">
         <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Review queue</h1>
         <div className="flex items-center gap-4">
-          <Link href={`/review/calendar?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
-            Hold calendar →
+          <Link href={`/review/calendar?week=${week}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-rf-slate hover:text-rf-ink">
+            <HoldIcon className="size-4" /> Hold calendar →
           </Link>
           <Link href={`/control-tower?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             Control tower →
           </Link>
-          <Link href="/rules" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
-            Rules →
+          <Link href="/fire-drill" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+            Fire drill →
+          </Link>
+          <Link href="/rules" className="inline-flex items-center gap-1.5 text-sm font-medium text-rf-slate hover:text-rf-ink">
+            <RuleIcon className="size-4" /> Rules →
           </Link>
         </div>
       </div>
@@ -108,18 +114,20 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             Previous week
           </Link>
         )}
-        <span className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white">Week {week}</span>
+        <span className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-rf-white">Week {week}</span>
         {nextWeek !== undefined && (
-          <Link href={`/review?week=${nextWeek}`} className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white hover:opacity-85">
+          <Link href={`/review?week=${nextWeek}`} className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-rf-white hover:opacity-85">
             Step to week {nextWeek}
           </Link>
         )}
       </div>
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[17px] leading-[1.55]">
-        <span>{paidCount} paid on time</span>
+        <span className="inline-flex items-center gap-1.5">
+          <PayIcon className="size-4 text-rf-ink" /> {paidCount} paid on time
+        </span>
         <span className="text-rf-hairline">·</span>
         <span className="inline-flex items-center gap-1.5 font-medium text-rf-spark-text">
-          <span aria-hidden className="inline-block size-2 rounded-full bg-rf-spark" />
+          <HoldIcon className="size-4 text-rf-spark" />
           {held.length} held
         </span>
         {[...ringGroups].map(([label, { size, ringId }]) => (

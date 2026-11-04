@@ -68,7 +68,7 @@ export function RingTimeline({ resources, events, payoutAt }: { resources: Resou
           <button
             type="button"
             onClick={() => schedulerRef.current?.scrollToDate(payoutDate)}
-            className="rounded-full bg-rf-ink px-3 py-1.5 text-sm text-white hover:opacity-85"
+            className="rounded-full bg-rf-ink px-3 py-1.5 text-sm text-rf-white hover:opacity-85"
           >
             Step to payout
           </button>

@@ -7,3 +7,4 @@ ponytail/
 next-env.d.ts
 *.tsbuildinfo
 .data/
+reminder.md

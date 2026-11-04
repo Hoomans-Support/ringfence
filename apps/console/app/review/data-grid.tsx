@@ -30,9 +30,11 @@ const theme = themeQuartz.withParams({
   fontFamily: "var(--font-sans)",
   accentColor: "var(--rf-spark)",
   foregroundColor: "var(--rf-ink)",
+  backgroundColor: "var(--rf-white)",
   borderColor: "var(--rf-hairline)",
   headerFontWeight: 600,
   headerTextColor: "var(--rf-slate)",
+  headerBackgroundColor: "var(--rf-white)",
   rowHoverColor: "var(--rf-mist)",
   oddRowBackgroundColor: "var(--rf-mist)",
 });

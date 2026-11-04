@@ -78,7 +78,7 @@ export function HoldCalendar({ resources, events }: { resources: Resource[]; eve
           <button
             type="button"
             onClick={() => schedulerRef.current?.scrollToDate(latestEnd)}
-            className="rounded-full bg-rf-ink px-3 py-1.5 text-sm text-white hover:opacity-85"
+            className="rounded-full bg-rf-ink px-3 py-1.5 text-sm text-rf-white hover:opacity-85"
           >
             Jump to latest expiry
           </button>

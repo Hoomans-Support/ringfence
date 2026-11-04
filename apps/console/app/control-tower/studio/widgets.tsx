@@ -174,7 +174,7 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as FalseHoldOptions;
   // Local and ephemeral, not a real release: the console never calls real PayPal or moves money
-  // (ground rules in agent-coordination.md) and there's no release endpoint anywhere yet - this
+  // (a ground rule from the A/B task split) and there's no release endpoint anywhere yet - this
   // simulates what design.md's own Voice example ("Held by mistake? Release it in one click.")
   // describes, same spirit as the review queue's fixture-only Reset/Step controls. The percentage
   // updates with it (not frozen at the original rate) so clicking it tells the whole story: catch
@@ -197,7 +197,7 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
           <button
             type="button"
             onClick={() => setReleased(true)}
-            className="rounded-full bg-rf-ink px-3 py-1 text-sm font-medium text-white hover:opacity-85"
+            className="rounded-full bg-rf-ink px-3 py-1 text-sm font-medium text-rf-white hover:opacity-85"
           >
             Release {remaining} honest {remaining === 1 ? "account" : "accounts"}
           </button>

@@ -5,7 +5,8 @@
  *
  * Computed independently rather than sharing a helper with review/page.tsx: this duplicates the
  * same week-0/week-2 decision-override logic already duplicated between review/page.tsx and
- * control-tower/page.tsx (a known, deferred issue - see agent-coordination.md's audit notes), but
+ * control-tower/page.tsx (a known, deferred issue - the internal notes doc that used to track it
+ * was removed before public submission, so this comment is now the only record of it), but
  * refactoring the already-shipped, screenshot-verified review queue this close to the deadline is
  * a bigger risk than one more small copy of it.
  */

@@ -69,7 +69,7 @@ Status colours — status is always a word plus a dot, never colour alone (see V
 | Held | `--spark` dot/icon + the word "Held" |
 | Recovered | ink, same treatment as Paid — it's good news, not an alarm |
 
-Dark mode is **not specified in the brand guide** (it only documents the logo's on-dark treatment: white nodes/lines, spark stays coral). If the console needs a dark theme, derive it — don't invent hex values and present them as brand-approved. A reasonable starting point: invert `--ink` and `--white` (page becomes near-black, text becomes near-white), keep `--spark` and `--spark-text` as-is (coral reads fine on dark, as the logo proves), and darken `--mist`/`--hairline` toward ink. Check contrast before shipping it.
+Dark mode is **not specified in the brand guide** (it only documents the logo's on-dark treatment: white nodes/lines, spark stays coral). Derived and shipped in `apps/console/app/globals.css`, guarded by `@media (prefers-color-scheme: dark)`: `--ink`/`--white` inverted (page becomes near-black `#111114`, text becomes near-white `#f2f2f0`), `--mist`/`--hairline` darkened toward ink, `--slate`/`--star-grey` lightened to hold their original contrast ratios against the new dark page, `--spark` kept as-is. One deviation from "keep spark as-is": `--spark-text`'s light-mode darkening (`#c2381a`) exists only to pass AA against a *white* page — against the dark page its contrast drops to ~3.5:1 and fails AA, so dark mode reuses full `--spark` (`#ff5a36`, ~6.1:1 on `#111114`) for coral text instead. Checked by computing WCAG contrast ratios by hand, not by eye.
 
 ## Type
 
@@ -97,7 +97,7 @@ Don't: glows, gradients, nebulae or starry-sky photos; connect innocent payees, 
 
 Hairline icons, round ends: 24px grid, 1.5px stroke, round caps and joins, ink only. Coral only for the Hold icon when it's the active state. Six named icons: **Pay, Hold, Trace, Recover, Rule, Agent**.
 
-These exist as inline `<svg>` in `asset/Ringfence-Brand-Guidelines.html` (not yet extracted as separate files — `grep -o '<svg...</svg>'` against that file is the fastest way to pull the real paths out when icon work starts, rather than redrawing them from the written spec). Do that before task 5/6 UI work needs them, so the icons match the guide exactly instead of being a plausible approximation.
+Extracted as React components in `apps/console/app/icons.tsx`, with paths copied verbatim from the inline `<svg>` markup in `asset/Ringfence-Brand-Guidelines.html` (section "06 — ICONS") rather than redrawn from the written spec, so they match the guide exactly. Each uses `currentColor` so a consumer sets ink (default) or, for Hold only, spark when it's the active state. Wired in so far: Pay/Hold on the review queue's stat row, Hold on the hold calendar and its nav link, Rule on the rules page and the ring detail page's proposed-rule section, Trace on the ring detail heading, Agent on the case file heading, Rule on the review queue's nav link. Recover isn't wired into any screen yet — there's no "recovered" status rendered anywhere in the console yet to attach it to.
 
 ## Voice
 
@@ -115,10 +115,10 @@ We sound like a calm analyst, not a security alarm. Short sentences, real number
 
 **Implementation note:** the engine's internal decision enum (`PAY` / `HOLD` / `BLOCK` — see `packages/engine/src/types.ts`) is a technical name and stays as-is in code. But nothing user-facing — a chip, a button, a log line in the README, a word in the video — should ever print "blocked". A confirmed ring is still shown as **held** (now confirmed) or, once money is clawed back, **recovered**. Flagging this now because it's an easy habit to break without noticing: `BLOCK` reads naturally as "Blocked" to anyone writing UI copy quickly.
 
-**Note, 4 Nov:** the row above read "Rule R-07 survived 200 disguised attacks" until Chelsea asked twice, specifically, for the control tower's rule-robustness card to drop "survived" (ambiguous — did the rule survive, or the attacks?) for "caught N of 200". Updated here to match. The `/rules` page (`packages/agents` task 7's own output) still uses the original "Survived" phrasing for the same underlying numbers — that page wasn't in scope for this change, so the two surfaces currently disagree; worth a deliberate pick one way or the other before the demo.
+**Note, 4 Nov:** the row above read "Rule R-07 survived 200 disguised attacks" until Chelsea asked twice, specifically, for the control tower's rule-robustness card to drop "survived" (ambiguous — did the rule survive, or the attacks?) for "caught N of 200". Updated here to match. The `/rules` page and the ring detail page's "Proposed rule" section used the original "Survived" phrasing for the same underlying numbers; both now say "Caught N of 200" to match the control tower, so all three surfaces agree.
 
 **Taglines** (from the brand guide): "Connect the dots before payday." · "One dot is a user. Twenty-three is a pattern." · "Pay the real ones. Hold the ring." · "Farming stops paying."
-Note: the produced tagline lockup PNGs (`ringfence-tagline-*.png`) instead read "Ready for the fake-account era" — that line isn't in the guide's own tagline list. Both exist; pick one deliberately for the README/video rather than mixing them, and flag the mismatch to Chelsea if it matters which.
+Note: the produced tagline lockup PNGs (`ringfence-tagline-*.png`) instead read "Ready for the fake-account era" — that line isn't in the guide's own tagline list. Picked "Pay the real ones. Hold the ring." (from the guide's own list, and already the home page's copy in `apps/console/app/page.tsx`) for text use — now also the README's tagline. The PNG lockups keep their own "Ready for the fake-account era" line as a separate hero-image treatment; not mixed into body copy.
 
 ## Shape, space and components
 
@@ -159,7 +159,9 @@ Short and purposeful: 150–200ms ease-out for chips, cards and dialogs. A held 
 
 ## Open questions
 
-- **Icons aren't extracted as files yet** — pull the 6 named icons (Pay, Hold, Trace, Recover, Rule, Agent) out of the brand guide's inline SVG before task 5/6 needs them (see Icons above).
-- **Tagline mismatch** between the brand guide's own list and the produced tagline PNGs (above) — pick one for the README/video.
-- **Dark mode isn't in the brand guide.** Decide if the console needs one; if so, derive it per the note under Colour and get it checked, rather than treating the derived values as official.
-- **Sponsor-tool reskinning** (AG Studio, APIMatic, Bryntum → ink/mist/coral instead of their stock themes) is required by the brand guide's partner rules, not optional polish — build it into tasks 4, 9 and 10 from the start rather than reskinning at the end.
+- ~~**Icons aren't extracted as files yet**~~ — done, see Icons above.
+- ~~**Tagline mismatch**~~ — done, see Taglines above.
+- ~~**Dark mode isn't in the brand guide.**~~ — done, see Colour above.
+- **Sponsor-tool reskinning** (AG Studio, APIMatic, Bryntum → ink/mist/coral instead of their stock themes) is required by the brand guide's partner rules, not optional polish — build it into tasks 4, 9 and 10 from the start rather than reskinning at the end. (AG Studio, AG Grid and Bryntum are done — tokens confirmed in `apps/console/app/globals.css`, `review/data-grid.tsx` and `control-tower/control-tower.tsx`. APIMatic reskinning status not checked as part of this pass.)
+- **Task numbering is inconsistent across the repo's own docs**, found 2026-11-04: this file (above, and the brand guide quote at the top) lists "AG Studio, APIMatic, Bryntum" against "tasks 4, 9 and 10" — read 1:1 that makes APIMatic task 10 — but `apps/console/.env.example` labels task 9 as AG Studio (the control-tower widgets). The authoritative numbered list is only in `final-prd.docx`, which isn't in this repo, so neither reading is confirmed. Check against the PRD before planning APIMatic work around a specific task number.
+- **True collapsible AG Grid row groups** (`apps/console/app/review/data-grid.tsx`) are a possible later polish item — AG Grid Community has no row-grouping (that's Enterprise), so the review queue fakes it today via sort order, a "Ring / pair" column and odd/even row striping. Not required for "shows 25 held, 23 under ring R-12."
