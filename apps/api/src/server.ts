@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { PayPalClient } from "@ringfence/paypal";
 import { boot } from "./boot";
+import { startWorkerLoop } from "./loop";
 import { ApiError, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import type { Rule } from "@ringfence/engine";
@@ -247,8 +248,11 @@ async function main(): Promise<void> {
   }
   const app = buildApp({ db, paypal });
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
-  // Render sends SIGTERM before replacing an instance: finish in-flight requests, then let go of the pool.
-  process.once("SIGTERM", () => void app.close().then(() => db.close()).then(() => process.exit(0)));
+  // The worker's loop in this process, instead of a separate worker service (render.yaml).
+  const stopWorker = process.env.RINGFENCE_INLINE_WORKER === "true" ? startWorkerLoop(db, paypal) : async () => undefined;
+  // Render sends SIGTERM before replacing an instance: finish in-flight requests and the loop's
+  // current pass, then let go of the pool.
+  process.once("SIGTERM", () => void Promise.all([app.close(), stopWorker()]).then(() => db.close()).then(() => process.exit(0)));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

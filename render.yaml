@@ -1,9 +1,13 @@
-# One Blueprint for Ringfence's payout side (PRD, Render: "hosting only"): the API, the background
-# worker, the hourly cron job and Postgres. Sandbox only: the PayPal client refuses any other host.
+# One Blueprint for Ringfence's payout side (PRD, Render: "hosting only"): the API with the background
+# worker's loop inside it, the hourly cron job and Postgres. Sandbox only: the PayPal client refuses
+# any other host.
 #
-# Plans: Render has no free tier for workers or cron jobs, and a free Postgres expires after 30 days
-# (judging runs to 21 December), so everything is on the smallest paid plan. The API alone could use
-# `plan: free` if a ~1 minute wake-up after 15 idle minutes is acceptable (PayPal retries a timed-out webhook).
+# Plans, chosen for cost: the API is on Render's free plan. It sleeps after 15 idle minutes and takes
+# about a minute to wake on the next request; PayPal retries a webhook that times out, and the hourly
+# cron sends and reconciles on its own, so nothing is lost while it sleeps. The worker's loop runs in
+# the API (RINGFENCE_INLINE_WORKER) instead of a paid worker; apps/api/src/worker.ts still runs it as
+# a separate process if that's ever wanted. Cron jobs have no free plan (billed per second, $1 a month
+# minimum), and a free Postgres is deleted 30 days after creation, before judging ends, so both are paid.
 #
 # Secrets marked `sync: false` are asked for once, when the Blueprint is first created. RINGFENCE_API_KEY,
 # RINGFENCE_MCP_KEY and ADMIN_TOKEN are generated; copy them from the API's Environment tab.
@@ -17,7 +21,7 @@ envVarGroups:
         value: sandbox
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
-      # API, worker and cron each pace their own PayPal calls; at 4s apart they stay under the
+      # The API and the cron each pace their own PayPal calls; at 4s apart they stay well under the
       # sandbox's 50 requests a minute between them.
       - key: PAYPAL_MIN_INTERVAL_MS
         value: "4000"
@@ -31,7 +35,7 @@ services:
   - type: web
     name: paypal-hackathon-service # the first deploy's name: keeps its URL and the webhook registered with PayPal
     runtime: node
-    plan: 0.5c-512mb
+    plan: free
     buildCommand: npm ci --include=dev
     startCommand: npx tsx apps/api/src/server.ts
     healthCheckPath: /health
@@ -49,29 +53,14 @@ services:
         sync: false
       - key: RINGFENCE_PROGRAM_ID
         value: budgetapp
+      - key: RINGFENCE_INLINE_WORKER # the outbox and polling loop, in this process
+        value: "true"
       - key: RINGFENCE_API_KEY
         generateValue: true
       - key: RINGFENCE_MCP_KEY # read-only, for AI agents on POST /mcp
         generateValue: true
       - key: ADMIN_TOKEN
         generateValue: true
-
-  - type: worker
-    name: ringfence-worker
-    runtime: node
-    plan: 0.5c-512mb
-    buildCommand: npm ci --include=dev
-    startCommand: npx tsx apps/api/src/worker.ts
-    buildFilter:
-      paths: ["apps/api/**", "packages/**", "db/**", "package.json", "package-lock.json"]
-    envVars:
-      - fromGroup: ringfence-paypal
-      - key: DATABASE_URL
-        fromDatabase: { name: ringfence-db, property: connectionString }
-      - key: PAYPAL_CLIENT_ID
-        sync: false
-      - key: PAYPAL_CLIENT_SECRET
-        sync: false
 
   - type: cron
     name: ringfence-reconcile
