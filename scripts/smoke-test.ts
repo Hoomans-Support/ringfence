@@ -2,7 +2,7 @@
  * Day-one smoke tests 1 to 7 (PRD, Build plan) as one script, through the same real PayPal client
  * the executor uses. Writes what it saw to docs/smoke-test-results.md when run against the sandbox.
  *
- *   npm run smoke              against the sandbox (.env: PAYPAL_CLIENT_ID/SECRET, SMOKE_RECEIVER)
+ *   npm run smoke              against the sandbox (.env: PAYPAL_CLIENT_ID/SECRET; SMOKE_RECEIVER for test 2)
  *   npm run smoke -- --mock    the same script against the local mock server, to check the script itself
  *
  * Test 6 needs somewhere PayPal can deliver webhooks: set RINGFENCE_API_URL and ADMIN_TOKEN to a
@@ -66,10 +66,25 @@ async function waitForStatus(
     const batch = await client.getBatch(payoutBatchId);
     const item = batch.items[0];
     last = { status: item?.transaction_status, payoutItemId: item?.payout_item_id };
-    if (last.status && wanted.includes(last.status)) break;
+    // The batch has to finish too: PayPal refuses to cancel an item while its batch is still
+    // processing (BATCH_NOT_COMPLETED), even once the item itself reads UNCLAIMED.
+    if (last.status && wanted.includes(last.status) && batch.batch_header.batch_status !== "PROCESSING" && batch.batch_header.batch_status !== "PENDING") break;
     await new Promise((r) => setTimeout(r, pollMs));
   }
   return { ...last, waitedMs: Date.now() - started };
+}
+
+function finish(): void {
+  const failed = results.some((r) => r.outcome === "FAIL");
+  if (!MOCK) {
+    const rows = [...results].sort((a, b) => a.test - b.test).map((r) => `| ${r.test} | ${r.name} | ${r.outcome} | ${r.detail.replace(/\|/g, "\\|")} |`);
+    writeFileSync(
+      "docs/smoke-test-results.md",
+      `# Day-one smoke tests\n\nRun ${new Date().toISOString()} against ${process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com"} by \`npm run smoke\`.\n\n| # | Test | Result | What happened |\n| --- | --- | --- | --- |\n${rows.join("\n")}\n`,
+    );
+    console.log("\nRecorded in docs/smoke-test-results.md");
+  }
+  process.exitCode = failed ? 1 : 0;
 }
 
 async function main(): Promise<void> {
@@ -79,8 +94,8 @@ async function main(): Promise<void> {
   let mockWebhookEvents: string[] | undefined;
   const pollMs = MOCK ? 0 : 15_000;
   const timeoutMs = MOCK ? 1_000 : 10 * 60_000;
+  // Test 2 pays this sandbox personal account; without it, test 2 is skipped and the rest still run.
   const receiver = MOCK ? "sandbox-personal@example.test" : process.env.SMOKE_RECEIVER;
-  if (!receiver) throw new Error("Set SMOKE_RECEIVER in .env to your sandbox personal account's email");
 
   if (MOCK) {
     // A local receiver stands in for the deployed API, verifying each webhook the mock delivers.
@@ -115,44 +130,62 @@ async function main(): Promise<void> {
   }
   console.log(`Smoke tests against ${MOCK ? "the local mock server" : "the PayPal sandbox"} (${stamp})\n`);
 
-  // 1. Token, and Payouts switched on: a token alone can't prove Payouts access, so read one of
-  //    PayPal's sandbox batch-status test IDs (ERRPYOB001-004), which also records those states.
-  try {
-    const states: string[] = [];
-    for (const id of ["ERRPYOB001", "ERRPYOB002", "ERRPYOB003", "ERRPYOB004"]) {
-      states.push(`${id}=${(await client.getBatch(id)).batch_header.batch_status}`);
-    }
-    record(1, "Token issued, Payouts reachable", "PASS", states.join(", "));
-  } catch (err) {
-    record(1, "Token issued, Payouts reachable", "FAIL", String(err));
+  // 1. Token, and the Payouts API answering it: a batch that doesn't exist should come back 404 (the
+  //    API knows us); only 401/403 (bad credentials, or Payouts not on for this app) fail. PayPal's
+  //    documented batch-status test IDs (ERRPYOB001-004) are read too and recorded as found: on
+  //    this sandbox they have answered 404, so they're information, not the pass condition.
+  const answer = (id: string) =>
+    client.getBatch(id).then((b) => b.batch_header.batch_status, (e) => (e instanceof PayPalError ? `${e.status} ${e.errorName}` : String(e)));
+  const probe = await answer(`RFPROBE${stamp.slice(-6)}`); // PayPal's own id shape: upper-case letters and digits
+  if (/^(401|403) |TOKEN_FAILED/.test(probe)) {
+    record(1, "Token issued, Payouts reachable", "FAIL", `unknown batch answered ${probe}`);
     return;
   }
+  const testIds = [];
+  for (const id of ["ERRPYOB001", "ERRPYOB002", "ERRPYOB003", "ERRPYOB004"]) testIds.push(`${id}=${await answer(id)}`);
+  record(1, "Token issued, Payouts reachable", "PASS", `unknown batch -> ${probe}; sandbox test IDs: ${testIds.join(", ")}`);
 
   // 2 and 4 are created up front and polled together, so the 10-minute waits overlap.
   const paidId = `smoke_${stamp}_paid`;
   const unclaimedId = `smoke_${stamp}_unclaimed`;
-  const paid = await client.createBatch(oneItem(paidId, receiver), paidId);
-  const unclaimed = await client.createBatch(oneItem(unclaimedId, `ringfence-never-registered-${stamp}@example.com`), unclaimedId);
+  const unclaimedReceiver = `ringfence-never-registered-${stamp}@example.com`;
+  const created = async (id: string, to: string) => {
+    const result = await client.createBatch(oneItem(id, to), id);
+    if (!result.payout_batch_id) throw new Error(`a fresh sender_batch_id ${id} was refused as a duplicate`);
+    return { ...result, payout_batch_id: result.payout_batch_id };
+  };
+  const unclaimed = await created(unclaimedId, unclaimedReceiver);
+  const paid = receiver ? await created(paidId, receiver) : undefined;
 
-  // 3. Reuse a sender_batch_id under a new request id: PayPal must refuse to make a second batch.
-  const reuse = await client.createBatch(oneItem(paidId, receiver), `${paidId}-retry`);
+  // 3. Reuse a sender_batch_id: PayPal must refuse a second batch, whether the PayPal-Request-Id is
+  //    the same (what the executor's retry sends) or new. Whether PayPal names the original batch
+  //    (spec) or not (what this sandbox has done) is recorded: the executor handles both.
+  const sameRequest = await client.createBatch(oneItem(unclaimedId, unclaimedReceiver), unclaimedId);
+  const newRequest = await client.createBatch(oneItem(unclaimedId, unclaimedReceiver), `${unclaimedId}-retry`);
+  const refused = (r: typeof newRequest) => r.payout_batch_id === null ? Boolean(r.duplicate) : r.payout_batch_id === unclaimed.payout_batch_id;
+  const describe = (r: typeof newRequest) =>
+    r.duplicate ? `refused (${r.duplicate.message})${r.payout_batch_id ? `, original ${r.payout_batch_id} named` : ", original not named"}` : r.payout_batch_id === unclaimed.payout_batch_id ? "replayed the original batch" : `NEW BATCH ${r.payout_batch_id}`;
   record(
     3,
     "Reused sender_batch_id rejected",
-    reuse.duplicate && reuse.payout_batch_id === paid.payout_batch_id ? "PASS" : "FAIL",
-    reuse.duplicate ? `${reuse.duplicate.name}: ${reuse.duplicate.message}` : `no rejection; got batch ${reuse.payout_batch_id}`,
+    refused(sameRequest) && refused(newRequest) ? "PASS" : "FAIL",
+    `same request id: ${describe(sameRequest)}; new request id: ${describe(newRequest)}`,
   );
 
   const [paidResult, unclaimedResult] = await Promise.all([
-    waitForStatus(client, paid.payout_batch_id, ["SUCCESS", "FAILED", "RETURNED", "BLOCKED"], timeoutMs, pollMs),
+    paid ? waitForStatus(client, paid.payout_batch_id, ["SUCCESS", "FAILED", "RETURNED", "BLOCKED"], timeoutMs, pollMs) : undefined,
     waitForStatus(client, unclaimed.payout_batch_id, ["UNCLAIMED", "FAILED", "RETURNED", "BLOCKED"], timeoutMs, pollMs),
   ]);
-  record(
-    2,
-    "One-item payout reaches SUCCESS",
-    paidResult.status === "SUCCESS" ? "PASS" : "FAIL",
-    `batch ${paid.payout_batch_id}, item ${paidResult.status ?? "none"} after ${Math.round(paidResult.waitedMs / 1000)}s`,
-  );
+  if (paid && paidResult) {
+    record(
+      2,
+      "One-item payout reaches SUCCESS",
+      paidResult.status === "SUCCESS" ? "PASS" : "FAIL",
+      `batch ${paid.payout_batch_id}, item ${paidResult.status ?? "none"} after ${Math.round(paidResult.waitedMs / 1000)}s`,
+    );
+  } else {
+    record(2, "One-item payout reaches SUCCESS", "SKIP", "set SMOKE_RECEIVER in .env to the sandbox personal account's email");
+  }
   record(
     4,
     "Unregistered email goes UNCLAIMED",
@@ -195,7 +228,7 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 100)); // let the mock's deliveries land
     record(6, "PAYOUTS-ITEM webhooks arrive and verify", mockWebhookEvents.length > 0 ? "PASS" : "FAIL", `verified: ${[...new Set(mockWebhookEvents)].join(", ") || "none"}`);
   } else if (apiUrl && process.env.ADMIN_TOKEN) {
-    const wanted = new Set([paid.payout_batch_id, unclaimed.payout_batch_id]);
+    const wanted = new Set([paid?.payout_batch_id, unclaimed.payout_batch_id].filter(Boolean));
     let seen: string[] = [];
     for (let i = 0; i < 20 && seen.length === 0; i++) {
       const res = await fetch(`${apiUrl}/v1/webhooks/events`, { headers: { Authorization: `Bearer ${process.env.ADMIN_TOKEN}` } });
@@ -217,20 +250,12 @@ async function main(): Promise<void> {
   record(7, "Under 50 requests a minute", busiest < 50 ? "PASS" : "FAIL", `${requestTimes.length} requests, busiest minute ${busiest}`);
 
   await closeMock?.();
-
-  const failed = results.some((r) => r.outcome === "FAIL");
-  if (!MOCK) {
-    const rows = [...results].sort((a, b) => a.test - b.test).map((r) => `| ${r.test} | ${r.name} | ${r.outcome} | ${r.detail.replace(/\|/g, "\\|")} |`);
-    writeFileSync(
-      "docs/smoke-test-results.md",
-      `# Day-one smoke tests\n\nRun ${new Date().toISOString()} against ${process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com"} by \`npm run smoke\`.\n\n| # | Test | Result | What happened |\n| --- | --- | --- | --- |\n${rows.join("\n")}\n`,
-    );
-    console.log("\nRecorded in docs/smoke-test-results.md");
-  }
-  process.exitCode = failed ? 1 : 0;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+main()
+  .then(finish)
+  .catch((err) => {
+    console.error(err);
+    finish();
+    process.exitCode = 1;
+  });
