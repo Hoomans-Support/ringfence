@@ -66,7 +66,7 @@ function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as RingGraphOptions;
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="flex h-full flex-col gap-2 p-3">
       <div>
         <WidgetHeading>Ring graph</WidgetHeading>
         <p className="text-sm text-rf-slate">
