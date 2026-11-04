@@ -8,14 +8,9 @@
  * time, without deciding or sending anything again.
  */
 import { evaluateRules, type PayoutItem, type PayoutRun } from "@ringfence/engine";
-import { sha256, withProgram, type Db, type Queryable } from "./db";
+import { ApiError, audit, sha256, withProgram, type Db } from "./db";
+import { loadRuleContext } from "./learning";
 import type { ItemState } from "./states";
-
-export class RunRejected extends Error {
-  constructor(readonly statusCode: 400 | 409, message: string) {
-    super(message);
-  }
-}
 
 /** The request body: PayPal's own, with Ringfence's optional `context` on each item. */
 export interface RunRequest {
@@ -57,7 +52,7 @@ const STATE_FOR: Record<string, ItemState> = { PAY: "queued", HOLD: "held", BLOC
 export async function submitRun(db: Db, programId: string, body: RunRequest): Promise<{ created: boolean; runId: string }> {
   const runId = body.sender_batch_header.sender_batch_id;
   const ids = new Set(body.items.map((i) => i.sender_item_id));
-  if (ids.size !== body.items.length) throw new RunRejected(400, "sender_item_id must be unique within a run");
+  if (ids.size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
 
   const receivedAt = new Date().toISOString();
   const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
@@ -67,9 +62,10 @@ export async function submitRun(db: Db, programId: string, body: RunRequest): Pr
       const [existing] = await q.query("SELECT 1 FROM runs WHERE program_id = $1 AND run_id = $2", [programId, runId]);
       if (existing) return { created: false, runId };
       const [taken] = await q.query("SELECT 1 FROM batches WHERE sender_batch_id = $1", [runId]);
-      if (taken) throw new RunRejected(409, `sender_batch_id ${runId} is already in use`);
+      if (taken) throw new ApiError(409, `sender_batch_id ${runId} is already in use`);
 
-      const result = evaluateRules(run);
+      const { rules, ctx, version } = await loadRuleContext(q, programId);
+      const result = evaluateRules(run, rules, ctx, version);
       const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
       const anyPay = result.decisions.some((d) => d.decision === "PAY");
 
@@ -117,10 +113,6 @@ export async function submitRun(db: Db, programId: string, body: RunRequest): Pr
     if ((err as { code?: string }).code === "23505") return { created: false, runId };
     throw err;
   }
-}
-
-export async function audit(q: Queryable, programId: string, actor: string, action: string, detail: Record<string, unknown>): Promise<void> {
-  await q.query("INSERT INTO audit_log (program_id, actor, action, detail) VALUES ($1, $2, $3, $4)", [programId, actor, action, JSON.stringify(detail)]);
 }
 
 export async function getRun(db: Db, programId: string, runId: string): Promise<RunResponse | undefined> {

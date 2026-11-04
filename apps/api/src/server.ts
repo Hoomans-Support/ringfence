@@ -8,9 +8,12 @@ import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { createPayPalClient, type PayPalClient } from "@ringfence/paypal";
-import { connect, ensureProgram, migrate, programForKey, type Db } from "./db";
+import { ApiError, connect, ensureProgram, migrate, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
-import { getRun, RunRejected, submitRun, type RunRequest } from "./runs";
+import type { Rule } from "@ringfence/engine";
+import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
+import { approveRule, listRules, proposeRule } from "./learning";
+import { getRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
 
 declare module "fastify" {
@@ -73,6 +76,17 @@ const runBody = {
   },
 } as const;
 
+const releaseBody = {
+  type: "object",
+  required: ["run_id"],
+  properties: {
+    run_id: { type: "string", minLength: 1 },
+    sender_item_ids: { type: "array", maxItems: 15_000, items: { type: "string", maxLength: 63 } },
+    hold_group_id: { type: "string", maxLength: 63 },
+    released_by: { type: "string", maxLength: 255 },
+  },
+} as const;
+
 export interface AppDeps {
   db: Db;
   paypal: PayPalClient;
@@ -123,6 +137,43 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
       const run = await getRun(db, req.programId, req.params.id);
       return run ?? reply.code(404).send({ error: "no such run" });
     });
+
+    v1.post<{ Body: ReleaseRequest }>("/holds/release", { schema: { body: releaseBody } }, async (req, reply) => {
+      const release = await releaseHolds(db, req.programId, req.body);
+      let sent = true;
+      if (release.created && inlineSend) {
+        sent = await drainOutbox(db, paypal, { only: release.sender_batch_id }).then(() => true, () => false);
+      }
+      const [batch] = await db.query<{ payout_batch_id: string | null; batch_status: string | null }>(
+        "SELECT payout_batch_id, batch_status FROM batches WHERE program_id = $1 AND sender_batch_id = $2",
+        [req.programId, release.sender_batch_id],
+      );
+      return reply.code(!release.created ? 200 : sent ? 201 : 202).send({ ...release, ...batch });
+    });
+
+    v1.post<{ Params: { id: string }; Body: { run_id: string; confirmed_by?: string } }>(
+      "/rings/:id/confirm",
+      { schema: { body: { type: "object", required: ["run_id"], properties: { run_id: { type: "string" }, confirmed_by: { type: "string", maxLength: 255 } } } } },
+      async (req) => confirmRing(db, req.programId, req.params.id, req.body),
+    );
+
+    v1.get("/rules", async (req) => listRules(db, req.programId));
+
+    v1.post<{ Body: { rule: Rule; source?: string } }>(
+      "/rules",
+      { schema: { body: { type: "object", required: ["rule"], properties: { rule: { type: "object" }, source: { type: "string", maxLength: 255 } } } } },
+      async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body.rule, req.body.source)),
+    );
+
+    v1.post<{ Params: { id: string }; Body: { approved_by: string; acknowledge_flags?: boolean } }>(
+      "/rules/:id/approve",
+      {
+        schema: {
+          body: { type: "object", required: ["approved_by"], properties: { approved_by: { type: "string", minLength: 1, maxLength: 255 }, acknowledge_flags: { type: "boolean" } } },
+        },
+      },
+      async (req) => approveRule(db, req.programId, req.params.id, req.body.approved_by, req.body.acknowledge_flags),
+    );
   }, { prefix: "/v1" });
 
   // PayPal webhooks: no API key, the signature is the authentication. /webhooks/paypal is the path
@@ -140,7 +191,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   });
 
   app.setErrorHandler((err, _req, reply) => {
-    if (err instanceof RunRejected) return reply.code(err.statusCode).send({ error: err.message });
+    if (err instanceof ApiError) return reply.code(err.statusCode).send({ error: err.message });
     if ((err as { validation?: unknown }).validation) return reply.code(400).send({ error: (err as Error).message });
     reply.log.error(err);
     return reply.code(500).send({ error: "internal error" });

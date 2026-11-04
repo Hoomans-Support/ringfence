@@ -17,8 +17,7 @@
  * `chaos.hook(point)` marks the places the chaos CLI kills the process (RINGFENCE_CRASH_AT).
  */
 import type { PayoutBatchRequest, PayPalClient } from "@ringfence/paypal";
-import { withProgram, type Db } from "./db";
-import { audit } from "./runs";
+import { audit, withProgram, type Db } from "./db";
 
 export const chaos = {
   hook(point: string): void {

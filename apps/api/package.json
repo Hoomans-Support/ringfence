@@ -7,6 +7,7 @@
     "start": "tsx src/server.ts"
   },
   "dependencies": {
+    "@ringfence/agents": "*",
     "@ringfence/engine": "*",
     "@ringfence/paypal": "*",
     "fastify": "^5.12.8",

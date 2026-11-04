@@ -82,3 +82,14 @@ export async function programForKey(db: Db, apiKey: string): Promise<string | un
   const [row] = await db.query<{ id: string }>("SELECT id FROM programs WHERE api_key_hash = $1", [sha256(apiKey)]);
   return row?.id;
 }
+
+/** A request the API refuses, with the status code to refuse it with. */
+export class ApiError extends Error {
+  constructor(readonly statusCode: 400 | 404 | 409, message: string) {
+    super(message);
+  }
+}
+
+export async function audit(q: Queryable, programId: string, actor: string, action: string, detail: Record<string, unknown>): Promise<void> {
+  await q.query("INSERT INTO audit_log (program_id, actor, action, detail) VALUES ($1, $2, $3, $4)", [programId, actor, action, JSON.stringify(detail)]);
+}

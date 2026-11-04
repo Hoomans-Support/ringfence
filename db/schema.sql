@@ -78,6 +78,36 @@ CREATE TABLE IF NOT EXISTS outbox (
 );
 CREATE INDEX IF NOT EXISTS outbox_pending ON outbox (id) WHERE status = 'pending';
 
+-- Learned rules, versioned (FR-4, FR-11): proposing an id again adds a version. Only an approved
+-- version applies to new runs, and it carries its provenance: the ring it came from, its backtest,
+-- its red-team score, and who approved it.
+CREATE TABLE IF NOT EXISTS rules (
+  program_id  text NOT NULL REFERENCES programs (id),
+  rule_id     text NOT NULL,
+  version     integer NOT NULL,
+  body        jsonb NOT NULL,              -- { id, action, when: { all: [...] } }
+  source      text,
+  status      text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved')),
+  backtest    jsonb,
+  red_team    jsonb,
+  flags       jsonb NOT NULL DEFAULT '[]', -- e.g. "holds_over_5_percent": needs a deliberate second look
+  approved_by text,
+  approved_at timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (program_id, rule_id, version)
+);
+
+-- Devices and normalized payout addresses from rings this program confirmed (starter rule S-02).
+CREATE TABLE IF NOT EXISTS known_fraud (
+  program_id text NOT NULL REFERENCES programs (id),
+  kind       text NOT NULL CHECK (kind IN ('device', 'payout_address')),
+  value      text NOT NULL,
+  ring_id    text NOT NULL,
+  run_id     text NOT NULL,
+  added_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (program_id, kind, value)
+);
+
 -- Every verified PayPal webhook, keyed by PayPal's event id: a redelivered event is recognized and
 -- applied once. Ids and statuses only, no payee data, so like batches it isn't tenant-scoped.
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -106,7 +136,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['runs', 'items', 'audit_log'] LOOP
+  FOREACH t IN ARRAY ARRAY['runs', 'items', 'audit_log', 'rules', 'known_fraud'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS tenant ON %I', t);

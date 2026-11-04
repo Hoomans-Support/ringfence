@@ -11,9 +11,8 @@
  *   trusting either side to fix it silently.
  */
 import type { ItemStatus, PayoutItemDetails, PayPalClient, WebhookHeaders } from "@ringfence/paypal";
-import { withProgram, type Db, type Queryable } from "./db";
+import { audit, withProgram, type Db, type Queryable } from "./db";
 import { chaos } from "./executor";
-import { audit } from "./runs";
 import { movableFrom, stateForPayPal } from "./states";
 
 interface BatchRow {
