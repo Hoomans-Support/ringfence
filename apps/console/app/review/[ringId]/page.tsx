@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { checkClaims, investigate, redTeamRule, type Claim } from "@ringfence/agents";
+import { checkClaims, holdEmailCopy, investigate, redTeamRule, releaseEmailCopy, type Claim } from "@ringfence/agents";
 import { scoreRun, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek } from "@/lib/fixtures";
 import { layoutRing } from "@/lib/ring-layout";
@@ -60,6 +60,7 @@ export default async function RingDetailPage({ params, searchParams }: { params:
 
   const caseFile = week === 1 ? checkClaims(investigate(ring, run), run) : undefined;
   const proposedRule = caseFile ? redTeamRule(caseFile.proposed_rule) : undefined;
+  const sampleMemberItem = run.items.find((item) => item.sender_item_id === ring.member_sender_item_ids[0]);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 bg-rf-mist px-8 py-6 text-rf-ink">
@@ -172,6 +173,21 @@ export default async function RingDetailPage({ params, searchParams }: { params:
         <p className="rounded-[20px] border border-rf-hairline bg-rf-white p-4 text-sm text-rf-slate">
           Simulated Week 2 fixture: the 18 isolated accounts are shown as held by R-07 (learned). A's evaluator will supply the production decision and red-team score.
         </p>
+      )}
+
+      {sampleMemberItem && (
+      <section>
+        <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Simulated payee email</h2>
+        <p className="mt-1 text-sm text-rf-slate">Preview only — nothing is sent in this demo. FR-24: the wording never accuses the payee.</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {[holdEmailCopy(sampleMemberItem.amount), releaseEmailCopy(sampleMemberItem.amount)].map((email) => (
+            <div key={email.subject} className="rounded-[20px] border border-rf-hairline bg-rf-white p-4">
+              <p className="font-mono text-xs uppercase tracking-wide text-rf-slate">{email.subject}</p>
+              <p className="mt-2 text-sm leading-[1.55] text-rf-ink">{email.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
       )}
     </main>
   );

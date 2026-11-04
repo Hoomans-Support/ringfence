@@ -1,4 +1,4 @@
-export { aliasPatternKey, isDisposableDomain, normalizeEmail } from "./identity";
+export { aliasPatternKey, isDisposableDomain, maskEmail, normalizeEmail } from "./identity";
 export type { NormalizedEmail } from "./identity";
 export { buildGraph, communityHasHardLink, detectCommunities, EDGE_THRESHOLD } from "./graph";
 export type { GraphBuildResult } from "./graph";

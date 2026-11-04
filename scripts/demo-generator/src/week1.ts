@@ -46,6 +46,12 @@ export function generateWeek1(seed: number): WeekFixture {
     n += 1;
     return n;
   };
+  // Names already spoken for by the roommates and coworkers below, so the honest shuffle never
+  // hands one of its 382 members the same (first, last) pair - and therefore the same email - as
+  // one of them. Two different synthetic accounts sharing a real payout address isn't just a false
+  // hold, it's invalid fixture data (normalizeEmail treats "same mailbox" as "same person" by
+  // design); caught by a sensitivity test run at seeds other than this file's own default of 42.
+  const reservedNamePairs = new Set<string>();
 
   // --- The 23-account ring, split across 3 devices, one shared network ---
   for (let i = 0; i < RING_SIZE; i++) {
@@ -86,6 +92,7 @@ export function generateWeek1(seed: number): WeekFixture {
     const senderItemId = `ref_${id}`;
     const person = roommates[i];
     if (!person) continue;
+    reservedNamePairs.add(`${person.first}|${person.last}`);
     items.push({
       recipient_type: "EMAIL",
       receiver: `${person.first.toLowerCase()}.${person.last.toLowerCase()}@${person.domain}`,
@@ -112,6 +119,7 @@ export function generateWeek1(seed: number): WeekFixture {
     const senderItemId = `ref_${id}`;
     const first = FIRST_NAMES[(10 + i) % FIRST_NAMES.length] ?? "Jordan";
     const last = LAST_NAMES[(20 + i) % LAST_NAMES.length] ?? "Lee";
+    reservedNamePairs.add(`${first}|${last}`);
     items.push({
       recipient_type: "EMAIL",
       receiver: `${first.toLowerCase()}.${last.toLowerCase()}@outlook.com`,
@@ -135,6 +143,7 @@ export function generateWeek1(seed: number): WeekFixture {
   const namePairs: Array<{ first: string; last: string }> = [];
   for (const first of FIRST_NAMES) {
     for (const last of LAST_NAMES) {
+      if (reservedNamePairs.has(`${first}|${last}`)) continue;
       namePairs.push({ first, last });
     }
   }

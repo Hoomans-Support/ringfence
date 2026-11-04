@@ -16,6 +16,8 @@
  *   (0.35) edge, not a claim that these are the same mailbox.
  */
 
+import { createHash } from "node:crypto";
+
 const GMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
 // Representative, not exhaustive — enough to flag the common disposable
@@ -84,4 +86,14 @@ export function aliasPatternKey(raw: string): string {
   const noTrailingDigits = noDots.replace(/\d+$/, "");
   const base = noTrailingDigits.length > 0 ? noTrailingDigits : noDots;
   return `${base}@${domain}`;
+}
+
+/**
+ * The non-functional "Privacy" requirement: emails are masked before anything reaches a model.
+ * Deterministic (same address always masks to the same token) so a model reasoning across several
+ * mentions of one payee can still tell "same person" without ever seeing the real mailbox.
+ */
+export function maskEmail(raw: string): string {
+  const hash = createHash("sha256").update(raw.trim().toLowerCase()).digest("hex").slice(0, 10);
+  return `payee_${hash}`;
 }

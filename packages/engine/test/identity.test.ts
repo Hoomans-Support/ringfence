@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aliasPatternKey, isDisposableDomain, normalizeEmail } from "../src/identity";
+import { aliasPatternKey, isDisposableDomain, maskEmail, normalizeEmail } from "../src/identity";
 
 describe("normalizeEmail", () => {
   it("strips Gmail dots", () => {
@@ -59,5 +59,27 @@ describe("aliasPatternKey", () => {
 
   it("does not match the same base name on a different domain", () => {
     expect(aliasPatternKey("alice1@gmail.com")).not.toBe(aliasPatternKey("alice2@yahoo.com"));
+  });
+});
+
+describe("maskEmail", () => {
+  it("is deterministic: the same address always masks the same way", () => {
+    expect(maskEmail("alice@gmail.com")).toBe(maskEmail("alice@gmail.com"));
+  });
+
+  it("gives different addresses different masks", () => {
+    expect(maskEmail("alice@gmail.com")).not.toBe(maskEmail("bob@gmail.com"));
+  });
+
+  it("contains neither the local part nor the domain of the real address", () => {
+    const masked = maskEmail("john.doe@example.com");
+    expect(masked).not.toContain("john");
+    expect(masked).not.toContain("doe");
+    expect(masked).not.toContain("example");
+    expect(masked).not.toContain("@");
+  });
+
+  it("is case-insensitive, like the mailbox it stands for", () => {
+    expect(maskEmail("Alice@Gmail.com")).toBe(maskEmail("alice@gmail.com"));
   });
 });
