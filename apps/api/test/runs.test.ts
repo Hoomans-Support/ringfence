@@ -102,21 +102,16 @@ describe("tenant isolation", () => {
     await app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: week1 });
     expect((await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: { authorization: "Bearer survey-key" } })).statusCode).toBe(404);
 
-    // PGlite connects as a superuser, which bypasses RLS; check the policy as an ordinary role.
-    await db.exec("CREATE ROLE tenant_probe; GRANT SELECT ON items TO tenant_probe; SET ROLE tenant_probe");
-    try {
-      const count = async (program: string) => {
-        const [row] = await db.tx(async (q) => {
-          await q.query("SELECT set_config('app.program_id', $1, true)", [program]);
-          return q.query<{ n: number }>("SELECT count(*)::int AS n FROM items");
-        });
-        return row?.n;
-      };
-      expect((await db.query<{ n: number }>("SELECT count(*)::int AS n FROM items"))[0]?.n).toBe(0);
-      expect(await count("surveyapp")).toBe(0);
-      expect(await count("budgetapp")).toBe(412);
-    } finally {
-      await db.exec("RESET ROLE");
-    }
+    // Tests run as an ordinary role (helpers.ts), so this is row-level security itself answering.
+    const count = async (program: string) => {
+      const [row] = await db.tx(async (q) => {
+        await q.query("SELECT set_config('app.program_id', $1, true)", [program]);
+        return q.query<{ n: number }>("SELECT count(*)::int AS n FROM items");
+      });
+      return row?.n;
+    };
+    expect((await db.query<{ n: number }>("SELECT count(*)::int AS n FROM items"))[0]?.n).toBe(0);
+    expect(await count("surveyapp")).toBe(0);
+    expect(await count("budgetapp")).toBe(412);
   });
 });

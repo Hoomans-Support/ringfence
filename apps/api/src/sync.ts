@@ -93,11 +93,21 @@ async function applyBatch(db: Db, batch: BatchRow, paypal: PayPalClient, afterFi
 
 /** Polls every batch that still has an item waiting on PayPal. Returns how many items moved. */
 export async function pollBatches(db: Db, paypal: PayPalClient): Promise<number> {
-  const batches = await db.query<BatchRow>(
-    `SELECT b.sender_batch_id, b.program_id, b.payout_batch_id FROM batches b
-     WHERE b.payout_batch_id IS NOT NULL
-       AND EXISTS (SELECT 1 FROM items i WHERE i.program_id = b.program_id AND i.batch_id = b.sender_batch_id AND i.state = 'sent')`,
-  );
+  // Items are tenant-scoped, so which batches still wait on PayPal is asked one program at a time.
+  const programs = await db.query<{ program_id: string }>("SELECT DISTINCT program_id FROM batches WHERE payout_batch_id IS NOT NULL");
+  const batches: BatchRow[] = [];
+  for (const { program_id } of programs) {
+    batches.push(
+      ...(await withProgram(db, program_id, (q) =>
+        q.query<BatchRow>(
+          `SELECT b.sender_batch_id, b.program_id, b.payout_batch_id FROM batches b
+           WHERE b.program_id = $1 AND b.payout_batch_id IS NOT NULL
+             AND EXISTS (SELECT 1 FROM items i WHERE i.program_id = b.program_id AND i.batch_id = b.sender_batch_id AND i.state = 'sent')`,
+          [program_id],
+        ),
+      )),
+    );
+  }
   let moved = 0;
   for (const batch of batches) {
     // The chaos CLI kills the poller after a batch's first item: the next poll must finish the rest.

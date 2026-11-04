@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach } from "vitest";
 import { MockPayPal, type PayPalClient } from "@ringfence/paypal";
-import { connect, ensureProgram, migrate, type Db } from "../src/db";
+import { connect, ensureProgram, migrate, withProgram, type Db } from "../src/db";
 import { chaos } from "../src/executor";
 import { buildApp } from "../src/server";
 
@@ -14,8 +14,16 @@ export async function setup(paypal: PayPalClient = new MockPayPal()) {
   await migrate(db);
   await ensureProgram(db, "budgetapp", "Budgeting app", "budget-key");
   await ensureProgram(db, "surveyapp", "Survey app", "survey-key");
+  // PGlite connects as a superuser, which skips row-level security. Run everything after setup as an
+  // ordinary role instead, so every test meets tenant isolation the way the app does on Render.
+  await db.exec(`CREATE ROLE ringfence_app; GRANT ALL ON ALL TABLES IN SCHEMA public TO ringfence_app;
+                 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ringfence_app; SET ROLE ringfence_app;`);
   return { db, paypal, app: buildApp({ db, paypal, adminToken: "admin-token" }) };
 }
+
+/** A query run as the budgeting app, the way the API's own queries are scoped. */
+export const asBudgetApp = <T = Record<string, unknown>>(db: Db, sql: string, params: unknown[] = []) =>
+  withProgram(db, "budgetapp", (q) => q.query<T>(sql, params));
 
 const realHook = chaos.hook;
 afterEach(() => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MockPayPal, type WebhookEvent } from "@ringfence/paypal";
 import { pollBatches, reconcile } from "../src/sync";
-import { auth, crashOnceAt, setup, week1 } from "./helpers";
+import { asBudgetApp, auth, crashOnceAt, setup, week1 } from "./helpers";
 
 // Four honest payees (the first after the ring, roommates and coworkers) who never claim, so
 // their payouts settle UNCLAIMED.
@@ -83,12 +83,14 @@ describe("reconciler", () => {
     await pollBatches(db, mock);
     expect((await reconcile(db, mock)).gaps).toEqual([]);
 
-    const [paidItem, unclaimedItem] = await db.query<{ sender_item_id: string }>(
+    const [paidItem, unclaimedItem] = await asBudgetApp<{ sender_item_id: string }>(
+      db,
       "SELECT sender_item_id FROM items WHERE state IN ('paid', 'unclaimed') ORDER BY state, sender_item_id LIMIT 2 OFFSET 382",
     );
-    await db.query("UPDATE items SET state = 'sent' WHERE sender_item_id = $1", [paidItem!.sender_item_id]); // a missed update
-    await db.query("UPDATE items SET state = 'paid' WHERE sender_item_id = $1", [unclaimedItem!.sender_item_id]); // disagrees with PayPal
-    await db.query(
+    await asBudgetApp(db, "UPDATE items SET state = 'sent' WHERE sender_item_id = $1", [paidItem!.sender_item_id]); // a missed update
+    await asBudgetApp(db, "UPDATE items SET state = 'paid' WHERE sender_item_id = $1", [unclaimedItem!.sender_item_id]); // disagrees with PayPal
+    await asBudgetApp(
+      db,
       `INSERT INTO items (program_id, run_id, sender_item_id, receiver, amount_value, currency, context, decision, reasons, rules, state, batch_id)
        VALUES ('budgetapp', 'run_2026w45', 'ref_phantom', 'phantom@example.test', '20.00', 'USD', '{}', 'PAY', '[]', '["S-00"]', 'sent', 'run_2026w45')`,
     );
@@ -101,7 +103,7 @@ describe("reconciler", () => {
     ]);
     // The missed update is applied; the conflict is reported, not overwritten, so it stays paid for a person to look at.
     expect((await states()).paid).toBe(384);
-    const logged = await db.query("SELECT detail FROM audit_log WHERE action = 'reconcile_gap'");
+    const logged = await asBudgetApp(db, "SELECT detail FROM audit_log WHERE action = 'reconcile_gap'");
     expect(logged).toHaveLength(2);
   });
 });
