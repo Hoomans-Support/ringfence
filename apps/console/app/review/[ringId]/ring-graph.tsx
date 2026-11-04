@@ -43,8 +43,8 @@ export function RingGraph({
             x2={b.x}
             y2={b.y}
             stroke="var(--rf-ink)"
-            strokeWidth={1.5}
-            opacity={0.5}
+            strokeWidth={1}
+            opacity={0.22}
           />
         );
       })}

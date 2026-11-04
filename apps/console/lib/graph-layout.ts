@@ -27,7 +27,7 @@ export function computeLayout(
   opts: { width: number; height: number },
 ): { nodes: PositionedNode[]; links: LayoutLink[] } {
   const n = nodeIds.length;
-  const radius = Math.min(opts.width, opts.height) * 0.38;
+  const radius = Math.min(opts.width, opts.height) * 0.44;
 
   const nodes: SimNode[] = nodeIds.map((id, i) => {
     const angle = (2 * Math.PI * i) / Math.max(n, 1);

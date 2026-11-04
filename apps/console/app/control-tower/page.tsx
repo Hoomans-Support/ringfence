@@ -9,8 +9,11 @@ import { ControlTower, type ControlTowerData } from "./control-tower";
 
 export const metadata: Metadata = { title: "Control tower" };
 
-const GRAPH_WIDTH = 440;
-const GRAPH_HEIGHT = 360;
+// Matches the ring-graph widget's actual rendered aspect ratio (measured ~825x724, ~1.14:1) rather
+// than an arbitrary one, so the SVG's viewBox scaling doesn't letterbox extra white margin on top
+// of what graph-layout.ts's own radius/collision spacing already leaves.
+const GRAPH_WIDTH = 480;
+const GRAPH_HEIGHT = 420;
 
 export default async function ControlTowerPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   await connection();
@@ -91,7 +94,6 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
       ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "The learned-rule result will appear here when A's evaluator is connected." }
       : { ruleId: "—", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "No Ringfence rule was active in Week 0." };
 
-  const previousWeek: DemoWeek | undefined = week > 0 ? ((week - 1) as DemoWeek) : undefined;
   const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
 
   return (
@@ -103,15 +105,35 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
             Simulated Week {week}: ring graph, money kept against leaked, false holds and rule robustness.
           </p>
         </div>
-        <Link href={`/review?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+        <Link
+          href={`/review?week=${week}`}
+          className="rounded-full border border-rf-hairline px-3 py-1.5 text-sm font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink"
+        >
           ← Week {week} review queue
         </Link>
       </div>
-      <nav aria-label="Demo week" className="mt-3 flex flex-wrap gap-2 text-sm">
-        <Link href="/control-tower?week=0" className={`rounded-full border px-3 py-1.5 ${week === 0 ? "border-rf-ink bg-rf-ink text-white" : "border-rf-hairline hover:bg-rf-white"}`}>Week 0</Link>
-        {previousWeek !== undefined && <Link href={`/control-tower?week=${previousWeek}`} className="rounded-full border border-rf-hairline px-3 py-1.5 hover:bg-rf-white">Previous week</Link>}
-        <span className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white">Week {week}</span>
-        {nextWeek !== undefined && <Link href={`/control-tower?week=${nextWeek}`} className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white hover:opacity-85">Step to week {nextWeek}</Link>}
+      {/* State (which week you're looking at) and action (advance the demo) are visually distinct:
+          a tab group for state, one coral button - the brand's one reserved highlight - for the
+          single action. Direct Week 0/1/2 tabs replace "Previous week", which only duplicated what
+          clicking a tab already does. */}
+      <nav aria-label="Demo week" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex gap-1 rounded-full border border-rf-hairline p-1">
+          {([0, 1, 2] as const).map((w) => (
+            <Link
+              key={w}
+              href={`/control-tower?week=${w}`}
+              aria-current={week === w ? "page" : undefined}
+              className={`rounded-full px-3 py-1 font-medium ${week === w ? "bg-rf-ink text-white" : "text-rf-slate hover:bg-rf-mist"}`}
+            >
+              Week {w}
+            </Link>
+          ))}
+        </div>
+        {nextWeek !== undefined && (
+          <Link href={`/control-tower?week=${nextWeek}`} className="rounded-full bg-rf-spark px-3 py-1.5 font-medium text-white hover:opacity-85">
+            Step to week {nextWeek} →
+          </Link>
+        )}
       </nav>
       {/* Exact content height, not a flex-filled viewport box: studio/theme.ts's 42 rows at
           studioCanvasRowHeight 18px (the ringGraph widget's own ySpan, matching the three
