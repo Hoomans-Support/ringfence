@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MockPayPal, type PayoutBatchRequest } from "@ringfence/paypal";
+import { withProgram } from "../src/db";
 import { drainOutbox } from "../src/executor";
+import { queueFraudCancels } from "../src/holds";
 import { pollBatches } from "../src/sync";
 import { asBudgetApp, auth, crashOnceAt, expireLeases, fixture, setup, week1 } from "./helpers";
 
@@ -41,6 +43,18 @@ describe("cancelling unclaimed payouts to a confirmed ring", () => {
 
     const again = (await app.inject({ method: "POST", url: "/v1/rings/R-01/confirm", headers: auth, payload: { run_id: "run_2026w45" } })).json();
     expect(again).toMatchObject({ blocked: 0, cancels_queued: 0 });
+  });
+
+  it("waits for last week's batch to finish processing before cancelling, then the cron's sweep queues them", async () => {
+    const { app, db, mock, returned } = await lastWeekPaidDirectly();
+    await db.query("UPDATE batches SET batch_status = 'PROCESSING' WHERE sender_batch_id = 'run_2026w44'");
+    const confirmed = (await app.inject({ method: "POST", url: "/v1/rings/R-01/confirm", headers: auth, payload: { run_id: "run_2026w45" } })).json();
+    expect(confirmed).toMatchObject({ blocked: 23, cancels_queued: 0 });
+
+    await db.query("UPDATE batches SET batch_status = 'SUCCESS' WHERE sender_batch_id = 'run_2026w44'");
+    expect(await withProgram(db, "budgetapp", (q) => queueFraudCancels(q, "budgetapp"))).toEqual({ queued: 4, usd: 80 });
+    await drainOutbox(db, mock);
+    expect(await returned()).toEqual({ n: 4, usd: 80 });
   });
 
   it("a crash after PayPal accepted a cancel is recorded as cancelled on retry, not cancelled twice", async () => {

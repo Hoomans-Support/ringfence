@@ -33,10 +33,11 @@ export interface PayoutBatch {
 }
 
 export interface CreateBatchResult {
-  payout_batch_id: string;
-  batch_status: BatchStatus;
-  /** Set when PayPal rejected the sender_batch_id as already used and we recovered the original
-   *  batch from the error's HATEOAS link — the retry did not create a second batch. */
+  /** null only with `duplicate`: PayPal already has this batch but didn't say which one (see real.ts). */
+  payout_batch_id: string | null;
+  batch_status: BatchStatus | null;
+  /** Set when PayPal rejected the sender_batch_id as already used: the retry did not create a
+   *  second batch. The original's id comes from the error's link when PayPal sends one. */
   duplicate?: { name: string; message: string };
 }
 

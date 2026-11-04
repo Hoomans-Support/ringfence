@@ -96,9 +96,12 @@ export async function queueFraudCancels(q: Queryable, programId: string): Promis
   const fraud = await q.query<{ kind: string; value: string }>("SELECT kind, value FROM known_fraud WHERE program_id = $1", [programId]);
   const devices = new Set(fraud.filter((f) => f.kind === "device").map((f) => f.value));
   const addresses = new Set(fraud.filter((f) => f.kind === "payout_address").map((f) => f.value));
+  // PayPal cancels an item only once its whole batch is processed (BATCH_NOT_COMPLETED otherwise,
+  // seen in the sandbox): one still processing is left for the hourly cron's sweep.
   const unclaimed = await q.query<{ payout_item_id: string; receiver: string; device: string; amount_value: string }>(
-    `SELECT payout_item_id, receiver, context->>'device_hash' AS device, amount_value FROM items
-     WHERE program_id = $1 AND state = 'unclaimed' AND payout_item_id IS NOT NULL`,
+    `SELECT i.payout_item_id, i.receiver, i.context->>'device_hash' AS device, i.amount_value FROM items i
+     JOIN batches b ON b.sender_batch_id = i.batch_id
+     WHERE i.program_id = $1 AND i.state = 'unclaimed' AND i.payout_item_id IS NOT NULL AND b.batch_status = 'SUCCESS'`,
     [programId],
   );
   let queued = 0;

@@ -29,7 +29,7 @@ import { drainOutbox } from "../apps/api/src/executor";
 import { confirmRing, releaseHolds } from "../apps/api/src/holds";
 import { approveRule, proposeRule } from "../apps/api/src/learning";
 import { importPastRun, submitRun } from "../apps/api/src/runs";
-import { pollBatches, reconcile } from "../apps/api/src/sync";
+import { handleWebhook, pollBatches, reconcile } from "../apps/api/src/sync";
 import { R07 } from "./fire-drill";
 
 const DATABASE_URL = process.env.CHAOS_DATABASE_URL ?? "postgres://ringfence:ringfence@localhost:55432/ringfence_chaos";
@@ -44,6 +44,7 @@ const STEPS: Record<string, (db: Db, paypal: ReturnType<typeof createRealClient>
     const week0 = fixture("week0");
     const direct: PayoutBatchRequest = { sender_batch_header: week0.sender_batch_header, items: week0.items.map(({ context: _c, ...item }: { context: unknown }) => item) };
     const { payout_batch_id } = await paypal.createBatch(direct, week0.sender_batch_header.sender_batch_id);
+    if (!payout_batch_id) throw new Error("week 0's batch already exists at PayPal: start from a fresh mock");
     await importPastRun(db, PROGRAM, week0, payout_batch_id);
     return `week 0 paid straight through PayPal before Ringfence (${week0.items.length} payees), imported`;
   },
@@ -113,7 +114,9 @@ async function parent(): Promise<void> {
   await migrate(db);
   await ensureProgram(db, PROGRAM, "Budgeting app", "chaos-key");
 
-  const mock = new MockPayPal({ isUnclaimed: (r) => UNCLAIMED_RING.test(r) });
+  // The sandbox as observed: duplicates refused without naming the original, batches processed on
+  // their own whether or not anyone polls them.
+  const mock = new MockPayPal({ isUnclaimed: (r) => UNCLAIMED_RING.test(r), settleAfterMs: 100 });
   const server = await startMockServer(mock);
   try {
     process.exitCode = (await week(db, mock, server.url, url)) ? 0 : 1;
@@ -140,11 +143,28 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ["confirm-ring", "after_cancel"],
     ["learn-r07", undefined],
     ["submit-week2", "after_paypal"],
+    ["webhooks", undefined],
     ["poll", undefined],
   ];
   let kills = 0;
   for (const [i, [step, crashAt]] of plan.entries()) {
     const label = `${String(i + 1).padStart(2)}  ${step.padEnd(18)}`;
+    if (step === "webhooks") {
+      // PayPal's webhooks for the whole week, arriving late (as the PRD warns sandbox webhooks do)
+      // and all at once, through the API's own verified handler. The week 2 batch's retry was refused
+      // as a duplicate PayPal didn't name; its first webhook is what names it.
+      const paypal = createRealClient({ baseUrl: server.url, clientId: "chaos", clientSecret: "chaos", webhookId: "chaos", minIntervalMs: 0 });
+      const unnamed = (await db.query("SELECT 1 FROM batches WHERE payout_batch_id IS NULL")).length;
+      const outcomes = new Map<string, number>();
+      for (const event of mock.events) {
+        const { headers, body } = mock.signedWebhook(event);
+        const outcome = await handleWebhook(db, paypal, headers, body);
+        outcomes.set(outcome, (outcomes.get(outcome) ?? 0) + 1);
+      }
+      const named = unnamed - (await db.query("SELECT 1 FROM batches WHERE payout_batch_id IS NULL")).length;
+      say(`${label}${mock.events.length} delivered late: ${outcomes.get("applied") ?? 0} applied, ${(outcomes.get("ignored") ?? 0) + (outcomes.get("duplicate") ?? 0)} already known; ${named} unnamed batch(es) named`);
+      continue;
+    }
     if (crashAt) {
       const crashed = await runStep(step, env, crashAt);
       if (crashed.signal !== "SIGKILL") throw new Error(`${step} was meant to die at ${crashAt}, but exited ${crashed.code ?? crashed.signal}: ${crashed.stdout}`);

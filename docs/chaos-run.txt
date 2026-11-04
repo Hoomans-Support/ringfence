@@ -1,5 +1,5 @@
-Ringfence chaos run, 2026-11-04T12:11:49.836Z
-Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:60430 (outlives every kill)
+Ringfence chaos run, 2026-11-04T12:57:18.231Z
+Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:61195 (outlives every kill)
 
  1  import-week0      week 0 paid straight through PayPal before Ringfence (398 payees), imported
  2  poll              KILLED at mid_poll
@@ -14,7 +14,8 @@ Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0
  7  learn-r07         R-07 v1 approved (backtest 32 caught, red team 52/200)
  8  submit-week2      KILLED at after_paypal
                       restarted -> week 2 run already recorded; 1 outbox event(s) sent
- 9  poll              419 item statuses applied
+ 9  webhooks          1210 delivered late: 419 applied, 791 already known; 1 unnamed batch(es) named
+10  poll              0 item statuses applied
 
 Audit, PayPal's ledger against Ringfence's records
   processes killed mid-flight                   5

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MockPayPal, type PayPalClient } from "@ringfence/paypal";
 import { drainOutbox } from "../src/executor";
+import { pollBatches } from "../src/sync";
 import { auth, crashOnceAt, expireLeases, setup, week1 } from "./helpers";
 
 function expectPaidExactlyOnce(mock: MockPayPal, decisions: Array<{ sender_item_id: string; decision: string }>) {
@@ -36,10 +37,10 @@ describe("POST /v1/payout-runs", () => {
     expect(fetched.json().paypal.payout_batch_id).toBe(first.paypal.payout_batch_id);
   });
 
-  it.each(["after_claim", "after_paypal"])("a retry after a crash at %s never pays twice", async (point) => {
+  it("a retry after a crash at after_claim (before PayPal was called) sends the batch once", async () => {
     const mock = new MockPayPal();
     const { app, db } = await setup(mock);
-    crashOnceAt(point);
+    crashOnceAt("after_claim");
     const res = await app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: week1 });
     expect(res.statusCode).toBe(202);
     expect(res.json().paypal.payout_batch_id).toBeNull();
@@ -51,8 +52,35 @@ describe("POST /v1/payout-runs", () => {
     expectPaidExactlyOnce(mock, after.decisions);
   });
 
-  it("still pays once when PayPal no longer recognizes the request id: the duplicate batch id is recovered", async () => {
+  // The sandbox's own behaviour (smoke run, 4 Nov 2026): the retry's duplicate is refused with no
+  // link and no request-id replay, so the batch id arrives with the first webhook instead.
+  it("a crash after PayPal accepted the batch: the retry is refused as a duplicate, nobody is paid twice, and the first webhook names the batch", async () => {
     const mock = new MockPayPal();
+    const { app, db } = await setup(mock);
+    crashOnceAt("after_paypal");
+    await app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: week1 });
+    await expireLeases(db);
+    expect(await drainOutbox(db, mock)).toBe(1);
+
+    const retried = (await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: auth })).json();
+    expect(retried.paypal.payout_batch_id).toBeNull();
+    expect(retried.decisions.filter((d: { state: string }) => d.state === "sent")).toHaveLength(387);
+    expectPaidExactlyOnce(mock, retried.decisions);
+
+    const [batchId] = [...new Set(mock.ledger().map((i) => i.payout_batch_id))];
+    await mock.getBatch(batchId!); // PayPal settles the batch and sends its webhooks
+    const { headers, body } = mock.signedWebhook(mock.events[0]!);
+    expect((await app.inject({ method: "POST", url: "/v1/webhooks/paypal", headers, payload: body })).json().outcome).toBe("applied");
+    await pollBatches(db, mock);
+
+    const settled = (await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: auth })).json();
+    expect(settled.paypal.payout_batch_id).toBe(batchId);
+    expect(settled.decisions.filter((d: { state: string }) => d.state === "paid")).toHaveLength(387);
+    expectPaidExactlyOnce(mock, settled.decisions);
+  });
+
+  it("with the spec's duplicate handling (a link to the original), the retry recovers the batch id directly", async () => {
+    const mock = new MockPayPal({ specDuplicates: true });
     let attempt = 0;
     // A client that forgets PayPal-Request-Id between attempts, so only sender_batch_id dedupes.
     const forgetful: PayPalClient = {

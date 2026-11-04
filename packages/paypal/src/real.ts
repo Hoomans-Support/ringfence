@@ -34,15 +34,23 @@ export interface RealClientOptions {
 
 const PAGE_SIZE = 1000; // the Payouts API's own maximum page size
 
-/** A reused sender_batch_id comes back as a 4xx carrying a link to the original batch: return that
- *  batch instead of failing, so a retry after a crash finds the payout it already made. */
+const DUPLICATE_BATCH = /sender_batch_id\b.*already exists/i;
+
+/**
+ * A reused sender_batch_id comes back as a 400 "Batch with given sender_batch_id already exists".
+ * That's not a failure: PayPal already has the batch, so a retry after a crash must treat it as
+ * sent. The spec says the error links to the original batch; the sandbox (smoke run, 4 Nov 2026)
+ * sends no link and doesn't replay a PayPal-Request-Id either, so the id is then null and the
+ * executor learns it from the batch's first webhook (sync.ts) instead.
+ */
 export async function recoverDuplicate(err: unknown, getBatch: (id: string) => Promise<PayoutBatch>): Promise<CreateBatchResult> {
-  const original = err instanceof PayPalError && err.status < 500
-    ? err.links.map((l) => /\/v1\/payments\/payouts\/([^/?]+)$/.exec(l.href)?.[1]).find(Boolean)
-    : undefined;
-  if (!original || !(err instanceof PayPalError)) throw err;
+  if (!(err instanceof PayPalError) || err.status >= 500) throw err;
+  const original = err.links.map((l) => /\/v1\/payments\/payouts\/([^/?]+)$/.exec(l.href)?.[1]).find(Boolean);
+  if (!original && !DUPLICATE_BATCH.test(err.detail)) throw err;
+  const duplicate = { name: err.errorName, message: err.detail };
+  if (!original) return { payout_batch_id: null, batch_status: null, duplicate };
   const batch = await getBatch(original);
-  return { payout_batch_id: original, batch_status: batch.batch_header.batch_status, duplicate: { name: err.errorName, message: err.detail } };
+  return { payout_batch_id: original, batch_status: batch.batch_header.batch_status, duplicate };
 }
 
 export function assertSandbox(baseUrl: string): void {
@@ -110,10 +118,16 @@ export function createRealClient(opts: RealClientOptions): PayPalClient {
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
+      // PayPal's top-level message is often generic ("User business error."); the reason is in
+      // details[].issue, and debug_id is what PayPal support asks for.
+      const details = ((data.details as Array<{ issue?: string; field?: string; description?: string }>) ?? [])
+        .map((d) => [d.issue, d.field, d.description].filter(Boolean).join(" "))
+        .join("; ");
+      const message = String(data.message ?? data.error_description ?? res.statusText);
       throw new PayPalError(
         res.status,
         String(data.name ?? data.error ?? "HTTP_ERROR"),
-        String(data.message ?? data.error_description ?? res.statusText),
+        [message, details && `(${details})`, data.debug_id && `debug_id ${String(data.debug_id)}`].filter(Boolean).join(" "),
         (data.links as PayPalError["links"]) ?? [],
       );
     }

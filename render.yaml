@@ -21,10 +21,11 @@ envVarGroups:
       # sandbox's 50 requests a minute between them.
       - key: PAYPAL_MIN_INTERVAL_MS
         value: "4000"
-      # Set to "true" if smoke test 5 shows the sandbox's real cancel failing: cancels then use the
-      # sandbox test ID POSPOI002 and say so in the audit log.
+      # The sandbox's real cancel answers 500 INTERNAL_SERVICE_ERROR even on a processed batch's unclaimed
+      # item (smoke run, 4 Nov 2026), as the PRD feared; its documented test ID POSPOI002 works. So cancels
+      # use POSPOI002 and say so in the audit log, for the console to label. "false" tries the real cancel.
       - key: PAYPAL_CANCEL_WITH_TEST_IDS
-        value: "false"
+        value: "true"
 
 services:
   - type: web

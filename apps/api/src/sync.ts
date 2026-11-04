@@ -73,6 +73,14 @@ export async function handleWebhook(db: Db, paypal: PayPalClient, headers: Webho
   if (!batch || !status) return (await record(db)) ? "ignored" : "duplicate";
   return withProgram(db, batch.program_id, async (q) => {
     if (!(await record(q))) return "duplicate";
+    // A batch sent as a duplicate PayPal didn't identify (executor.ts): its first event names it,
+    // and from then on the poller can follow it too.
+    if (!batch.payout_batch_id && resource.payout_batch_id) {
+      await q.query("UPDATE batches SET payout_batch_id = $2, updated_at = now() WHERE sender_batch_id = $1 AND payout_batch_id IS NULL", [
+        batch.sender_batch_id,
+        resource.payout_batch_id,
+      ]);
+    }
     const moved = await applyItemStatus(q, batch.program_id, batch.sender_batch_id, { ...resource, transaction_status: status } as PayoutItemDetails);
     if (moved) await q.query("UPDATE webhook_events SET applied = true WHERE event_id = $1", [event.id]);
     return moved ? "applied" : "ignored";
@@ -119,7 +127,7 @@ export async function pollBatches(db: Db, paypal: PayPalClient): Promise<number>
 export interface ReconcileGap {
   sender_batch_id: string;
   sender_item_id?: string;
-  issue: "not_at_paypal" | "unknown_to_ringfence" | "status_conflict" | "batch_never_created";
+  issue: "not_at_paypal" | "unknown_to_ringfence" | "status_conflict" | "batch_id_unknown";
   ours?: string;
   paypal?: string;
 }
@@ -138,7 +146,9 @@ export async function reconcile(db: Db, paypal: PayPalClient): Promise<{ batches
   for (const batch of batches) {
     if (!batch.payout_batch_id) {
       const [pending] = await db.query("SELECT 1 FROM outbox WHERE kind = 'create_batch' AND ref = $1 AND status = 'pending'", [batch.sender_batch_id]);
-      if (!pending) gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_never_created" });
+      // Sent but PayPal's id never learned: a retried duplicate PayPal didn't name, with no webhook
+      // since to name it. Nobody was paid twice; its items wait on that webhook.
+      if (!pending) gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_id_unknown" });
       continue;
     }
     const result = await applyBatch(db, batch, paypal);

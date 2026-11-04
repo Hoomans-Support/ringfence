@@ -23,7 +23,7 @@
  *
  * `chaos.hook(point)` marks the places the chaos CLI kills the process (RINGFENCE_CRASH_AT).
  */
-import { PayPalError, type ItemStatus, type PayoutBatchRequest, type PayPalClient } from "@ringfence/paypal";
+import { PayPalError, type CreateBatchResult, type ItemStatus, type PayoutBatchRequest, type PayPalClient } from "@ringfence/paypal";
 import { audit, withProgram, type Db } from "./db";
 import { movableFrom, stateForPayPal } from "./states";
 
@@ -81,7 +81,7 @@ async function sendBatch(db: Db, paypal: PayPalClient, event: OutboxEvent): Prom
     ),
   );
 
-  let result: { payout_batch_id: string | null; batch_status: string | null } = { payout_batch_id: batch.payout_batch_id, batch_status: null };
+  let result: Pick<CreateBatchResult, "payout_batch_id" | "batch_status" | "duplicate"> = { payout_batch_id: batch.payout_batch_id, batch_status: null };
   if (!batch.payout_batch_id && items.length > 0) {
     // Same items, same order, same ids on every attempt: a retry is byte-for-byte the first request.
     const body: PayoutBatchRequest = {
@@ -98,9 +98,12 @@ async function sendBatch(db: Db, paypal: PayPalClient, event: OutboxEvent): Prom
     result = created;
   }
 
+  // PayPal has the batch: either its id came back, or PayPal refused a duplicate of one we already
+  // sent and didn't say which (the sandbox's behaviour). Both mean the items are at PayPal.
+  const atPayPal = Boolean(result.payout_batch_id || result.duplicate);
   await withProgram(db, batch.program_id, async (q) => {
-    if (result.payout_batch_id) {
-      await q.query("UPDATE batches SET payout_batch_id = $2, batch_status = COALESCE($3, batch_status), updated_at = now() WHERE sender_batch_id = $1", [
+    if (atPayPal) {
+      await q.query("UPDATE batches SET payout_batch_id = COALESCE($2, payout_batch_id), batch_status = COALESCE($3, batch_status), updated_at = now() WHERE sender_batch_id = $1", [
         event.ref,
         result.payout_batch_id,
         result.batch_status,
@@ -111,7 +114,12 @@ async function sendBatch(db: Db, paypal: PayPalClient, event: OutboxEvent): Prom
       );
     }
     await q.query("UPDATE outbox SET status = 'done', done_at = now(), last_error = NULL WHERE id = $1", [event.id]);
-    await audit(q, batch.program_id, "executor", "batch_sent", { sender_batch_id: event.ref, payout_batch_id: result.payout_batch_id, items: items.length });
+    await audit(q, batch.program_id, "executor", "batch_sent", {
+      sender_batch_id: event.ref,
+      payout_batch_id: result.payout_batch_id,
+      items: items.length,
+      ...(result.duplicate ? { duplicate_rejected: true } : {}),
+    });
   });
 }
 

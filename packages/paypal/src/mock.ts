@@ -2,8 +2,10 @@
  * An in-memory PayPal Payouts that keeps the rules Ringfence's money-safety depends on, so tests
  * and coding agents never touch the shared sandbox (PRD: "Mock first"):
  *
- * - PayPal-Request-Id replay returns the original response; a reused sender_batch_id under a new
- *   request id is rejected with a link to the original batch (Payouts v1 spec).
+ * - A reused sender_batch_id is rejected as a duplicate, as the sandbox does. By default the mock
+ *   does what the sandbox was seen to do (smoke run, 4 Nov 2026): no link to the original batch in
+ *   the error, and no PayPal-Request-Id replay. `specDuplicates: true` gives the Payouts v1 spec's
+ *   behaviour instead (replay, and a HATEOAS link to the original).
  * - Items start PENDING and settle the first time their batch is read: SUCCESS, or UNCLAIMED for
  *   a receiver that has no PayPal account (`isUnclaimed`).
  * - Only UNCLAIMED items cancel, and come back RETURNED; a second cancel is ITEM_ALREADY_CANCELLED.
@@ -41,6 +43,11 @@ export interface MockOptions {
   /** Receivers with no PayPal account; their items settle UNCLAIMED. */
   isUnclaimed?: (receiver: string) => boolean;
   webhookSecret?: string;
+  /** Replay PayPal-Request-Ids and link duplicates to the original batch, as the spec says. */
+  specDuplicates?: boolean;
+  /** Settle each batch on its own this long after it's created, the way PayPal processes batches
+   *  whether or not anyone reads them. Unset: a batch settles the first time it's read. */
+  settleAfterMs?: number;
 }
 
 const SANDBOX_BATCH_STATUS: Record<string, BatchStatus> = {
@@ -97,15 +104,18 @@ export class MockPayPal implements PayPalClient {
   /** PayPal's raw create: a reused sender_batch_id throws, as the HTTP API does. The mock server
    *  serves this one, so the real client's own recovery path is what gets exercised over HTTP. */
   async acceptBatch(body: PayoutBatchRequest, requestId: string): Promise<CreateBatchResult> {
-    const replay = this.byRequestId.get(requestId);
+    const replay = this.opts.specDuplicates ? this.byRequestId.get(requestId) : undefined;
     if (replay) return { ...replay };
 
     const senderBatchId = body.sender_batch_header.sender_batch_id;
     const original = this.bySenderBatchId.get(senderBatchId);
     if (original) {
-      throw new PayPalError(400, "USER_BUSINESS_ERROR", `Batch with given sender_batch_id ${senderBatchId} already exists`, [
-        { href: `https://api-m.sandbox.paypal.com/v1/payments/payouts/${original}`, rel: "self" },
-      ]);
+      throw new PayPalError(
+        400,
+        "USER_BUSINESS_ERROR",
+        "User business error. (Batch with given sender_batch_id already exists SENDER_BATCH_ID)",
+        this.opts.specDuplicates ? [{ href: `https://api-m.sandbox.paypal.com/v1/payments/payouts/${original}`, rel: "self" }] : [],
+      );
     }
     if (body.items.length === 0 || body.items.length > MAX_ITEMS) {
       throw new PayPalError(400, "VALIDATION_ERROR", `items must hold 1 to ${MAX_ITEMS} payouts`);
@@ -130,8 +140,12 @@ export class MockPayPal implements PayPalClient {
       this.paid.set(item.sender_item_id, (this.paid.get(item.sender_item_id) ?? 0) + 1);
       return payoutItemId;
     });
-    this.batches.set(payoutBatchId, { status: "PENDING", senderBatchId, itemIds });
+    const created: MockBatch = { status: "PENDING", senderBatchId, itemIds };
+    this.batches.set(payoutBatchId, created);
     this.bySenderBatchId.set(senderBatchId, payoutBatchId);
+    if (this.opts.settleAfterMs !== undefined) {
+      setTimeout(() => created.status === "PENDING" && this.settle(created), this.opts.settleAfterMs).unref();
+    }
 
     const result: CreateBatchResult = { payout_batch_id: payoutBatchId, batch_status: "PENDING" };
     this.byRequestId.set(requestId, result);
