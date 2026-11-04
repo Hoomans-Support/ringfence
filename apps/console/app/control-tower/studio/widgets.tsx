@@ -58,8 +58,13 @@ const money = (n: number) => n.toLocaleString("en-US", { style: "currency", curr
 
 // --- Components: plain cards in the app's own voice, not a generic chart/gauge look ---
 
+// AG Studio's own root canvas sets font-size:14px/line-height:16px, inherited by everything
+// mounted inside it; a Tailwind arbitrary size like `text-[Npx]` only sets font-size, never
+// line-height, so any custom text here that doesn't set its own `leading-*` silently keeps
+// that inherited 16px regardless of its own size - fine at 13-15px, but a 32-40px number then
+// overflows its own line box into the text above it. Every custom size below sets its own.
 function WidgetHeading({ children }: { children: ReactNode }) {
-  return <h3 className="text-[15px] font-semibold tracking-[-0.02em] text-rf-ink">{children}</h3>;
+  return <h3 className="text-[15px] font-semibold tracking-[-0.02em] leading-[1.3] text-rf-ink">{children}</h3>;
 }
 
 function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
@@ -87,12 +92,12 @@ function MoneyWidget({ config, widgetApi }: AgWidgetParams) {
     <div className="flex h-full flex-col justify-center gap-3">
       <WidgetHeading>Money kept vs. leaked</WidgetHeading>
       <div>
-        <p className="text-[13px] font-medium uppercase tracking-wide text-rf-slate">Kept from the ring</p>
-        <p className="font-mono text-[32px] font-semibold tracking-[-0.02em] text-rf-ink">{money(o.keptUsd)}</p>
+        <p className="text-[13px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from the ring</p>
+        <p className="font-mono text-[32px] font-semibold tracking-[-0.02em] leading-[1.15] text-rf-ink">{money(o.keptUsd)}</p>
       </div>
       <div>
-        <p className="text-[13px] font-medium uppercase tracking-wide text-rf-slate">Leaked to the ring</p>
-        <p className={`font-mono text-[32px] font-semibold tracking-[-0.02em] ${o.leakedUsd > 0 ? "text-rf-spark-text" : "text-rf-ink"}`}>
+        <p className="text-[13px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Leaked to the ring</p>
+        <p className={`font-mono text-[32px] font-semibold tracking-[-0.02em] leading-[1.15] ${o.leakedUsd > 0 ? "text-rf-spark-text" : "text-rf-ink"}`}>
           {money(o.leakedUsd)}
         </p>
       </div>
@@ -107,7 +112,7 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
   return (
     <div className="flex h-full flex-col justify-center gap-2">
       <WidgetHeading>False-hold meter</WidgetHeading>
-      <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] text-rf-spark-text">
+      <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-[1.1] text-rf-spark-text">
         {(rate * 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}%
       </p>
       <p className="text-sm text-rf-slate">
