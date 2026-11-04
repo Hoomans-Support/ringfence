@@ -92,6 +92,16 @@ describe("narrateClaims", () => {
     expect(result).toEqual(original);
   });
 
+  it("never charges the spend cap for a call that failed", async () => {
+    const spendCap = createSpendCap(10);
+    const generate = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    await narrateClaims(caseFile(), { generate, spendCap });
+
+    expect(spendCap.spentUsd).toBe(0);
+  });
+
   it("records exactly one call's cost per case file against a shared spend cap", async () => {
     const spendCap = createSpendCap(10);
     const generate = vi.fn(async () => ({ c1: "rewritten", c2: "rewritten" }));

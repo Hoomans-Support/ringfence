@@ -17,6 +17,9 @@ export class ModelSpendCapExceededError extends Error {
 export interface SpendCap {
   /** Running total recorded so far, in USD. */
   readonly spentUsd: number;
+  /** Non-mutating: would recording this cost stay within the cap? Check before attempting a call
+   *  you don't want to make at all once already over budget. */
+  canAfford(costUsd: number): boolean;
   /** Records a model call's cost. Throws ModelSpendCapExceededError instead of recording it if that would exceed the cap. */
   record(costUsd: number): void;
 }
@@ -26,6 +29,9 @@ export function createSpendCap(limitUsd: number): SpendCap {
   return {
     get spentUsd() {
       return spent;
+    },
+    canAfford(costUsd: number) {
+      return spent + costUsd <= limitUsd;
     },
     record(costUsd: number) {
       if (spent + costUsd > limitUsd) throw new ModelSpendCapExceededError(costUsd, spent, limitUsd);

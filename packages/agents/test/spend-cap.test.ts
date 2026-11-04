@@ -21,6 +21,14 @@ describe("createSpendCap", () => {
     expect(() => cap.record(3)).toThrow(ModelSpendCapExceededError);
     expect(cap.spentUsd).toBe(8);
   });
+
+  it("canAfford reports affordability without recording anything", () => {
+    const cap = createSpendCap(10);
+    cap.record(8);
+    expect(cap.canAfford(2)).toBe(true);
+    expect(cap.canAfford(3)).toBe(false);
+    expect(cap.spentUsd).toBe(8); // checking never mutates the running total
+  });
 });
 
 describe("spendCapUsdFromEnv", () => {

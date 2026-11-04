@@ -22,6 +22,7 @@ export function HoldCalendar({ resources, events }: { resources: Resource[]; eve
   useEffect(() => {
     let disposed = false;
     let scheduler: BryntumSchedulerInstance | undefined;
+    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
 
     const schedulerUrl = "/api/vendor/bryntum";
     void import(/* webpackIgnore: true */ schedulerUrl).then(({ Scheduler }: {
@@ -45,12 +46,16 @@ export function HoldCalendar({ resources, events }: { resources: Resource[]; eve
       // weekAndDay snaps its visible range to the start of the containing calendar week, which can
       // be several empty days before the earliest real hold - scroll past them once rendered.
       // Immediately after construction the widget hasn't finished its own layout pass yet, so
-      // scrollToDate silently no-ops there; a microtask-deferred call lands after that pass.
-      setTimeout(() => scheduler?.scrollToDate(earliestStart), 0);
+      // scrollToDate silently no-ops there; a microtask-deferred call lands after that pass. Guarded
+      // by `disposed` in case the component unmounts (and destroys the scheduler) in that window.
+      scrollTimer = setTimeout(() => {
+        if (!disposed) scheduler?.scrollToDate(earliestStart);
+      }, 0);
     });
 
     return () => {
       disposed = true;
+      clearTimeout(scrollTimer);
       scheduler?.destroy();
       schedulerRef.current = null;
     };
