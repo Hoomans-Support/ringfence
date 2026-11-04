@@ -7,8 +7,9 @@
  * losing or repeating it. Resending a run that already exists returns what was recorded the first
  * time, without deciding or sending anything again.
  */
-import { evaluateRules, type PayoutItem, type PayoutRun } from "@ringfence/engine";
+import { evaluateRules, type Decision, type PayoutItem, type PayoutRun } from "@ringfence/engine";
 import { ApiError, audit, sha256, withProgram, type Db } from "./db";
+import { chaos } from "./executor";
 import { loadRuleContext } from "./learning";
 import type { ItemState } from "./states";
 
@@ -47,9 +48,25 @@ function normalize(item: RunRequest["items"][number], receivedAt: string): Payou
   };
 }
 
-const STATE_FOR: Record<string, ItemState> = { PAY: "queued", HOLD: "held", BLOCK: "blocked" };
+const STATE_FOR: Record<Decision, ItemState> = { PAY: "queued", HOLD: "held", BLOCK: "blocked" };
 
+/** Decides a run and records it for the executor to pay. */
 export async function submitRun(db: Db, programId: string, body: RunRequest): Promise<{ created: boolean; runId: string }> {
+  const result = await recordRun(db, programId, body);
+  if (result.created) chaos.hook("after_commit"); // the chaos CLI: die with the run committed but unsent
+  return result;
+}
+
+/**
+ * Day 0 (PRD, user journey): records a run the program already paid straight through PayPal before
+ * Ringfence, so its payouts are tracked by the poller and, if they turn out to be a ring's,
+ * cancellable while unclaimed. Nothing is decided and nothing is sent.
+ */
+export function importPastRun(db: Db, programId: string, body: RunRequest, payoutBatchId: string): Promise<{ created: boolean; runId: string }> {
+  return recordRun(db, programId, body, payoutBatchId);
+}
+
+async function recordRun(db: Db, programId: string, body: RunRequest, importedBatchId?: string): Promise<{ created: boolean; runId: string }> {
   const runId = body.sender_batch_header.sender_batch_id;
   const ids = new Set(body.items.map((i) => i.sender_item_id));
   if (ids.size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
@@ -64,34 +81,41 @@ export async function submitRun(db: Db, programId: string, body: RunRequest): Pr
       const [taken] = await q.query("SELECT 1 FROM batches WHERE sender_batch_id = $1", [runId]);
       if (taken) throw new ApiError(409, `sender_batch_id ${runId} is already in use`);
 
-      const { rules, ctx, version } = await loadRuleContext(q, programId);
-      const result = evaluateRules(run, rules, ctx, version);
-      const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
-      const anyPay = result.decisions.some((d) => d.decision === "PAY");
+      let version = "imported";
+      let decide = (_item: PayoutItem): ItemRow => ({ decision: "PAY", ring_id: null, hold_group_id: null, reasons: [], rules: ["import"], state: "sent", batch_id: runId });
+      if (!importedBatchId) {
+        const { rules, ctx, version: ruleSet } = await loadRuleContext(q, programId);
+        const result = evaluateRules(run, rules, ctx, ruleSet);
+        const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
+        version = result.rule_set_version;
+        decide = (item) => {
+          const d = byId.get(item.sender_item_id)!;
+          return {
+            decision: d.decision,
+            ring_id: d.ring_id ?? null,
+            hold_group_id: d.hold_group_id ?? null,
+            reasons: d.reasons,
+            rules: d.rules,
+            state: STATE_FOR[d.decision],
+            batch_id: d.decision === "PAY" ? runId : null,
+          };
+        };
+      }
 
       await q.query("INSERT INTO runs (program_id, run_id, email_subject, rule_set_version) VALUES ($1, $2, $3, $4)", [
         programId,
         runId,
         body.sender_batch_header.email_subject ?? null,
-        result.rule_set_version,
+        version,
       ]);
-      const rows = run.items.map((item) => {
-        const d = byId.get(item.sender_item_id)!;
-        return {
-          sender_item_id: item.sender_item_id,
-          receiver: item.receiver,
-          amount_value: item.amount.value,
-          currency: item.amount.currency,
-          context: item.context,
-          decision: d.decision,
-          ring_id: d.ring_id ?? null,
-          hold_group_id: d.hold_group_id ?? null,
-          reasons: d.reasons,
-          rules: d.rules,
-          state: STATE_FOR[d.decision],
-          batch_id: d.decision === "PAY" ? runId : null,
-        };
-      });
+      const rows = run.items.map((item) => ({
+        sender_item_id: item.sender_item_id,
+        receiver: item.receiver,
+        amount_value: item.amount.value,
+        currency: item.amount.currency,
+        context: item.context,
+        ...decide(item),
+      }));
       await q.query(
         `INSERT INTO items (program_id, run_id, sender_item_id, receiver, amount_value, currency, context, decision,
                             ring_id, hold_group_id, reasons, rules, state, batch_id)
@@ -101,11 +125,16 @@ export async function submitRun(db: Db, programId: string, body: RunRequest): Pr
               context jsonb, decision text, ring_id text, hold_group_id text, reasons jsonb, rules jsonb, state text, batch_id text)`,
         [programId, runId, JSON.stringify(rows)],
       );
-      if (anyPay) {
-        await q.query("INSERT INTO batches (sender_batch_id, program_id, run_id, kind) VALUES ($1, $2, $3, 'run')", [runId, programId, runId]);
-        await q.query("INSERT INTO outbox (kind, ref) VALUES ('create_batch', $1)", [runId]);
+      if (rows.some((r) => r.batch_id)) {
+        await q.query("INSERT INTO batches (sender_batch_id, program_id, run_id, kind, payout_batch_id) VALUES ($1, $2, $1, $3, $4)", [
+          runId,
+          programId,
+          importedBatchId ? "import" : "run",
+          importedBatchId ?? null,
+        ]);
+        if (!importedBatchId) await q.query("INSERT INTO outbox (program_id, kind, ref) VALUES ($1, 'create_batch', $2)", [programId, runId]);
       }
-      await audit(q, programId, "api", "run_received", { run_id: runId, items: run.items.length, rule_set_version: result.rule_set_version });
+      await audit(q, programId, "api", importedBatchId ? "run_imported" : "run_received", { run_id: runId, items: run.items.length, rule_set_version: version });
       return { created: true, runId };
     });
   } catch (err) {
@@ -113,6 +142,16 @@ export async function submitRun(db: Db, programId: string, body: RunRequest): Pr
     if ((err as { code?: string }).code === "23505") return { created: false, runId };
     throw err;
   }
+}
+
+interface ItemRow {
+  decision: string;
+  ring_id: string | null;
+  hold_group_id: string | null;
+  reasons: string[];
+  rules: string[];
+  state: ItemState;
+  batch_id: string | null;
 }
 
 export async function getRun(db: Db, programId: string, runId: string): Promise<RunResponse | undefined> {

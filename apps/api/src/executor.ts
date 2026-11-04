@@ -14,10 +14,18 @@
  * 4. PayPal's batch id, the items' move to `sent` and the event's `done` are saved in one
  *    transaction, so there is no point at which half of that is recorded.
  *
+ * Cancels (FR-16) run through the same outbox: one PayPal cancel per unclaimed item, recorded with
+ * the item's move to `returned`. A retry after a cancel that landed but wasn't recorded gets
+ * ITEM_ALREADY_CANCELLED, which is recorded as the success it is. With cancelWithTestIds (env
+ * PAYPAL_CANCEL_WITH_TEST_IDS=true), the PayPal call uses the sandbox's documented test ID
+ * POSPOI002 instead, the PRD's fallback for a sandbox whose real cancel fails, and the audit log
+ * says so for the console to label.
+ *
  * `chaos.hook(point)` marks the places the chaos CLI kills the process (RINGFENCE_CRASH_AT).
  */
-import type { PayoutBatchRequest, PayPalClient } from "@ringfence/paypal";
+import { PayPalError, type ItemStatus, type PayoutBatchRequest, type PayPalClient } from "@ringfence/paypal";
 import { audit, withProgram, type Db } from "./db";
+import { movableFrom, stateForPayPal } from "./states";
 
 export const chaos = {
   hook(point: string): void {
@@ -33,10 +41,12 @@ export interface DrainOptions {
   only?: string;
   leaseSeconds?: number;
   maxAttempts?: number;
+  cancelWithTestIds?: boolean;
 }
 
 interface OutboxEvent {
   id: string;
+  program_id: string;
   kind: "create_batch" | "cancel_item";
   ref: string;
   attempts: number;
@@ -49,7 +59,7 @@ async function claim(db: Db, leaseSeconds: number, only: string | undefined): Pr
        SELECT id FROM outbox
        WHERE status = 'pending' AND (locked_until IS NULL OR locked_until <= now()) AND ($2::text IS NULL OR ref = $2)
        ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)
-     RETURNING id, kind, ref, attempts`,
+     RETURNING id, program_id, kind, ref, attempts`,
     [leaseSeconds, only ?? null],
   );
   return event;
@@ -105,9 +115,43 @@ async function sendBatch(db: Db, paypal: PayPalClient, event: OutboxEvent): Prom
   });
 }
 
+async function cancelPayout(db: Db, paypal: PayPalClient, event: OutboxEvent, useTestId: boolean): Promise<void> {
+  let status: ItemStatus = "RETURNED";
+  let note: string | undefined;
+  try {
+    await paypal.cancelItem(useTestId ? "POSPOI002" : event.ref);
+    chaos.hook("after_cancel");
+  } catch (err) {
+    if (!(err instanceof PayPalError)) throw err;
+    if (err.errorName === "ITEM_ALREADY_CANCELLED") {
+      note = "already cancelled by an earlier attempt";
+    } else if (err.errorName === "ITEM_INCORRECT_STATUS") {
+      status = (await paypal.getItem(event.ref)).transaction_status; // claimed in the meantime, most likely
+      note = `not cancellable: PayPal says ${status}`;
+    } else {
+      throw err;
+    }
+  }
+  const to = stateForPayPal(status);
+  await withProgram(db, event.program_id, async (q) => {
+    await q.query(
+      `UPDATE items SET state = $3, paypal_status = $4, updated_at = now()
+       WHERE program_id = $1 AND payout_item_id = $2 AND state = ANY($5::text[])`,
+      [event.program_id, event.ref, to, status, movableFrom(to)],
+    );
+    await q.query("UPDATE outbox SET status = 'done', done_at = now(), last_error = NULL WHERE id = $1", [event.id]);
+    await audit(q, event.program_id, "executor", "payout_cancelled", {
+      payout_item_id: event.ref,
+      status,
+      ...(useTestId ? { sandbox_test_id: "POSPOI002" } : {}),
+      ...(note ? { note } : {}),
+    });
+  });
+}
+
 /** Works the outbox until it's empty (or just `only`). Returns how many events it completed. */
 export async function drainOutbox(db: Db, paypal: PayPalClient, opts: DrainOptions = {}): Promise<number> {
-  const leaseSeconds = opts.leaseSeconds ?? 30;
+  const leaseSeconds = opts.leaseSeconds ?? Number(process.env.RINGFENCE_LEASE_SECONDS ?? 30);
   const maxAttempts = opts.maxAttempts ?? 8;
   let done = 0;
   for (;;) {
@@ -115,8 +159,8 @@ export async function drainOutbox(db: Db, paypal: PayPalClient, opts: DrainOptio
     if (!event) return done;
     chaos.hook("after_claim");
     try {
-      if (event.kind !== "create_batch") throw new Error(`outbox kind ${event.kind} is not handled yet`);
-      await sendBatch(db, paypal, event);
+      if (event.kind === "create_batch") await sendBatch(db, paypal, event);
+      else await cancelPayout(db, paypal, event, opts.cancelWithTestIds ?? process.env.PAYPAL_CANCEL_WITH_TEST_IDS === "true");
       done += 1;
     } catch (err) {
       // A simulated crash leaves the database exactly as a killed process would: untouched.

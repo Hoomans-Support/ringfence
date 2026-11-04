@@ -66,7 +66,7 @@ describe("confirm and learn", () => {
   it("confirming a ring blocks it and blocks its devices on sight in later runs", async () => {
     const { app } = await week1Decided();
     const confirmed = (await post(app, "/v1/rings/R-01/confirm", { run_id: "run_2026w45", confirmed_by: "rina@budgetapp.test" })).json();
-    expect(confirmed).toEqual({ ring_id: "R-01", blocked: 23, devices: 3, payout_addresses: 23 });
+    expect(confirmed).toEqual({ ring_id: "R-01", blocked: 23, devices: 3, payout_addresses: 23, cancels_queued: 0, cancel_usd: 0 });
 
     const returning = {
       sender_batch_header: { sender_batch_id: "run_returning" },

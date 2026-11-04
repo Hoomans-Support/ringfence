@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS batches (
   sender_batch_id text PRIMARY KEY,
   program_id      text NOT NULL REFERENCES programs (id),
   run_id          text NOT NULL,
-  kind            text NOT NULL CHECK (kind IN ('run', 'release')),
+  kind            text NOT NULL CHECK (kind IN ('run', 'release', 'import')),  -- import: paid before Ringfence, tracked only
   payout_batch_id text UNIQUE,
   batch_status    text,
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS batches (
 -- by the executor. UNIQUE (kind, ref) makes enqueueing the same work twice a no-op.
 CREATE TABLE IF NOT EXISTS outbox (
   id           bigserial PRIMARY KEY,
+  program_id   text NOT NULL REFERENCES programs (id),
   kind         text NOT NULL CHECK (kind IN ('create_batch', 'cancel_item')),
   ref          text NOT NULL,              -- sender_batch_id, or payout_item_id for a cancel
   status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'failed')),

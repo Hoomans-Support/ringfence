@@ -13,7 +13,7 @@ import { drainOutbox } from "./executor";
 import type { Rule } from "@ringfence/engine";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
 import { approveRule, listRules, proposeRule } from "./learning";
-import { getRun, submitRun, type RunRequest } from "./runs";
+import { getRun, importPastRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
 
 declare module "fastify" {
@@ -76,6 +76,12 @@ const runBody = {
   },
 } as const;
 
+const importBody = {
+  ...runBody,
+  required: [...runBody.required, "payout_batch_id"],
+  properties: { ...runBody.properties, payout_batch_id: { type: "string", minLength: 1, maxLength: 64 } },
+} as const;
+
 const releaseBody = {
   type: "object",
   required: ["run_id"],
@@ -133,6 +139,12 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
       return reply.code(!created ? 200 : sent ? 201 : 202).send(run);
     });
 
+    // Day 0: a run already paid straight through PayPal, recorded so it's tracked and cancellable.
+    v1.post<{ Body: RunRequest & { payout_batch_id: string } }>("/payout-runs/import", { schema: { body: importBody } }, async (req, reply) => {
+      const { created, runId } = await importPastRun(db, req.programId, req.body, req.body.payout_batch_id);
+      return reply.code(created ? 201 : 200).send(await getRun(db, req.programId, runId));
+    });
+
     v1.get<{ Params: { id: string } }>("/payout-runs/:id", async (req, reply) => {
       const run = await getRun(db, req.programId, req.params.id);
       return run ?? reply.code(404).send({ error: "no such run" });
@@ -154,7 +166,12 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
     v1.post<{ Params: { id: string }; Body: { run_id: string; confirmed_by?: string } }>(
       "/rings/:id/confirm",
       { schema: { body: { type: "object", required: ["run_id"], properties: { run_id: { type: "string" }, confirmed_by: { type: "string", maxLength: 255 } } } } },
-      async (req) => confirmRing(db, req.programId, req.params.id, req.body),
+      async (req) => {
+        const confirmed = await confirmRing(db, req.programId, req.params.id, req.body);
+        // The worker would cancel them within seconds anyway; doing it here shows the money back in the response's wake.
+        if (inlineSend && confirmed.cancels_queued > 0) await drainOutbox(db, paypal).catch(() => 0);
+        return confirmed;
+      },
     );
 
     v1.get("/rules", async (req) => listRules(db, req.programId));

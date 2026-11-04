@@ -207,6 +207,11 @@ export class MockPayPal implements PayPalClient {
     };
   }
 
+  /** Every payout item PayPal holds, in creation order: the chaos CLI's ground truth. */
+  ledger(): PayoutItemDetails[] {
+    return [...this.items.keys()].map((id) => this.copy(id));
+  }
+
   /** sender_item_id -> how many PayPal items were created for it. More than 1 is a double payment. */
   paidCounts(): Map<string, number> {
     return new Map(this.paid);

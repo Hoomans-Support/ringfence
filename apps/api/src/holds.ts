@@ -7,10 +7,11 @@
  * making a second one.
  *
  * Confirm: a held ring becomes blocked, and its devices and payout addresses join this program's
- * confirmed-fraud list, which starter rule S-02 blocks on sight in every later run.
+ * confirmed-fraud list, which starter rule S-02 blocks on sight in every later run. Any payout from
+ * an earlier run that went to them and is still unclaimed is queued for cancellation (FR-16).
  */
 import { normalizeEmail } from "@ringfence/engine";
-import { ApiError, audit, sha256, withProgram, type Db } from "./db";
+import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
 
 export interface ReleaseRequest {
   run_id: string;
@@ -49,7 +50,7 @@ export async function releaseHolds(db: Db, programId: string, req: ReleaseReques
       [programId, held, senderBatchId, req.run_id],
     );
     await q.query("INSERT INTO batches (sender_batch_id, program_id, run_id, kind) VALUES ($1, $2, $3, 'release')", [senderBatchId, programId, req.run_id]);
-    await q.query("INSERT INTO outbox (kind, ref) VALUES ('create_batch', $1)", [senderBatchId]);
+    await q.query("INSERT INTO outbox (program_id, kind, ref) VALUES ($1, 'create_batch', $2)", [programId, senderBatchId]);
     await audit(q, programId, req.released_by ?? "api", "holds_released", { run_id: req.run_id, sender_batch_id: senderBatchId, sender_item_ids: held });
     return { sender_batch_id: senderBatchId, released: held, created: true };
   });
@@ -60,7 +61,7 @@ export async function confirmRing(
   programId: string,
   ringId: string,
   req: { run_id: string; confirmed_by?: string },
-): Promise<{ ring_id: string; blocked: number; devices: number; payout_addresses: number }> {
+): Promise<{ ring_id: string; blocked: number; devices: number; payout_addresses: number; cancels_queued: number; cancel_usd: number }> {
   return withProgram(db, programId, async (q) => {
     const members = await q.query<{ sender_item_id: string; receiver: string; device: string; state: string }>(
       `SELECT sender_item_id, receiver, context->>'device_hash' AS device, state FROM items
@@ -82,7 +83,36 @@ export async function confirmRing(
        ON CONFLICT DO NOTHING`,
       [programId, ringId, req.run_id, JSON.stringify([...devices.map((value) => ({ kind: "device", value })), ...addresses.map((value) => ({ kind: "payout_address", value }))])],
     );
-    await audit(q, programId, req.confirmed_by ?? "api", "ring_confirmed", { run_id: req.run_id, ring_id: ringId, blocked: blocked.length, devices: devices.length });
-    return { ring_id: ringId, blocked: blocked.length, devices: devices.length, payout_addresses: addresses.length };
+    const cancels = await queueFraudCancels(q, programId);
+    await audit(q, programId, req.confirmed_by ?? "api", "ring_confirmed", { run_id: req.run_id, ring_id: ringId, blocked: blocked.length, devices: devices.length, ...cancels });
+    return { ring_id: ringId, blocked: blocked.length, devices: devices.length, payout_addresses: addresses.length, cancels_queued: cancels.queued, cancel_usd: cancels.usd };
   });
+}
+
+/** Queues a cancel for every unclaimed payout that went to a confirmed ring's device or payout
+ *  address: the money returns to the PayPal balance now instead of after PayPal's 30 days. Safe to
+ *  run again (the confirm, and the cron's sweep): an item already queued isn't queued twice. */
+export async function queueFraudCancels(q: Queryable, programId: string): Promise<{ queued: number; usd: number }> {
+  const fraud = await q.query<{ kind: string; value: string }>("SELECT kind, value FROM known_fraud WHERE program_id = $1", [programId]);
+  const devices = new Set(fraud.filter((f) => f.kind === "device").map((f) => f.value));
+  const addresses = new Set(fraud.filter((f) => f.kind === "payout_address").map((f) => f.value));
+  const unclaimed = await q.query<{ payout_item_id: string; receiver: string; device: string; amount_value: string }>(
+    `SELECT payout_item_id, receiver, context->>'device_hash' AS device, amount_value FROM items
+     WHERE program_id = $1 AND state = 'unclaimed' AND payout_item_id IS NOT NULL`,
+    [programId],
+  );
+  let queued = 0;
+  let usd = 0;
+  for (const item of unclaimed) {
+    if (!devices.has(item.device) && !addresses.has(normalizeEmail(item.receiver).email)) continue;
+    const rows = await q.query("INSERT INTO outbox (program_id, kind, ref) VALUES ($1, 'cancel_item', $2) ON CONFLICT (kind, ref) DO NOTHING RETURNING 1", [
+      programId,
+      item.payout_item_id,
+    ]);
+    if (rows.length > 0) {
+      queued += 1;
+      usd += Number(item.amount_value);
+    }
+  }
+  return { queued, usd };
 }
