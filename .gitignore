@@ -2,6 +2,7 @@
 .env.local
 node_modules/
 .vendor/
+ponytail/
 .next/
 next-env.d.ts
 *.tsbuildinfo

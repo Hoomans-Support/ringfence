@@ -7,7 +7,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { generateWeek1 } from "./week1";
+import { generateWeek0, generateWeek1, generateWeek2 } from "./index";
 
 function readSeedArg(): number {
   const flagIndex = process.argv.indexOf("--seed");
@@ -23,12 +23,17 @@ function main(): void {
   const fixturesDir = join(process.cwd(), "fixtures");
   mkdirSync(fixturesDir, { recursive: true });
 
-  const { run, truth } = generateWeek1(seed);
-
-  writeFileSync(join(fixturesDir, "week1.json"), `${JSON.stringify(run, null, 2)}\n`);
-  writeFileSync(join(fixturesDir, "week1.truth.json"), `${JSON.stringify(truth, null, 2)}\n`);
-
-  console.log(`Wrote fixtures/week1.json (${run.items.length} items) and fixtures/week1.truth.json, seed=${seed}`);
+  const weeks = [
+    ["week0", generateWeek0(seed)],
+    ["week1", generateWeek1(seed)],
+    ["week2", generateWeek2(seed)],
+  ] as const;
+  for (const [name, { run, truth }] of weeks) {
+    writeFileSync(join(fixturesDir, `${name}.json`), `${JSON.stringify(run, null, 2)}\n`);
+    writeFileSync(join(fixturesDir, `${name}.truth.json`), `${JSON.stringify(truth, null, 2)}\n`);
+    console.log(`Wrote fixtures/${name}.json (${run.items.length} items) and fixtures/${name}.truth.json`);
+  }
+  console.log(`Seed=${seed}`);
 }
 
 main();

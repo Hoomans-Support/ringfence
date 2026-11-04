@@ -28,6 +28,36 @@ body {
   --rf-hairline: #e4e4e0;
 }
 
+/* Keep the Scheduler legible in the Ringfence ink / coral / mist palette. */
+.ringfence-scheduler {
+  font-family: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.ringfence-scheduler .b-sch-event {
+  background-color: var(--rf-spark);
+  border: 0;
+  border-radius: 999px;
+  color: var(--rf-white);
+}
+
+.ringfence-scheduler .b-grid-header,
+.ringfence-scheduler .b-grid-header-container {
+  background: var(--rf-mist);
+  color: var(--rf-ink);
+}
+
+.rf-grid-empty {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.5rem;
+  color: var(--rf-slate);
+  text-align: center;
+}
+
+.rf-grid-empty strong {
+  color: var(--rf-ink);
+}
+
 @theme inline {
   --color-rf-ink: var(--rf-ink);
   --color-rf-spark: var(--rf-spark);

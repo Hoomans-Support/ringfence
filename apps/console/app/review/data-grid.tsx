@@ -44,10 +44,15 @@ export interface ReviewRow {
   receiver: string;
   amount: number;
   reasons: string;
+  holdExpiresAt: string;
 }
 
 const formatMoney = ({ value }: ValueFormatterParams<ReviewRow>) =>
   typeof value === "number" ? value.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "";
+const formatExpiry = ({ value }: ValueFormatterParams<ReviewRow>) =>
+  typeof value === "string"
+    ? new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+    : "";
 
 const defaultColDef: ColDef<ReviewRow> = { filter: true, resizable: true };
 const autoSizeStrategy = { type: "fitCellContents" } as const;
@@ -68,6 +73,15 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
       { field: "senderItemId", headerName: "Item", cellClass: "font-mono text-rf-slate" },
       { field: "receiver", headerName: "Payee" },
       { field: "amount", headerName: "Amount", valueFormatter: formatMoney, cellClass: "font-mono" },
+      {
+        field: "holdExpiresAt",
+        headerName: "Simulated expiry · 7-day policy",
+        valueFormatter: formatExpiry,
+        comparator: (a: string, b: string) => Date.parse(a) - Date.parse(b),
+        sort: "asc",
+        sortIndex: 0,
+        cellClass: "font-mono text-rf-slate",
+      },
       { field: "reasons", headerName: "Why it's held", flex: 2 },
     ],
     [],
@@ -84,6 +98,7 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
           autoSizeStrategy={autoSizeStrategy}
           getRowId={({ data }) => data.senderItemId}
           enableCellTextSelection
+          overlayNoRowsTemplate='<div class="rf-grid-empty"><strong>Nothing needs review.</strong><span>New holds will appear here after a run.</span></div>'
         />
       </AgGridProvider>
     </div>

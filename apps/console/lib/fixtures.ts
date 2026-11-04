@@ -16,16 +16,25 @@ export interface GroundTruthLabel {
   ring_label?: string;
 }
 
+export type DemoWeek = 0 | 1 | 2;
+
 // apps/console/lib/fixtures.ts -> apps/console/lib -> apps/console -> apps -> repo root
 const REPO_ROOT = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
 const FIXTURES_DIR = path.join(REPO_ROOT, "fixtures");
 
-export function loadWeek1Run(): PayoutRun {
-  const raw = readFileSync(path.join(FIXTURES_DIR, "week1.json"), "utf-8");
+export function parseDemoWeek(value: string | undefined): DemoWeek {
+  return value === "0" ? 0 : value === "2" ? 2 : 1;
+}
+
+export function loadWeekRun(week: DemoWeek): PayoutRun {
+  const raw = readFileSync(path.join(FIXTURES_DIR, `week${week}.json`), "utf-8");
   return JSON.parse(raw) as PayoutRun;
 }
 
-export function loadWeek1Truth(): GroundTruthLabel[] {
-  const raw = readFileSync(path.join(FIXTURES_DIR, "week1.truth.json"), "utf-8");
+export function loadWeekTruth(week: DemoWeek): GroundTruthLabel[] {
+  const raw = readFileSync(path.join(FIXTURES_DIR, `week${week}.truth.json`), "utf-8");
   return JSON.parse(raw) as GroundTruthLabel[];
 }
+
+export const loadWeek1Run = () => loadWeekRun(1);
+export const loadWeek1Truth = () => loadWeekTruth(1);

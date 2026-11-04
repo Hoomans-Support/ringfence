@@ -51,6 +51,7 @@ export interface RuleRobustnessOptions {
   caught: number;
   heldOut: number;
   heldOutCaught: number;
+  note?: string;
 }
 
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -124,6 +125,7 @@ function RuleRobustnessWidget({ config, widgetApi }: AgWidgetParams) {
       <WidgetHeading>
         Rule robustness · <code className="font-mono text-rf-slate">{o.ruleId}</code>
       </WidgetHeading>
+      {o.note ? <p className="text-sm text-rf-slate">{o.note}</p> : <>
       <p className="text-[17px] leading-[1.5] text-rf-ink">
         Survived{" "}
         <span className="font-mono text-[22px] font-semibold text-rf-spark-text">
@@ -134,6 +136,7 @@ function RuleRobustnessWidget({ config, widgetApi }: AgWidgetParams) {
       <p className="text-sm text-rf-slate">
         {o.heldOutCaught} of {o.heldOut} held-out copies caught too.
       </p>
+      </>}
     </div>
   );
 }
