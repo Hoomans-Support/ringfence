@@ -69,23 +69,30 @@ export function withProgram<T>(db: Db, programId: string, fn: (q: Queryable) => 
 
 export const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
-/** Creates the program if it doesn't exist and (re)sets its API key. */
-export async function ensureProgram(db: Db, id: string, name: string, apiKey: string): Promise<void> {
+/** Creates the program if it doesn't exist and (re)sets its keys. */
+export async function ensureProgram(db: Db, id: string, name: string, apiKey: string, mcpKey?: string): Promise<void> {
   await db.query(
-    `INSERT INTO programs (id, name, api_key_hash) VALUES ($1, $2, $3)
-     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, api_key_hash = EXCLUDED.api_key_hash`,
-    [id, name, sha256(apiKey)],
+    `INSERT INTO programs (id, name, api_key_hash, mcp_key_hash) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, api_key_hash = EXCLUDED.api_key_hash, mcp_key_hash = EXCLUDED.mcp_key_hash`,
+    [id, name, sha256(apiKey), mcpKey ? sha256(mcpKey) : null],
   );
 }
 
-export async function programForKey(db: Db, apiKey: string): Promise<string | undefined> {
-  const [row] = await db.query<{ id: string }>("SELECT id FROM programs WHERE api_key_hash = $1", [sha256(apiKey)]);
-  return row?.id;
+/** "full" for the program's API key; "read" for its MCP key, which can screen and explain but
+ *  never move money, release a hold or change a rule. */
+export type KeyScope = "full" | "read";
+
+export async function programForKey(db: Db, key: string): Promise<{ programId: string; scope: KeyScope } | undefined> {
+  const [row] = await db.query<{ id: string; scope: KeyScope }>(
+    "SELECT id, CASE WHEN api_key_hash = $1 THEN 'full' ELSE 'read' END AS scope FROM programs WHERE api_key_hash = $1 OR mcp_key_hash = $1",
+    [sha256(key)],
+  );
+  return row ? { programId: row.id, scope: row.scope } : undefined;
 }
 
 /** A request the API refuses, with the status code to refuse it with. */
 export class ApiError extends Error {
-  constructor(readonly statusCode: 400 | 404 | 409, message: string) {
+  constructor(readonly statusCode: 400 | 403 | 404 | 409, message: string) {
     super(message);
   }
 }

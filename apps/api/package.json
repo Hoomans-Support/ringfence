@@ -7,11 +7,13 @@
     "start": "tsx src/server.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@ringfence/agents": "*",
     "@ringfence/engine": "*",
     "@ringfence/paypal": "*",
     "fastify": "^5.12.8",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.15",

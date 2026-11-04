@@ -7,8 +7,8 @@
  * losing or repeating it. Resending a run that already exists returns what was recorded the first
  * time, without deciding or sending anything again.
  */
-import { evaluateRules, type Decision, type PayoutItem, type PayoutRun } from "@ringfence/engine";
-import { ApiError, audit, sha256, withProgram, type Db } from "./db";
+import { evaluateRules, type Decision, type PayoutItem, type PayoutRun, type RuleRunResult } from "@ringfence/engine";
+import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
 import { chaos } from "./executor";
 import { loadRuleContext } from "./learning";
 import type { ItemState } from "./states";
@@ -84,8 +84,7 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
       let version = "imported";
       let decide = (_item: PayoutItem): ItemRow => ({ decision: "PAY", ring_id: null, hold_group_id: null, reasons: [], rules: ["import"], state: "sent", batch_id: runId });
       if (!importedBatchId) {
-        const { rules, ctx, version: ruleSet } = await loadRuleContext(q, programId);
-        const result = evaluateRules(run, rules, ctx, ruleSet);
+        const result = await decideRun(q, programId, run);
         const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
         version = result.rule_set_version;
         decide = (item) => {
@@ -142,6 +141,40 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
     if ((err as { code?: string }).code === "23505") return { created: false, runId };
     throw err;
   }
+}
+
+/** The one decision step: the run, under this program's approved rules and confirmed-fraud list.
+ *  POST /v1/payout-runs and the MCP screen both come through here, so they can't disagree. */
+async function decideRun(q: Queryable, programId: string, run: PayoutRun): Promise<RuleRunResult> {
+  const { rules, ctx, version } = await loadRuleContext(q, programId);
+  return evaluateRules(run, rules, ctx, version);
+}
+
+export interface ScreenResult {
+  rule_set_version: string;
+  summary: { pay: number; hold: number; block: number };
+  decisions: Array<{ sender_item_id: string; decision: string; ring_id?: string; hold_group_id?: string; reasons: string[]; rules: string[] }>;
+}
+
+/** The same decisions a run would get right now, with nothing stored and nothing sent. */
+export async function screenRun(db: Db, programId: string, body: RunRequest): Promise<ScreenResult> {
+  if (new Set(body.items.map((i) => i.sender_item_id)).size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
+  const receivedAt = new Date().toISOString();
+  const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
+  const result = await withProgram(db, programId, (q) => decideRun(q, programId, run));
+  const count = (d: Decision) => result.decisions.filter((x) => x.decision === d).length;
+  return {
+    rule_set_version: result.rule_set_version,
+    summary: { pay: count("PAY"), hold: count("HOLD"), block: count("BLOCK") },
+    decisions: result.decisions.map((d) => ({
+      sender_item_id: d.sender_item_id,
+      decision: d.decision,
+      ...(d.ring_id ? { ring_id: d.ring_id } : {}),
+      ...(d.hold_group_id ? { hold_group_id: d.hold_group_id } : {}),
+      reasons: d.reasons,
+      rules: d.rules,
+    })),
+  };
 }
 
 interface ItemRow {

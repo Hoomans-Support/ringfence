@@ -13,7 +13,8 @@ import { drainOutbox } from "./executor";
 import type { Rule } from "@ringfence/engine";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
 import { approveRule, listRules, proposeRule } from "./learning";
-import { getRun, importPastRun, submitRun, type RunRequest } from "./runs";
+import { explainRing, registerMcp } from "./mcp";
+import { getRun, importPastRun, screenRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
 
 declare module "fastify" {
@@ -124,10 +125,22 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   app.register(async (v1) => {
     v1.addHook("onRequest", async (req, reply) => {
       const key = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1];
-      const programId = key ? await programForKey(db, key) : undefined;
-      if (!programId) return reply.code(401).send({ error: "missing or unknown API key" });
-      req.programId = programId;
+      const auth = key ? await programForKey(db, key) : undefined;
+      if (!auth) return reply.code(401).send({ error: "missing or unknown API key" });
+      // The MCP key reads: it can screen and look things up, never send, release, confirm or approve.
+      if (auth.scope === "read" && req.method !== "GET" && req.routeOptions.url !== "/v1/screen") {
+        return reply.code(403).send({ error: "this key is read-only" });
+      }
+      req.programId = auth.programId;
     });
+
+    v1.post<{ Body: RunRequest }>("/screen", { schema: { body: runBody } }, async (req) => screenRun(db, req.programId, req.body));
+
+    v1.get<{ Params: { id: string }; Querystring: { run_id: string } }>(
+      "/rings/:id",
+      { schema: { querystring: { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } } } },
+      async (req, reply) => (await explainRing(db, req.programId, req.params.id, req.query.run_id)) ?? reply.code(404).send({ error: "no such held ring in that run" }),
+    );
 
     v1.post<{ Body: RunRequest }>("/payout-runs", { schema: { body: runBody } }, async (req, reply) => {
       const { created, runId } = await submitRun(db, req.programId, req.body);
@@ -193,6 +206,8 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
     );
   }, { prefix: "/v1" });
 
+  registerMcp(app, db);
+
   // PayPal webhooks: no API key, the signature is the authentication. /webhooks/paypal is the path
   // the first deployed service registered with PayPal, kept so that registration keeps working.
   const webhook = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -220,7 +235,13 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 async function main(): Promise<void> {
   const { db, paypal } = await boot();
   if (process.env.RINGFENCE_API_KEY) {
-    await ensureProgram(db, process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp", process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app", process.env.RINGFENCE_API_KEY);
+    await ensureProgram(
+      db,
+      process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp",
+      process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app",
+      process.env.RINGFENCE_API_KEY,
+      process.env.RINGFENCE_MCP_KEY,
+    );
   } else {
     console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
   }

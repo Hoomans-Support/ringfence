@@ -12,7 +12,7 @@ export const auth = { authorization: "Bearer budget-key" };
 export async function setup(paypal: PayPalClient = new MockPayPal()) {
   const db = await connect("pglite://memory");
   await migrate(db);
-  await ensureProgram(db, "budgetapp", "Budgeting app", "budget-key");
+  await ensureProgram(db, "budgetapp", "Budgeting app", "budget-key", "budget-mcp-key");
   await ensureProgram(db, "surveyapp", "Survey app", "survey-key");
   // PGlite connects as a superuser, which skips row-level security. Run everything after setup as an
   // ordinary role instead, so every test meets tenant isolation the way the app does on Render.

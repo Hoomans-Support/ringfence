@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS programs (
   id           text PRIMARY KEY,
   name         text NOT NULL,
   api_key_hash text NOT NULL UNIQUE,  -- sha256 of the program's API key; the key itself is never stored
+  mcp_key_hash text UNIQUE,           -- sha256 of the read-only key AI agents use over MCP
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 

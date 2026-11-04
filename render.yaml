@@ -5,8 +5,8 @@
 # (judging runs to 21 December), so everything is on the smallest paid plan. The API alone could use
 # `plan: free` if a ~1 minute wake-up after 15 idle minutes is acceptable (PayPal retries a timed-out webhook).
 #
-# Secrets marked `sync: false` are asked for once, when the Blueprint is first created. RINGFENCE_API_KEY
-# and ADMIN_TOKEN are generated; copy them from the API's Environment tab.
+# Secrets marked `sync: false` are asked for once, when the Blueprint is first created. RINGFENCE_API_KEY,
+# RINGFENCE_MCP_KEY and ADMIN_TOKEN are generated; copy them from the API's Environment tab.
 
 envVarGroups:
   - name: ringfence-paypal
@@ -49,6 +49,8 @@ services:
       - key: RINGFENCE_PROGRAM_ID
         value: budgetapp
       - key: RINGFENCE_API_KEY
+        generateValue: true
+      - key: RINGFENCE_MCP_KEY # read-only, for AI agents on POST /mcp
         generateValue: true
       - key: ADMIN_TOKEN
         generateValue: true

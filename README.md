@@ -57,7 +57,15 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 | `POST /v1/holds/release` | Pay held payees in a batch of their own |
 | `POST /v1/rings/:id/confirm` | Block a ring, remember its devices and addresses, cancel its earlier unclaimed payouts |
 | `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule (backtested and red-teamed on the way in), approve it |
+| `POST /v1/screen`, `GET /v1/rings/:id?run_id=` | The decisions a run would get, with nothing stored or sent; a held ring's checked case file |
 | `POST /v1/webhooks/paypal` | PayPal webhooks, signature-verified before they change anything |
+| `POST /mcp` | The MCP server for AI agents: `screen_payees` and `explain_ring`, both read-only |
+
+An agent that pays people screens its payees over MCP before sending the run through the API, with the program's read-only `RINGFENCE_MCP_KEY` (refused by every route that moves money). For example, in Claude Code:
+
+```bash
+claude mcp add --transport http ringfence https://<api host>/mcp --header "Authorization: Bearer <mcp key>"
+```
 
 Run it locally with no database server and no PayPal account (PGlite in memory, in-process mock PayPal):
 
