@@ -8,7 +8,7 @@ _Temporary project overview; fuller setup and demo instructions will be added as
 
 ## How this was built
 
-Built during the hackathon's submission period from [`final-prd.docx`](final-prd.docx) (Ringfence v5, 3 Nov 2026), the plan of record for scope, requirements and demo data. Two engineers split the work: one on PayPal plumbing, the rule engine, and the Render deploy; the other, Claude-assisted, on the detection engine, demo data, the console, and the agents (investigator, claim checker, red-team agent). See [agent-coordination.md](agent-coordination.md) for the full task board and [log.md](log.md) for a day-by-day account of what was built, found, and fixed.
+Built during the hackathon's submission period from a PRD (Ringfence v5, 3 Nov 2026) covering scope, requirements and demo data. Two engineers split the work: one on PayPal plumbing, the rule engine, and the Render deploy; the other, Claude-assisted, on the detection engine, demo data, the console, and the agents (investigator, claim checker, red-team agent).
 
 ### Review queue
 
