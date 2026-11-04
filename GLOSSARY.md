@@ -110,6 +110,10 @@ _Avoid_: AI rule, auto rule
 The attack every proposed rule faces before approval: disguised copies of the ring it came from, scored as caught N of 200.
 _Avoid_: survived (ambiguous: did the rule survive, or the attack?)
 
+**Open red-team case**:
+One disguised copy a rule's red team missed, saved so the next revision of that rule has to answer for it. Stays open until a revision's actual conditions catch that exact disguise again (not just a higher score on a fresh attack); then it closes and counts toward the rule's record.
+_Avoid_: miss (a miss is any failure in the moment; a case is the saved, persistent one)
+
 ## Money coming back
 
 **Cancel**:

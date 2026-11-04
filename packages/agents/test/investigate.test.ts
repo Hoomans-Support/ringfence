@@ -1,6 +1,7 @@
 import type { PayoutItem, PayoutRun, RingSummary } from "@ringfence/engine";
 import { describe, expect, it } from "vitest";
 import { investigate } from "../src/investigate";
+import type { DisguiseAttempt, RedTeamCase } from "../src/types";
 
 function item(id: string, overrides: Partial<PayoutItem["context"]> = {}, receiver?: string): PayoutItem {
   return {
@@ -148,5 +149,85 @@ describe("investigate", () => {
     expect(caseFile.claims_checked.checked).toBe(0);
     expect(caseFile.claims_checked.total).toBe(caseFile.claims.length);
     expect(caseFile.claims.length).toBeGreaterThan(0);
+  });
+
+  describe("revising against open red-team cases", () => {
+    const run: PayoutRun = {
+      sender_batch_header: { sender_batch_id: "t" },
+      items: [
+        item("a", { onboarding_seconds: 90, activity_after_onboarding: 0, referrer_id: "u_ref" }),
+        item("b", { onboarding_seconds: 100, activity_after_onboarding: 0, referrer_id: "u_ref" }),
+        item("c", { onboarding_seconds: 80, activity_after_onboarding: 0, referrer_id: "u_ref" }),
+      ],
+    };
+    const { proposed_rule: baseRule } = investigate(ring, run);
+
+    function openCase(failedSignals: string[]): RedTeamCase {
+      const attempt: DisguiseAttempt = {
+        id: "x",
+        held_out: false,
+        same_referrer: true,
+        signup_spread_minutes: 0,
+        onboarding_seconds: 0,
+        activity_after_onboarding: 0,
+      };
+      return { id: Math.random().toString(), missedByRuleId: baseRule.id, attempt, failedSignals, status: "open" };
+    }
+
+    it("widens the signup window by a fixed step once a majority of open cases beat it", () => {
+      const openCases = [openCase(["signup_burst:window"]), openCase(["signup_burst:window"]), openCase(["signup_burst:referrer"])];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+
+      const original = baseRule.when.all.find((c) => c.signal === "signup_burst");
+      const revised = proposed_rule.when.all.find((c) => c.signal === "signup_burst");
+      expect(revised?.window_min).toBe(Math.ceil((original?.window_min ?? 0) * 1.5));
+      expect(proposed_rule.id).toBe(`${baseRule.id}-v2`);
+      expect(proposed_rule.source).toContain("revised from 3 open red-team cases");
+    });
+
+    it("widens the onboarding cap by a fixed step once a majority of open cases beat it", () => {
+      const openCases = [openCase(["onboarding_seconds"]), openCase(["onboarding_seconds"])];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+
+      const original = baseRule.when.all.find((c) => c.signal === "onboarding_seconds");
+      const revised = proposed_rule.when.all.find((c) => c.signal === "onboarding_seconds");
+      expect(revised?.max).toBe(Math.ceil((original?.max ?? 0) * 1.5));
+      expect(proposed_rule.id).toBe(`${baseRule.id}-v2`);
+    });
+
+    it("widens a quiet-after-onboarding cap of 0 to 1, a fixed step rather than a percentage", () => {
+      const openCases = [openCase(["activity_after_onboarding"]), openCase(["activity_after_onboarding"])];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+
+      const revised = proposed_rule.when.all.find((c) => c.signal === "activity_after_onboarding");
+      expect(revised?.max).toBe(1);
+      expect(proposed_rule.id).toBe(`${baseRule.id}-v2`);
+    });
+
+    it("doesn't widen a signal only a minority of open cases beat", () => {
+      const openCases = [openCase(["signup_burst:window"]), openCase(["signup_burst:referrer"]), openCase(["signup_burst:referrer"])];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+      expect(proposed_rule).toEqual(baseRule);
+    });
+
+    it("leaves the rule unchanged when the only beaten axis is the categorical referrer, with no numeric fix", () => {
+      const openCases = [openCase(["signup_burst:referrer"]), openCase(["signup_burst:referrer"])];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+      expect(proposed_rule).toEqual(baseRule);
+      expect(proposed_rule.id).toBe(baseRule.id);
+    });
+
+    it("ignores already-closed cases when deciding what to widen", () => {
+      const openCases: RedTeamCase[] = [
+        { ...openCase(["signup_burst:window"]), status: "closed", closedByRuleId: "R-01-v2" },
+        { ...openCase(["signup_burst:window"]), status: "closed", closedByRuleId: "R-01-v2" },
+      ];
+      const { proposed_rule } = investigate(ring, run, { openCases });
+      expect(proposed_rule).toEqual(baseRule);
+    });
+
+    it("behaves exactly as the no-options call when openCases is empty", () => {
+      expect(investigate(ring, run, { openCases: [] })).toEqual(investigate(ring, run));
+    });
   });
 });

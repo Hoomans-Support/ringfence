@@ -30,15 +30,15 @@ Opening a held item shows the graph that ties the ring together, a Bryntum timel
 
 ### Rules
 
-Every proposed rule is attacked with 200 disguised copies of the ring it came from before anyone sees it: Rule R-01 survived 37.
+Every proposed rule is attacked with 200 disguised copies of the ring it came from before anyone sees it: Rule R-01 caught 48. The misses it didn't catch are saved as open red-team cases — the next time a rule is revised, it widens whichever check a majority of its own saved cases beat, and a direct replay (not just the revision's own fresh score) is what actually closes them: R-01-v2's wider signup window closes 13 of 112.
 
-![Rule R-01's conditions and its 37-of-200 red-team score](docs/screenshots/rules.png)
+![Rule R-01's conditions and its 48-of-200 red-team score](docs/screenshots/rules.png)
 
 ### Control tower
 
 Four widgets built on the AG Studio dashboard engine: the ring graph, money kept vs. leaked, a false-hold meter, and rule robustness — all driven by the same run, no separate data path.
 
-![Control tower: ring graph, $460 kept vs. $0 leaked, an 8% false-hold rate, and 18.5% rule robustness](docs/screenshots/control-tower.png)
+![Control tower: ring graph, $460 kept vs. $0 leaked, an 8% false-hold rate, and 24% rule robustness](docs/screenshots/control-tower.png)
 
 Week 2 shows what a learned rule would hold — labeled simulated, since the real rule evaluator is A's and not yet connected.
 

@@ -8,9 +8,18 @@
  * claim's `text` into nicer prose, never its `check`, so this function's own facts stay the ground
  * truth checkClaims verifies regardless of whether narration ran. Read-only, no tool that moves
  * money, exactly as FR-8 requires.
+ *
+ * The `openCases` option is the other half of the red-team-misses feedback loop (red-team-cases.ts):
+ * when a ring's rule has open cases from a prior red-team round, this widens whichever threshold a
+ * majority of them beat, by a fixed, explainable step rather than a precise fit — attackRule's
+ * disguises are booleans per axis, not real timestamps, so there's no exact number to solve for.
+ * `signup_burst:referrer` has no numeric fix (categorical): cases that only beat it stay open, which
+ * is the honest, expected outcome. The rule's id/source only bumps to a "v2" if the widened `when`
+ * actually differs from the original — if every beaten axis is categorical, this ring's rule
+ * couldn't be improved against its open cases, which is itself worth showing, not nothing.
  */
 import { aliasPatternKey, type PayoutItem, type PayoutRun, type RingSummary } from "@ringfence/engine";
-import type { CaseFile, Claim, ProposedRule } from "./types";
+import type { CaseFile, Claim, ProposedRule, RedTeamCase, RuleCondition } from "./types";
 
 function shortId(accountId: string): string {
   return accountId.replace(/^u_/, "");
@@ -132,6 +141,10 @@ function buildClaims(members: PayoutItem[]): Claim[] {
 function proposeRule(ringId: string, claims: Claim[], memberCount: number): ProposedRule {
   const byKind = new Map(claims.map((c) => [c.check.kind, c.check] as const));
   const conditions: ProposedRule["when"]["all"] = [];
+  // The ring's true observed stats, captured once here and carried unchanged through every
+  // revision (reviseRule below) — see RuleBaseline's doc in types.ts for why a revision's widened
+  // `when` can't be allowed to also widen what attackRule treats as "the ring's real behaviour".
+  const baseline: NonNullable<ProposedRule["baseline"]> = {};
 
   const referrerCheck = byKind.get("shared_referrer");
   const windowCheck = byKind.get("signup_window");
@@ -142,16 +155,19 @@ function proposeRule(ringId: string, claims: Claim[], memberCount: number): Prop
       window_min: windowCheck.window_minutes,
       min_accounts: memberCount,
     });
+    baseline.window_min = windowCheck.window_minutes;
   }
 
   const speedCheck = byKind.get("onboarding_speed");
   if (speedCheck) {
     conditions.push({ signal: "onboarding_seconds", max: speedCheck.max_onboarding_seconds });
+    baseline.onboarding_seconds = speedCheck.max_onboarding_seconds;
   }
 
   const quietCheck = byKind.get("quiet_after_onboarding");
   if (quietCheck) {
     conditions.push({ signal: "activity_after_onboarding", max: quietCheck.max_activity_after_onboarding });
+    baseline.activity_after_onboarding = quietCheck.max_activity_after_onboarding;
   }
 
   return {
@@ -159,16 +175,72 @@ function proposeRule(ringId: string, claims: Claim[], memberCount: number): Prop
     action: "HOLD",
     when: { all: conditions },
     source: `ring ${ringId}`,
+    baseline,
   };
 }
 
-export function investigate(ring: RingSummary, run: PayoutRun): CaseFile {
+/** Fixed, explainable widening step: +50% for a numeric threshold, except
+ *  `activity_after_onboarding`'s 0 -> 1, since 0 scaled by anything is still 0. */
+const WIDEN_FACTOR = 1.5;
+
+/** True once a strict majority of `openCases` beat `signalKey` — "beat" meaning it's in that case's
+ *  `failedSignals`, from attack-rule.ts's failingSignals. */
+function majorityBeat(openCases: RedTeamCase[], signalKey: string): boolean {
+  const count = openCases.filter((c) => c.failedSignals.includes(signalKey)).length;
+  return count > openCases.length / 2;
+}
+
+function widenCondition(condition: RuleCondition, openCases: RedTeamCase[]): RuleCondition {
+  switch (condition.signal) {
+    case "signup_burst":
+      // :referrer is categorical — no numeric fix, left as-is on purpose.
+      if (condition.window_min !== undefined && majorityBeat(openCases, "signup_burst:window")) {
+        return { ...condition, window_min: Math.ceil(condition.window_min * WIDEN_FACTOR) };
+      }
+      return condition;
+    case "onboarding_seconds":
+      if (condition.max !== undefined && majorityBeat(openCases, "onboarding_seconds")) {
+        return { ...condition, max: Math.ceil(condition.max * WIDEN_FACTOR) };
+      }
+      return condition;
+    case "activity_after_onboarding":
+      if (condition.max === 0 && majorityBeat(openCases, "activity_after_onboarding")) {
+        return { ...condition, max: 1 };
+      }
+      return condition;
+    default:
+      return condition;
+  }
+}
+
+/** Revises `rule` against its still-open cases. Returns `rule` unchanged (same id) if none of the
+ *  widenable axes were beaten by a majority — e.g. every open case only beat the categorical
+ *  referrer axis. */
+function reviseRule(rule: ProposedRule, openCases: RedTeamCase[]): ProposedRule {
+  if (openCases.length === 0) return rule;
+
+  const widened = rule.when.all.map((c) => widenCondition(c, openCases));
+  const changed = widened.some((c, i) => c !== rule.when.all[i]);
+  if (!changed) return rule;
+
+  return {
+    ...rule,
+    id: `${rule.id}-v2`,
+    source: `${rule.source}, revised from ${openCases.length} open red-team case${openCases.length === 1 ? "" : "s"}`,
+    when: { all: widened },
+  };
+}
+
+export function investigate(ring: RingSummary, run: PayoutRun, options: { openCases?: RedTeamCase[] } = {}): CaseFile {
   const members = membersOf(ring, run);
   const claims = buildClaims(members);
+  const proposedRule = proposeRule(ring.ring_id, claims, members.length);
+  const openCases = (options.openCases ?? []).filter((c) => c.status === "open");
+
   return {
     ring_id: ring.ring_id,
     claims,
-    proposed_rule: proposeRule(ring.ring_id, claims, members.length),
+    proposed_rule: openCases.length > 0 ? reviseRule(proposedRule, openCases) : proposedRule,
     claims_checked: { checked: 0, total: claims.length },
   };
 }
