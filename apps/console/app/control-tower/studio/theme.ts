@@ -46,7 +46,11 @@ export const ringfenceStudioTheme = studioTheme.withParams({
   studioWidgetCaptionFontFamily: "var(--font-sans)",
   studioWidgetCaptionFontSize: 13,
   studioWidgetCaptionTextColor: token("slate"),
-  studioWidgetResizeBorderColor: token("spark"),
+  // Only ever visible as a focus ring here, never an actual resize handle: mode="view" (see
+  // control-tower.tsx) exposes no drag/resize UI at all. Coral reads as an unexplained alarm when
+  // it shows up on browser focus with nothing to resize, so it's neutralized to the ordinary
+  // card border instead of the brand's one reserved highlight colour.
+  studioWidgetResizeBorderColor: token("hairline"),
 
   studioPanelContainerBackgroundColor: token("white"),
   studioPanelContainerBorder: line("hairline"),

@@ -89,7 +89,7 @@ function MoneyWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as MoneyOptions;
   return (
-    <div className="flex h-full flex-col justify-center gap-3">
+    <div className="flex h-full flex-col gap-3 p-3">
       <WidgetHeading>Money kept vs. leaked</WidgetHeading>
       <div>
         <p className="text-[13px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from the ring</p>
@@ -110,7 +110,7 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
   const o = config.options as FalseHoldOptions;
   const rate = o.heldCount > 0 ? o.falseHoldCount / o.heldCount : 0;
   return (
-    <div className="flex h-full flex-col justify-center gap-2">
+    <div className="flex h-full flex-col gap-2 p-3">
       <WidgetHeading>False-hold meter</WidgetHeading>
       <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-[1.1] text-rf-spark-text">
         {(rate * 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}%
@@ -126,7 +126,7 @@ function RuleRobustnessWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as RuleRobustnessOptions;
   return (
-    <div className="flex h-full flex-col justify-center gap-2">
+    <div className="flex h-full flex-col gap-2 p-3">
       <WidgetHeading>
         Rule robustness · <code className="font-mono text-rf-slate">{o.ruleId}</code>
       </WidgetHeading>

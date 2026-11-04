@@ -95,7 +95,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
   const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
 
   return (
-    <main className="flex h-dvh flex-col bg-rf-mist px-8 py-6 text-rf-ink">
+    <main className="flex min-h-dvh flex-col bg-rf-mist px-8 py-6 text-rf-ink">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Control tower</h1>
@@ -113,7 +113,15 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
         <span className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white">Week {week}</span>
         {nextWeek !== undefined && <Link href={`/control-tower?week=${nextWeek}`} className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-white hover:opacity-85">Step to week {nextWeek}</Link>}
       </nav>
-      <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-[20px] border border-rf-hairline bg-rf-white p-2">
+      {/* Exact content height, not a flex-filled viewport box: studio/theme.ts's 42 rows at
+          studioCanvasRowHeight 18px (the ringGraph widget's own ySpan, matching the three
+          right-column widgets' 14+14+14) plus its 24px top/bottom studioCanvasPadding gives 804px;
+          measured AG Studio's actual rendered content at 806px (2px of border/rounding the theme
+          tokens don't account for exactly) plus this wrapper's own p-2/border — so AG Studio
+          always renders at its natural full height and never needs its own internal scrollbar.
+          The page scrolls instead, like any normal page, at viewports shorter than that (was a
+          scrollable box nested inside a non-scrolling page). */}
+      <div className="mt-5 h-[828px] rounded-[20px] border border-rf-hairline bg-rf-white p-2">
         <ControlTower
           licenseKey={process.env.AG_STUDIO}
           ringGraph={ringGraph}
