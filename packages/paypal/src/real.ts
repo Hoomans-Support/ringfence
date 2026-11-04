@@ -173,17 +173,24 @@ export function createRealClient(opts: RealClientOptions): PayPalClient {
     // re-serialised (a re-serialised event can fail verification).
     async verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean> {
       if (!opts.webhookId) throw new Error("PAYPAL_WEBHOOK_ID is not set");
+      const signature = ["auth-algo", "cert-url", "transmission-id", "transmission-sig", "transmission-time"].map((n) => header(headers, `paypal-${n}`));
+      // Not signed at all, so not from PayPal: refused without asking PayPal about it.
+      if (signature.some((v) => !v)) return false;
+      const [algo, cert, id, sig, time] = signature;
       const body =
-        `{"auth_algo":${JSON.stringify(header(headers, "paypal-auth-algo"))},` +
-        `"cert_url":${JSON.stringify(header(headers, "paypal-cert-url"))},` +
-        `"transmission_id":${JSON.stringify(header(headers, "paypal-transmission-id"))},` +
-        `"transmission_sig":${JSON.stringify(header(headers, "paypal-transmission-sig"))},` +
-        `"transmission_time":${JSON.stringify(header(headers, "paypal-transmission-time"))},` +
+        `{"auth_algo":${JSON.stringify(algo)},"cert_url":${JSON.stringify(cert)},"transmission_id":${JSON.stringify(id)},` +
+        `"transmission_sig":${JSON.stringify(sig)},"transmission_time":${JSON.stringify(time)},` +
         `"webhook_id":${JSON.stringify(opts.webhookId)},"webhook_event":${rawBody}}`;
-      // A verify call that fails (network, 5xx) throws rather than reading as "not verified": the
-      // webhook route then answers 5xx and PayPal redelivers, instead of the event being dropped.
-      const res = await api<{ verification_status?: string }>("/v1/notifications/verify-webhook-signature", { method: "POST", body });
-      return res.verification_status === "SUCCESS";
+      try {
+        const res = await api<{ verification_status?: string }>("/v1/notifications/verify-webhook-signature", { method: "POST", body });
+        return res.verification_status === "SUCCESS";
+      } catch (err) {
+        // PayPal refusing the request itself (400/422: malformed, or a body that isn't JSON) means
+        // not verified. Anything else (network, 5xx, our own 401/403) throws instead: the webhook
+        // route answers 5xx and PayPal redelivers once it's fixed, rather than the event being dropped.
+        if (err instanceof PayPalError && (err.status === 400 || err.status === 422)) return false;
+        throw err;
+      }
     },
   };
   return client;

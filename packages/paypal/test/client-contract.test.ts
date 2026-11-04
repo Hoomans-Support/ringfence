@@ -82,6 +82,12 @@ describe.each(clients)("PayPalClient contract: %s", (_name, make) => {
     expect((await client.getBatch("ERRPYOB004")).batch_header.batch_status).toBe("DENIED");
   });
 
+  it("refuses a webhook without PayPal's signature headers without asking PayPal", async () => {
+    const { client } = await make();
+    expect(await client.verifyWebhook({ "content-type": "application/json" }, '{"id":"WH-1"}')).toBe(false);
+    expect(await client.verifyWebhook({ "paypal-transmission-sig": "abc" }, "not json")).toBe(false);
+  });
+
   it("verifies a signed webhook and rejects a tampered one", async () => {
     const { client, mock } = await make();
     const created = await client.createBatch(batch("run_d", ["lee@example.test"]), "run_d");
