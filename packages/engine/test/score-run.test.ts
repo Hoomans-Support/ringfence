@@ -108,6 +108,14 @@ describe("scoreRun", () => {
     expect(result.rings.length).toBe(0); // a pair is not a ring
   });
 
+  it("pays two people sharing a device when only one of them carries a risk flag", () => {
+    const parent = item("famA", "dana.osei@gmail.com", { device_hash: "d_family_tablet", onboarding_seconds: 70, activity_after_onboarding: 4 });
+    const teen = item("famB", "kofi.osei@gmail.com", { device_hash: "d_family_tablet", onboarding_seconds: 900, activity_after_onboarding: 6 });
+    const result = scoreRun({ sender_batch_header: { sender_batch_id: "test_family" }, items: [parent, teen] });
+    expect(decisionFor(result, parent.sender_item_id).decision).toBe("PAY");
+    expect(decisionFor(result, teen.sender_item_id).decision).toBe("PAY");
+  });
+
   it("pays coworkers who only share wording, with no device, IP or address link", () => {
     const coworkers: PayoutItem[] = Array.from({ length: 5 }, (_, i) =>
       item(`cw${i}`, `coworker${i}@outlook.com`, {

@@ -4,11 +4,14 @@
  * Builds the weighted graph and groups accounts by connected component —
  * everyone a surviving edge chain reaches is one group, which is what keeps
  * a ring spread across several devices as one group instead of one group
- * per device. A group is held if it carries a risk flag (onboarding_speed,
- * quiet-after-onboarding, or a disposable payout address) AND either has a
- * hard link inside it or has 3 or more members — matching final-prd.docx:
- * "A community with a risk flag is held if it has a hard link or 3 or more
- * accounts. Communities of 3 or more are labeled rings and get a case file."
+ * per device. A group of 3 or more is held if any member carries a risk flag
+ * (onboarding_speed, quiet-after-onboarding, or a disposable payout address);
+ * communities of 3 or more are labeled rings and get a case file. A pair is
+ * held only if it shares a hard link AND both accounts carry a risk flag —
+ * the PRD's own roommates ("they share a laptop and both finished onboarding
+ * in under 2 minutes"). Two honest people on one family tablet, where just
+ * one of them onboarded quickly, are paid: in the fire drill that one case
+ * was every honest member the old any-flag rule held (docs/fire-drill.md).
  * Louvain also runs over the graph (as FR-3 asks), surfaced per ring as
  * `louvain_clusters` — a structural detail for the case file, not the hold
  * boundary (see graph.ts for why).
@@ -74,7 +77,8 @@ export function scoreRun(run: PayoutRun, _context?: ScoreRunContext): ScoreRunRe
 
     const isRingSize = size >= 3;
     const hasHardLink = size > 1 && communityHasHardLink(graph, members);
-    const shouldHold = size > 1 && anyRiskFlag && (hasHardLink || isRingSize);
+    const everyMemberFlagged = members.every((a) => (flagsByAccount.get(a)?.length ?? 0) > 0);
+    const shouldHold = anyRiskFlag && (isRingSize || (size === 2 && hasHardLink && everyMemberFlagged));
 
     let ringId: string | undefined;
     let holdGroupId: string | undefined;
