@@ -1,8 +1,8 @@
 /**
- * The non-functional "Up for judging" requirement: a cap on model spend. No real model call
- * exists yet (investigate/checkClaims/attackRule are scripted - see their own module docs), so
- * nothing calls `record` today. This is the guard to call right after each real model call once
- * the LLM key lands in that seam, so a runaway loop can't blow through the budget silently.
+ * The non-functional "Up for judging" requirement: a cap on model spend. Called from narrate.ts's
+ * narrateClaims() right before each real model call (see apps/console/lib/llm-spend-cap.ts for the
+ * shared, per-process instance the console actually uses), so a runaway loop can't blow through the
+ * budget silently.
  */
 
 export class ModelSpendCapExceededError extends Error {

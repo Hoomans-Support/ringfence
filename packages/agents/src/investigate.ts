@@ -1,11 +1,13 @@
 /**
- * investigate(ring, run) -> CaseFile (FR-8). Scripted for now, not an LLM call — see the module
- * doc on checkClaims for why that's fine for this stage. It looks only at the ring's own members
- * and the run's data (no invented facts), and writes a claim only when the evidence is common to
- * every member it names, so checkClaims (next) should confirm all of them on a correct case file.
+ * investigate(ring, run) -> CaseFile (FR-8). Scripted, not an LLM call — see the module doc on
+ * checkClaims for why that's fine. It looks only at the ring's own members and the run's data (no
+ * invented facts), and writes a claim only when the evidence is common to every member it names, so
+ * checkClaims (next) should confirm all of them on a correct case file.
  *
- * This is the seam where a real model swaps in later: same signature, same CaseFile shape, same
- * checker downstream. Read-only, no tool that moves money, exactly as FR-8 requires.
+ * The real model call lives downstream, in narrate.ts's narrateClaims(): it only ever rewrites a
+ * claim's `text` into nicer prose, never its `check`, so this function's own facts stay the ground
+ * truth checkClaims verifies regardless of whether narration ran. Read-only, no tool that moves
+ * money, exactly as FR-8 requires.
  */
 import { aliasPatternKey, type PayoutItem, type PayoutRun, type RingSummary } from "@ringfence/engine";
 import type { CaseFile, Claim, ProposedRule } from "./types";

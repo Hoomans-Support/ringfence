@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { checkClaims, holdEmailCopy, investigate, redTeamRule, releaseEmailCopy, type Claim } from "@ringfence/agents";
+import { checkClaims, holdEmailCopy, investigate, narrateClaims, redTeamRule, releaseEmailCopy, type Claim } from "@ringfence/agents";
 import { scoreRun, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek } from "@/lib/fixtures";
+import { sharedLlmSpendCap } from "@/lib/llm-spend-cap";
 import { layoutRing } from "@/lib/ring-layout";
 import { buildRingTimelineData } from "@/lib/ring-timeline-data";
 import { RingGraph } from "./ring-graph";
@@ -60,7 +61,8 @@ export default async function RingDetailPage({ params, searchParams }: { params:
   const memberAccountIds = new Set(nodes.map((n) => n.id));
   const narrativeLabel = truth.find((t) => memberAccountIds.has(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
 
-  const caseFile = week === 1 ? checkClaims(investigate(ring, run), run) : undefined;
+  const checkedCaseFile = week === 1 ? checkClaims(investigate(ring, run), run) : undefined;
+  const caseFile = checkedCaseFile ? await narrateClaims(checkedCaseFile, { spendCap: sharedLlmSpendCap() }) : undefined;
   const proposedRule = caseFile ? redTeamRule(caseFile.proposed_rule) : undefined;
   const sampleMemberItem = run.items.find((item) => item.sender_item_id === ring.member_sender_item_ids[0]);
 
