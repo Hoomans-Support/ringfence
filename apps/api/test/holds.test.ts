@@ -94,7 +94,7 @@ describe("confirm and learn", () => {
     expect(approved).toMatchObject({ status: "approved", approved_by: "rina@budgetapp.test" });
 
     const week2 = fixture("week2");
-    const ring = new Set(fixture("week2.truth").filter((t: { group: string }) => t.group === "ring").map((t: { sender_item_id: string }) => t.sender_item_id));
+    const ring = new Set<string>(fixture("week2.truth").filter((t: { group: string }) => t.group === "ring").map((t: { sender_item_id: string }) => t.sender_item_id));
     const decided = (await post(app, "/v1/payout-runs", week2)).json();
     expect(decided.rule_set_version).toBe("starter-1+R-07v1");
     expect(decided.summary).toMatchObject({ paid: 419, held: 18, blocked: 0 });
