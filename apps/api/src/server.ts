@@ -6,15 +6,18 @@
  */
 import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { createPayPalClient, type PayPalClient } from "@ringfence/paypal";
 import { connect, ensureProgram, migrate, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import { getRun, RunRejected, submitRun, type RunRequest } from "./runs";
+import { handleWebhook } from "./sync";
 
 declare module "fastify" {
   interface FastifyRequest {
     programId: string;
+    /** The body exactly as received: webhook signatures are checked against these bytes. */
+    rawBody: string;
   }
 }
 
@@ -76,11 +79,22 @@ export interface AppDeps {
   /** Send a new run's batch inside the request, so the response carries PayPal's batch id. The
    *  worker picks up anything this doesn't finish. */
   inlineSend?: boolean;
+  /** Bearer token for GET /v1/webhooks/events; unset means the route answers 404. */
+  adminToken?: string;
 }
 
-export function buildApp({ db, paypal, inlineSend = true }: AppDeps): FastifyInstance {
+export function buildApp({ db, paypal, inlineSend = true, adminToken = process.env.ADMIN_TOKEN }: AppDeps): FastifyInstance {
   const app = Fastify({ logger: process.env.NODE_ENV !== "test" && !process.env.VITEST, bodyLimit: 16 * 1024 * 1024 });
   app.decorateRequest("programId", "");
+  app.decorateRequest("rawBody", "");
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+    req.rawBody = body as string;
+    try {
+      done(null, body === "" ? {} : JSON.parse(body as string));
+    } catch (err) {
+      done(Object.assign(err as Error, { statusCode: 400 }), undefined);
+    }
+  });
 
   app.get("/health", async () => {
     await db.query("SELECT 1");
@@ -110,6 +124,20 @@ export function buildApp({ db, paypal, inlineSend = true }: AppDeps): FastifyIns
       return run ?? reply.code(404).send({ error: "no such run" });
     });
   }, { prefix: "/v1" });
+
+  // PayPal webhooks: no API key, the signature is the authentication. /webhooks/paypal is the path
+  // the first deployed service registered with PayPal, kept so that registration keeps working.
+  const webhook = async (req: FastifyRequest, reply: FastifyReply) => {
+    const outcome = await handleWebhook(db, paypal, req.headers, req.rawBody);
+    return reply.code(outcome === "unverified" ? 400 : 200).send({ ok: outcome !== "unverified", outcome });
+  };
+  app.post("/v1/webhooks/paypal", webhook);
+  app.post("/webhooks/paypal", webhook);
+
+  app.get("/v1/webhooks/events", async (req, reply) => {
+    if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) return reply.code(404).send({ error: "not found" });
+    return db.query("SELECT event_id, event_type, payout_batch_id, transaction_status, applied, received_at FROM webhook_events ORDER BY received_at DESC LIMIT 20");
+  });
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof RunRejected) return reply.code(err.statusCode).send({ error: err.message });

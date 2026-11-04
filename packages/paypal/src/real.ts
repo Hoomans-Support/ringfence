@@ -166,10 +166,9 @@ export function createRealClient(opts: RealClientOptions): PayPalClient {
         `"transmission_sig":${JSON.stringify(header(headers, "paypal-transmission-sig"))},` +
         `"transmission_time":${JSON.stringify(header(headers, "paypal-transmission-time"))},` +
         `"webhook_id":${JSON.stringify(opts.webhookId)},"webhook_event":${rawBody}}`;
-      const res = await api<{ verification_status?: string }>("/v1/notifications/verify-webhook-signature", {
-        method: "POST",
-        body,
-      }).catch(() => ({ verification_status: "FAILURE" }));
+      // A verify call that fails (network, 5xx) throws rather than reading as "not verified": the
+      // webhook route then answers 5xx and PayPal redelivers, instead of the event being dropped.
+      const res = await api<{ verification_status?: string }>("/v1/notifications/verify-webhook-signature", { method: "POST", body });
       return res.verification_status === "SUCCESS";
     },
   };

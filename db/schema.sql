@@ -78,6 +78,18 @@ CREATE TABLE IF NOT EXISTS outbox (
 );
 CREATE INDEX IF NOT EXISTS outbox_pending ON outbox (id) WHERE status = 'pending';
 
+-- Every verified PayPal webhook, keyed by PayPal's event id: a redelivered event is recognized and
+-- applied once. Ids and statuses only, no payee data, so like batches it isn't tenant-scoped.
+CREATE TABLE IF NOT EXISTS webhook_events (
+  event_id           text PRIMARY KEY,
+  event_type         text NOT NULL,
+  payout_batch_id    text,
+  payout_item_id     text,
+  transaction_status text,
+  applied            boolean NOT NULL DEFAULT false,
+  received_at        timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id         bigserial PRIMARY KEY,
   program_id text NOT NULL,

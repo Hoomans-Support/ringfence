@@ -36,10 +36,17 @@ export async function startMockServer(
 
   if (opts.webhookUrl) {
     const target = opts.webhookUrl;
+    // One delivery at a time, retrying a non-2xx a few times the way PayPal redelivers: firing a
+    // whole batch's events at once would just be a burst no real receiver sees from PayPal.
+    let queue = Promise.resolve();
     mock.listeners.push((event) => {
       const { headers, body } = mock.signedWebhook(event);
-      // Delivered after the current request finishes, like PayPal's own asynchronous webhooks.
-      setTimeout(() => void fetch(target, { method: "POST", headers, body }).catch(() => undefined), 10);
+      queue = queue.then(async () => {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          if (await fetch(target, { method: "POST", headers, body }).then((r) => r.ok, () => false)) return;
+          await new Promise((r) => setTimeout(r, 100 * attempt));
+        }
+      });
     });
   }
 

@@ -1,38 +1,7 @@
-import { readFileSync } from "node:fs";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MockPayPal, type PayPalClient } from "@ringfence/paypal";
-import { connect, ensureProgram, migrate, type Db } from "../src/db";
-import { chaos, drainOutbox } from "../src/executor";
-import { buildApp } from "../src/server";
-
-const week1 = JSON.parse(readFileSync(new URL("../../../fixtures/week1.json", import.meta.url), "utf8"));
-const auth = { authorization: "Bearer budget-key" };
-
-async function setup(paypal: PayPalClient = new MockPayPal()) {
-  const db = await connect("pglite://memory");
-  await migrate(db);
-  await ensureProgram(db, "budgetapp", "Budgeting app", "budget-key");
-  await ensureProgram(db, "surveyapp", "Survey app", "survey-key");
-  return { db, paypal, app: buildApp({ db, paypal }) };
-}
-
-/** Makes the next pass through `point` behave like the process dying there: throw, touch nothing. */
-function crashOnceAt(point: string): void {
-  const original = chaos.hook;
-  chaos.hook = (p) => {
-    if (p !== point) return;
-    chaos.hook = original;
-    throw Object.assign(new Error(`simulated crash at ${point}`), { name: "ChaosCrash" });
-  };
-}
-
-/** What a dead process's lease does after it times out. */
-const expireLeases = (db: Db) => db.query("UPDATE outbox SET locked_until = now() WHERE status = 'pending'");
-
-const realHook = chaos.hook;
-afterEach(() => {
-  chaos.hook = realHook;
-});
+import { drainOutbox } from "../src/executor";
+import { auth, crashOnceAt, expireLeases, setup, week1 } from "./helpers";
 
 function expectPaidExactlyOnce(mock: MockPayPal, decisions: Array<{ sender_item_id: string; decision: string }>) {
   const counts = mock.paidCounts();
