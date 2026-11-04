@@ -115,8 +115,14 @@ export function generateWeek2(seed: number): WeekFixture {
     ring_label: "R-07 (learned)",
   })));
 
+  // Only the 18 disguised ring items get their deliberately-chosen near-payout dates above;
+  // everything else (base honest items and the synthetic w2_ref_honest_* ones, which share the
+  // "w2_ref_" string prefix with the disguised items' own "w2_ref_N" ids) must still be remapped
+  // onto Week 2's timeline below. Track disguised ids by identity, not by prefix, so the honest
+  // payees don't get skipped too and keep stale Week-1-era signup dates.
+  const disguisedIds = new Set(disguised.map((item) => item.sender_item_id));
   for (const item of fixture.run.items) {
-    if (item.sender_item_id.startsWith("w2_ref_")) continue;
+    if (disguisedIds.has(item.sender_item_id)) continue;
     const relativeToWeek1 = Date.parse("2026-11-02T09:00:00Z") - Date.parse(item.context.signup_at);
     item.context.signup_at = new Date(payoutAt - relativeToWeek1).toISOString();
   }

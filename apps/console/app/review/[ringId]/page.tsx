@@ -42,13 +42,15 @@ export default async function RingDetailPage({ params, searchParams }: { params:
   const { rings } = scoreRun(run);
   const week2Members = truth.filter((label) => label.group === "ring").map((label) => label.sender_item_id);
   const ring: RingSummary | undefined = week === 2
-    ? {
-        ring_id: ringId,
-        member_sender_item_ids: week2Members,
-        size: week2Members.length,
-        reasons: ["shared referrer", "20-minute signup burst", "fast onboarding", "quiet after onboarding"],
-        louvain_clusters: week2Members.length,
-      }
+    ? (ringId === "R-07"
+        ? {
+            ring_id: ringId,
+            member_sender_item_ids: week2Members,
+            size: week2Members.length,
+            reasons: ["shared referrer", "20-minute signup burst", "fast onboarding", "quiet after onboarding"],
+            louvain_clusters: week2Members.length,
+          }
+        : undefined)
     : rings.find((r) => r.ring_id === ringId);
   if (!ring) notFound();
 
@@ -100,7 +102,7 @@ export default async function RingDetailPage({ params, searchParams }: { params:
           <div>
             <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Week {week} sign-ups</h2>
             <p className="mt-1 text-sm text-rf-slate">
-              {week === 0 ? "Nine ring accounts were paid before Ringfence; four later went unclaimed." : week === 1 ? "23 accounts started within one 15-minute window." : "18 new accounts used different devices, domains, and IPs in one 20-minute window."}
+              {week === 0 ? "Nine ring accounts were paid before Ringfence existed." : week === 1 ? "23 accounts started within one 15-minute window." : "18 new accounts used different devices, domains, and IPs in one 20-minute window."}
             </p>
           </div>
           <span className="font-mono text-xs text-rf-slate">BRYNTUM SCHEDULER</span>

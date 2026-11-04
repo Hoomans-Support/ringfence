@@ -78,8 +78,6 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
         headerName: "Simulated expiry · 7-day policy",
         valueFormatter: formatExpiry,
         comparator: (a: string, b: string) => Date.parse(a) - Date.parse(b),
-        sort: "asc",
-        sortIndex: 0,
         cellClass: "font-mono text-rf-slate",
       },
       { field: "reasons", headerName: "Why it's held", flex: 2 },

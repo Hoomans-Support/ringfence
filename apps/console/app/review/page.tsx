@@ -139,7 +139,6 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       </p>
       <p className="mt-1 text-xs text-rf-slate">
         Simulated Week {week} fixture · expiry order uses signup time as an age proxy
-        {week === 0 ? " · 4 unclaimed payouts ($80) return after the run" : ""}
         {week === 2 ? " · learned-rule holds are fixture presentation until A's evaluator is connected" : ""}
       </p>
       <div className="mt-5 flex min-h-0 flex-1 flex-col rounded-[20px] border border-rf-hairline bg-rf-white">
