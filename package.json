@@ -9,7 +9,8 @@
     "test": "vitest run",
     "demo:generate": "tsx scripts/demo-generator/src/cli.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "smoke": "tsx scripts/smoke-test.ts"
+    "smoke": "tsx scripts/smoke-test.ts",
+    "fire-drill": "tsx scripts/fire-drill.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
