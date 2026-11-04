@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "smoke": "tsx scripts/smoke-test.ts",
     "fire-drill": "tsx scripts/fire-drill.ts",
-    "chaos": "tsx scripts/chaos.ts"
+    "chaos": "tsx scripts/chaos.ts",
+    "mock-paypal": "tsx scripts/mock-paypal.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

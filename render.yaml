@@ -1,20 +1,97 @@
-services:
-  - type: web
-    name: paypal-hackathon-service
-    runtime: node
-    plan: free
-    rootDir: service
-    buildCommand: echo "no build step"
-    startCommand: node server.mjs
-    healthCheckPath: /health
+# One Blueprint for Ringfence's payout side (PRD, Render: "hosting only"): the API, the background
+# worker, the hourly cron job and Postgres. Sandbox only: the PayPal client refuses any other host.
+#
+# Plans: Render has no free tier for workers or cron jobs, and a free Postgres expires after 30 days
+# (judging runs to 21 December), so everything is on the smallest paid plan. The API alone could use
+# `plan: free` if a ~1 minute wake-up after 15 idle minutes is acceptable (PayPal retries a timed-out webhook).
+#
+# Secrets marked `sync: false` are asked for once, when the Blueprint is first created. RINGFENCE_API_KEY
+# and ADMIN_TOKEN are generated; copy them from the API's Environment tab.
+
+envVarGroups:
+  - name: ringfence-paypal
     envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PAYPAL_MODE
+        value: sandbox
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
+      # API, worker and cron each pace their own PayPal calls; at 4s apart they stay under the
+      # sandbox's 50 requests a minute between them.
+      - key: PAYPAL_MIN_INTERVAL_MS
+        value: "4000"
+      # Set to "true" if smoke test 5 shows the sandbox's real cancel failing: cancels then use the
+      # sandbox test ID POSPOI002 and say so in the audit log.
+      - key: PAYPAL_CANCEL_WITH_TEST_IDS
+        value: "false"
+
+services:
+  - type: web
+    name: paypal-hackathon-service # the first deploy's name: keeps its URL and the webhook registered with PayPal
+    runtime: node
+    plan: 0.5c-512mb
+    buildCommand: npm ci --include=dev
+    startCommand: npx tsx apps/api/src/server.ts
+    healthCheckPath: /health
+    buildFilter:
+      paths: ["apps/api/**", "packages/**", "db/**", "package.json", "package-lock.json"]
+    envVars:
+      - fromGroup: ringfence-paypal
+      - key: DATABASE_URL
+        fromDatabase: { name: ringfence-db, property: connectionString }
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
+      - key: RINGFENCE_PROGRAM_ID
+        value: budgetapp
+      - key: RINGFENCE_API_KEY
+        generateValue: true
       - key: ADMIN_TOKEN
+        generateValue: true
+
+  - type: worker
+    name: ringfence-worker
+    runtime: node
+    plan: 0.5c-512mb
+    buildCommand: npm ci --include=dev
+    startCommand: npx tsx apps/api/src/worker.ts
+    buildFilter:
+      paths: ["apps/api/**", "packages/**", "db/**", "package.json", "package-lock.json"]
+    envVars:
+      - fromGroup: ringfence-paypal
+      - key: DATABASE_URL
+        fromDatabase: { name: ringfence-db, property: connectionString }
+      - key: PAYPAL_CLIENT_ID
         sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+
+  - type: cron
+    name: ringfence-reconcile
+    runtime: node
+    plan: 0.5c-512mb
+    schedule: "0 * * * *" # hourly: reconcile with PayPal, then sweep unclaimed fraud payouts into cancels
+    buildCommand: npm ci --include=dev
+    startCommand: npx tsx apps/api/src/cron.ts
+    buildFilter:
+      paths: ["apps/api/**", "packages/**", "db/**", "package.json", "package-lock.json"]
+    envVars:
+      - fromGroup: ringfence-paypal
+      - key: DATABASE_URL
+        fromDatabase: { name: ringfence-db, property: connectionString }
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+
+databases:
+  - name: ringfence-db
+    plan: 0.1c-256mb
+    databaseName: ringfence
+    user: ringfence
+    postgresMajorVersion: "17"
+    ipAllowList: [] # internal connections only: nothing outside Render can reach it

@@ -4,11 +4,11 @@
  *
  *   npm start -w @ringfence/api      reads ../../.env; DATABASE_URL defaults to an in-memory PGlite
  */
-import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { createPayPalClient, type PayPalClient } from "@ringfence/paypal";
-import { ApiError, connect, ensureProgram, migrate, programForKey, type Db } from "./db";
+import type { PayPalClient } from "@ringfence/paypal";
+import { boot } from "./boot";
+import { ApiError, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import type { Rule } from "@ringfence/engine";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
@@ -218,17 +218,16 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 }
 
 async function main(): Promise<void> {
-  const envFile = new URL("../../../.env", import.meta.url);
-  if (existsSync(envFile)) process.loadEnvFile(envFile);
-  const db = await connect();
-  await migrate(db);
+  const { db, paypal } = await boot();
   if (process.env.RINGFENCE_API_KEY) {
     await ensureProgram(db, process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp", process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app", process.env.RINGFENCE_API_KEY);
   } else {
     console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
   }
-  const app = buildApp({ db, paypal: createPayPalClient() });
+  const app = buildApp({ db, paypal });
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
+  // Render sends SIGTERM before replacing an instance: finish in-flight requests, then let go of the pool.
+  process.once("SIGTERM", () => void app.close().then(() => db.close()).then(() => process.exit(0)));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

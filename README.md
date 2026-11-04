@@ -45,3 +45,34 @@ Week 2 shows what a learned rule would hold — labeled simulated, since the rea
 ## Local Bryntum setup
 
 The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial package from Bryntum and extract it so `scheduler.module.js` and the theme CSS are in `.vendor/bryntum-scheduler-trial/build/`. It's not an npm dependency: both files are served at runtime by `/api/vendor/bryntum` and `/api/vendor/bryntum/theme`, so `npm install` and `npm run build` work without it. You only need it in place before `npm run dev`/`start`, to see the real timeline instead of a 503. `.vendor/` is gitignored; do not commit the trial files.
+
+## Payout API
+
+`apps/api` is the part that sits between a program and PayPal: `POST /v1/payout-runs` takes a PayPal Payouts request body (plus optional per-payee context), decides every payee, and sends the paid ones to PayPal as one batch, exactly once. Every `/v1` route takes the program's API key as `Authorization: Bearer <key>`.
+
+| Route | Does |
+| --- | --- |
+| `POST /v1/payout-runs`, `GET /v1/payout-runs/:id` | Decide and send a run; read its decisions and PayPal batch |
+| `POST /v1/payout-runs/import` | Record a run already paid straight through PayPal, so it's tracked and cancellable |
+| `POST /v1/holds/release` | Pay held payees in a batch of their own |
+| `POST /v1/rings/:id/confirm` | Block a ring, remember its devices and addresses, cancel its earlier unclaimed payouts |
+| `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule (backtested and red-teamed on the way in), approve it |
+| `POST /v1/webhooks/paypal` | PayPal webhooks, signature-verified before they change anything |
+
+Run it locally with no database server and no PayPal account (PGlite in memory, in-process mock PayPal):
+
+```bash
+RINGFENCE_API_KEY=dev-key npm start -w @ringfence/api
+curl -X POST localhost:3000/v1/payout-runs -H 'authorization: Bearer dev-key' -H 'content-type: application/json' --data-binary @fixtures/week1.json
+```
+
+`npm run mock-paypal` runs the mock as its own server, so the real PayPal client and webhooks run offline (see the script's header). The checks behind the money-safety claims:
+
+- `npm test`: the engine, agents and API, with the API on Postgres (PGlite) as an ordinary role, so row-level security applies as it does in production.
+- `npm run smoke`: day-one smoke tests 1 to 7 against the PayPal sandbox (`-- --mock` to check the script itself).
+- `npm run fire-drill`: no gate, a per-request gate and Ringfence on one synthetic program; [docs/fire-drill.md](docs/fire-drill.md).
+- `npm run chaos`: the demo weeks with the process killed at 5 crash points, then an audit of PayPal's ledger; [docs/chaos-run.txt](docs/chaos-run.txt).
+
+### Deploying to Render
+
+`render.yaml` is one Blueprint: the API (web, health check `/health`), the background worker (outbox and polling), the hourly cron job (reconcile, then sweep unclaimed fraud payouts into cancels) and Postgres. In Render, New → Blueprint → this repo, and enter the PayPal sandbox app's client ID and secret when asked. Then register `https://<api host>/v1/webhooks/paypal` for the `PAYMENT.PAYOUTS-ITEM.*` events in the PayPal developer dashboard and set the webhook's ID as the API's `PAYPAL_WEBHOOK_ID`. The API key and admin token are generated; they're in the API service's Environment tab.
