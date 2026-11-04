@@ -28,6 +28,14 @@ export function computeLayout(
 ): { nodes: PositionedNode[]; links: LayoutLink[] } {
   const n = nodeIds.length;
   const radius = Math.min(opts.width, opts.height) * 0.44;
+  // Link distance and collision radius are physical pixel constants to d3-force, not proportions -
+  // on a near-complete graph (every ring here is densely linked) the link force dominates and pulls
+  // the whole cluster down to roughly 2x its own distance constant, regardless of how big the
+  // canvas is. Without scaling these with the canvas, a bigger container (the control tower's
+  // resize-observed widget, vs. this file's other caller, the ring detail page's fixed canvas)
+  // just means a bigger empty margin around the same small cluster, not a bigger graph. 360 is the
+  // smaller of the two fixed sizes this was tuned at before either caller varied its own size.
+  const scale = Math.min(opts.width, opts.height) / 360;
 
   const nodes: SimNode[] = nodeIds.map((id, i) => {
     const angle = (2 * Math.PI * i) / Math.max(n, 1);
@@ -42,15 +50,15 @@ export function computeLayout(
   const simLinks = links.filter((l) => nodeIdSet.has(l.source) && nodeIdSet.has(l.target)).map((l) => ({ ...l }));
 
   const simulation = forceSimulation<SimNode>(nodes)
-    .force("charge", forceManyBody().strength(-80))
+    .force("charge", forceManyBody().strength(-80 * scale))
     .force(
       "link",
       forceLink<SimNode, LayoutLink>(simLinks)
         .id((d) => d.id)
-        .distance(36),
+        .distance(36 * scale),
     )
     .force("center", forceCenter(opts.width / 2, opts.height / 2))
-    .force("collide", forceCollide(12))
+    .force("collide", forceCollide(12 * scale))
     .stop();
 
   for (let i = 0; i < TICKS; i++) simulation.tick();

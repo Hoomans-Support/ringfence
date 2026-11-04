@@ -9,7 +9,17 @@ export interface RingLayout {
   operatorIds: Set<string>;
 }
 
-export function layoutRing(ring: RingSummary, run: PayoutRun, size: { width: number; height: number }): RingLayout {
+export interface RingGraphData {
+  nodeIds: string[];
+  links: LayoutLink[];
+  operatorIds: Set<string>;
+}
+
+/** The ring's real members, edges and operator - everything layoutRing computes except the actual
+ *  x/y positions. Split out so a caller that can only know its real pixel size on the client (the
+ *  control tower's widget, sized by its own container via ResizeObserver) can run computeLayout
+ *  itself once it knows that size, instead of getting a layout baked in at a guessed size. */
+export function buildRingGraphData(ring: RingSummary, run: PayoutRun): RingGraphData {
   const bySenderItemId = new Map(run.items.map((it) => [it.sender_item_id, it] as const));
   const members: PayoutItem[] = ring.member_sender_item_ids
     .map((id) => bySenderItemId.get(id))
@@ -29,6 +39,11 @@ export function layoutRing(ring: RingSummary, run: PayoutRun, size: { width: num
   const topDevice = [...countByDevice.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const operatorIds = new Set(members.filter((it) => it.context.device_hash === topDevice).map((it) => it.context.account_id));
 
-  const layout = computeLayout([...memberAccountIds], links, size);
+  return { nodeIds: [...memberAccountIds], links, operatorIds };
+}
+
+export function layoutRing(ring: RingSummary, run: PayoutRun, size: { width: number; height: number }): RingLayout {
+  const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
+  const layout = computeLayout(nodeIds, links, size);
   return { nodes: layout.nodes, links: layout.links, operatorIds };
 }

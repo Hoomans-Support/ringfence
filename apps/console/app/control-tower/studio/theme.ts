@@ -28,8 +28,11 @@ export const ringfenceStudioTheme = studioTheme.withParams({
   studioCanvasBorderRadius: 0,
   studioCanvasShadow: false,
   studioCanvasBackgroundColor: token("mist"),
-  studioCanvasPadding: 24,
-  studioCanvasRowHeight: 18,
+  // Trimmed from 24/18 (was ~1006px tall at 1440 wide, overflowing a ~900px viewport) so the whole
+  // page fits without scrolling at the spec's target size, now that each stat card also carries
+  // more content (a baseline line, a release button, a retrain button) than it used to.
+  studioCanvasPadding: 16,
+  studioCanvasRowHeight: 16,
   studioCanvasFontFamily: "var(--font-sans)",
 
   studioWidgetBackgroundColor: token("white"),

@@ -108,12 +108,14 @@ We sound like a calm analyst, not a security alarm. Short sentences, real number
 | "387 members were paid on time. 25 payouts are on hold." | "FRAUD DETECTED! 25 users blocked." |
 | "Ring R-12: 23 accounts that look like one person." | "23 scammers caught." |
 | "Held by mistake? Release it in one click." | "Your account has been flagged for suspicious activity." |
-| "New rule R-07 survived 200 disguised attacks." | "Our AI is now smarter than ever." |
+| "Rule R-01 caught 37 of 200 disguised attacks." | "Our AI is now smarter than ever." |
 
 **Words we use:** held · ring · real members · payout run · trace · release · recovered · rule · on time
 **Words we avoid:** blocked · banned · scammers · criminals · suspicious users · threat · AI-powered
 
 **Implementation note:** the engine's internal decision enum (`PAY` / `HOLD` / `BLOCK` — see `packages/engine/src/types.ts`) is a technical name and stays as-is in code. But nothing user-facing — a chip, a button, a log line in the README, a word in the video — should ever print "blocked". A confirmed ring is still shown as **held** (now confirmed) or, once money is clawed back, **recovered**. Flagging this now because it's an easy habit to break without noticing: `BLOCK` reads naturally as "Blocked" to anyone writing UI copy quickly.
+
+**Note, 4 Nov:** the row above read "Rule R-07 survived 200 disguised attacks" until Chelsea asked twice, specifically, for the control tower's rule-robustness card to drop "survived" (ambiguous — did the rule survive, or the attacks?) for "caught N of 200". Updated here to match. The `/rules` page (`packages/agents` task 7's own output) still uses the original "Survived" phrasing for the same underlying numbers — that page wasn't in scope for this change, so the two surfaces currently disagree; worth a deliberate pick one way or the other before the demo.
 
 **Taglines** (from the brand guide): "Connect the dots before payday." · "One dot is a user. Twenty-three is a pattern." · "Pay the real ones. Hold the ring." · "Farming stops paying."
 Note: the produced tagline lockup PNGs (`ringfence-tagline-*.png`) instead read "Ready for the fake-account era" — that line isn't in the guide's own tagline list. Both exist; pick one deliberately for the README/video rather than mixing them, and flag the mismatch to Chelsea if it matters which.

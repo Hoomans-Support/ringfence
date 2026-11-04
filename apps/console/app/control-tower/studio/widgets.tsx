@@ -9,8 +9,9 @@
 // whatever internal portal Studio uses to mount a custom `comp`.
 import type { AgDefaultWidgetDefinition, AgWidgetApi, AgWidgetFormParams, AgWidgetParams } from "ag-studio";
 import { createWidgets, type AgRegistry, type AgWidgetDefinition } from "ag-studio-react";
-import { useEffect, useState, type ReactNode } from "react";
-import type { LayoutLink, PositionedNode } from "@/lib/graph-layout";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { computeLayout, type LayoutLink } from "@/lib/graph-layout";
 import { RingGraph } from "../../review/[ringId]/ring-graph";
 
 // Studio waits for each widget to report its own display state before it considers the page
@@ -28,11 +29,9 @@ function useDisplayedOnMount(widgetApi: AgWidgetApi) {
 export interface RingGraphOptions {
   ringLabel: string;
   memberCount: number;
-  nodes: PositionedNode[];
+  nodeIds: string[];
   links: LayoutLink[];
   operatorIds: Set<string>;
-  width: number;
-  height: number;
 }
 
 export interface MoneyOptions {
@@ -52,6 +51,10 @@ export interface RuleRobustnessOptions {
   heldOut: number;
   heldOutCaught: number;
   note?: string;
+  /** The existing step-to-next-week URL, reused by the "Next: retrain" button - never a fabricated
+   *  "improved rule", since week 2's own card already shows the real "waiting on A's evaluator"
+   *  state rather than invented numbers. */
+  nextStepHref?: string;
 }
 
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -64,37 +67,70 @@ const money = (n: number) => n.toLocaleString("en-US", { style: "currency", curr
 // that inherited 16px regardless of its own size - fine at 13-15px, but a 32-40px number then
 // overflows its own line box into the text above it. Every custom size below sets its own.
 function WidgetHeading({ children }: { children: ReactNode }) {
-  return <h3 className="text-[17px] font-semibold tracking-[-0.02em] leading-[1.3] text-rf-ink">{children}</h3>;
+  return <h3 className="text-[16px] font-semibold tracking-[-0.02em] leading-[1.3] text-rf-ink">{children}</h3>;
+}
+
+/** Measures its own box with ResizeObserver and reports it, so a parent can lay out content at the
+ *  real rendered size instead of a guessed one - needed here because the AG Studio grid's column
+ *  width scales with viewport width while its row height is fixed, so no single hardcoded aspect
+ *  ratio matches the card at every viewport. */
+function useMeasuredSize<T extends HTMLElement>(): [React.RefObject<T | null>, { width: number; height: number } | null] {
+  const ref = useRef<T>(null);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) setSize({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, size];
 }
 
 function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as RingGraphOptions;
-  const hasOperator = o.operatorIds.size > 0;
+  const operatorCount = o.operatorIds.size;
+  const [boxRef, size] = useMeasuredSize<HTMLDivElement>();
+  const layout = useMemo(() => (size ? computeLayout(o.nodeIds, o.links, size) : null), [o.nodeIds, o.links, size]);
+
   return (
-    <div className="flex h-full flex-col gap-2 p-3">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div>
-          <WidgetHeading>Ring graph</WidgetHeading>
-          <p className="text-sm text-rf-slate">
-            Ring <code className="font-mono text-rf-ink">{o.ringLabel}</code> · {o.memberCount} accounts linked
+    <div className="flex h-full flex-col gap-2 p-5">
+      <div>
+        <WidgetHeading>Ring graph</WidgetHeading>
+        <p className="text-sm text-rf-slate">
+          Ring <code className="font-mono text-rf-ink">{o.ringLabel}</code> · {o.memberCount} accounts linked
+        </p>
+        {operatorCount > 0 && (
+          <p className="mt-1 text-sm text-rf-slate">
+            Orange accounts share one device, the strongest ring signal — {operatorCount} of {o.memberCount} here. That's a device count,
+            not a hold count; every account in this ring is held either way.
           </p>
-        </div>
-        <div className="flex shrink-0 gap-3 text-[13px] text-rf-slate">
+        )}
+        <div className="mt-2 flex gap-3 text-[12px] text-rf-slate">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-rf-ink" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-rf-ink" aria-hidden="true" />
             Ring member
           </span>
-          {hasOperator && (
+          {operatorCount > 0 && (
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-rf-spark" aria-hidden="true" />
-              Shares the most common device
+              <span className="h-3 w-3 shrink-0 rounded-full bg-rf-spark" aria-hidden="true" />
+              Shares the most common device (larger dot, design.md's operator signal)
             </span>
           )}
         </div>
       </div>
-      <div className="min-h-0 flex-1">
-        <RingGraph nodes={o.nodes} links={o.links} operatorIds={o.operatorIds} width={o.width} height={o.height} />
+      {/* No fixed aspect-ratio box: width (w-full) and height (flex-1) are both already set by the
+          flex layout, so an aspect-ratio here would be inert anyway. Instead the SVG's viewBox is
+          set to this box's own measured size, so it always fills it exactly with zero letterboxing
+          - stronger than approximating a fixed ~4:3, and necessary since the AG Studio grid's
+          column width scales with viewport while its row height doesn't, so the card's real shape
+          isn't constant across viewports. */}
+      <div ref={boxRef} className="min-h-0 w-full flex-1">
+        {layout && size && <RingGraph nodes={layout.nodes} links={layout.links} operatorIds={o.operatorIds} width={size.width} height={size.height} />}
       </div>
     </div>
   );
@@ -103,21 +139,25 @@ function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
 function MoneyWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as MoneyOptions;
-  const total = o.keptUsd + o.leakedUsd;
-  // No ring money at all (e.g. a week with no active ring) reads as "nothing to catch", not "0%
-  // caught" - the PRD's own fire drill metric (FR-23) is the right place for a real without/with
-  // baseline; this is just the two numbers this run already has, given context against each other.
-  const caughtPct = total > 0 ? Math.round((o.keptUsd / total) * 100) : 100;
+  // "Without Ringfence" is exactly kept+leaked: every dollar this ring would have been paid is
+  // either the dollar we held (kept) or the dollar that got through anyway (leaked) - already in
+  // hand from the two numbers this widget already receives, not a new sim concept. The PRD's own
+  // fire drill (FR-23, A-gated) is the real without/with baseline across many runs; this is just
+  // this one run's own two numbers, given context against each other.
+  const baselineUsd = o.keptUsd + o.leakedUsd;
+  const caughtPct = baselineUsd > 0 ? Math.round((o.keptUsd / baselineUsd) * 100) : 100;
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
+    <div className="flex h-full flex-col gap-2 p-5">
       <WidgetHeading>Money kept vs. leaked</WidgetHeading>
       <div>
-        <p className="text-[13px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from the ring</p>
-        <p className="font-mono text-[36px] font-semibold tracking-[-0.02em] leading-[1.15] text-rf-ink">{money(o.keptUsd)}</p>
-        <p className="text-[13px] leading-[1.3] text-rf-slate">{caughtPct}% of this ring's payouts caught</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from the ring</p>
+        <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-[1.1] text-rf-ink">{money(o.keptUsd)}</p>
+        <p className="text-[13px] leading-[1.3] text-rf-slate">
+          Without Ringfence: {money(baselineUsd)} would've leaked ({caughtPct}% caught).
+        </p>
       </div>
       <div>
-        <p className="text-[13px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Leaked to the ring</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Leaked to the ring</p>
         <p className={`font-mono text-[20px] font-semibold tracking-[-0.02em] leading-[1.2] ${o.leakedUsd > 0 ? "text-rf-spark-text" : "text-rf-slate"}`}>
           {money(o.leakedUsd)}
         </p>
@@ -143,22 +183,25 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
   const remaining = released ? 0 : o.falseHoldCount;
   const pct = o.heldCount > 0 ? Math.round((remaining / o.heldCount) * 100) : 0;
   return (
-    <div className="flex h-full flex-col gap-2 p-3">
+    <div className="flex h-full flex-col gap-1 p-5">
       <WidgetHeading>False-hold meter</WidgetHeading>
-      <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-[1.1] text-rf-spark-text">
+      <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-none text-rf-spark-text">
         {pct}%
       </p>
       <p className="text-sm text-rf-slate">
         {remaining} of {o.heldCount} held turned out honest (target: under {FALSE_HOLD_TARGET_PCT}%).
       </p>
       {remaining > 0 ? (
-        <button
-          type="button"
-          onClick={() => setReleased(true)}
-          className="self-start rounded-full bg-rf-ink px-3 py-1.5 text-sm font-medium text-white hover:opacity-85"
-        >
-          Held by mistake? Release {remaining === 1 ? "it" : "them"} in one click
-        </button>
+        <div className="flex flex-col items-start gap-1">
+          <p className="text-sm text-rf-slate">Held by mistake?</p>
+          <button
+            type="button"
+            onClick={() => setReleased(true)}
+            className="rounded-full bg-rf-ink px-3 py-1 text-sm font-medium text-white hover:opacity-85"
+          >
+            Release {remaining} honest {remaining === 1 ? "account" : "accounts"}
+          </button>
+        </div>
       ) : (
         released && <p className="text-sm text-rf-slate">Released — simulated, nothing was sent to PayPal.</p>
       )}
@@ -169,23 +212,39 @@ function FalseHoldWidget({ config, widgetApi }: AgWidgetParams) {
 function RuleRobustnessWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as RuleRobustnessOptions;
+  const caughtPct = o.variants > 0 ? Math.round((o.caught / o.variants) * 1000) / 10 : 0;
+  const heldOutPct = o.heldOut > 0 ? Math.round((o.heldOutCaught / o.heldOut) * 100) : 0;
   return (
-    <div className="flex h-full flex-col gap-2 p-3">
+    <div className="flex h-full flex-col gap-1 p-5">
       <WidgetHeading>
         Rule robustness · <code className="font-mono text-rf-slate">{o.ruleId}</code>
       </WidgetHeading>
-      {o.note ? <p className="text-sm text-rf-slate">{o.note}</p> : <>
-      <p className="text-[17px] leading-[1.5] text-rf-ink">
-        Survived{" "}
-        <span className="font-mono text-[22px] font-semibold text-rf-spark-text">
-          {o.caught} of {o.variants}
-        </span>{" "}
-        disguised attacks.
-      </p>
-      <p className="text-sm text-rf-slate">
-        {o.heldOutCaught} of {o.heldOut} held-out copies caught too.
-      </p>
-      </>}
+      {o.note ? (
+        <p className="text-sm text-rf-slate">{o.note}</p>
+      ) : (
+        <>
+          {/* Same font/scale as the other two cards' one big number (Money's $460, False-hold's
+              8%) - this card had no standalone headline figure before, just a number buried in a
+              sentence, which was the typography pass's own inconsistency to fix. Neutral ink, not
+              the alarm coral: a rule's own test score isn't a problem to flag the way a false hold
+              or a leak is. */}
+          <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-none text-rf-ink">{caughtPct}%</p>
+          <p className="text-sm text-rf-slate">
+            Rule {o.ruleId} caught {o.caught} of {o.variants} disguised attacks.
+          </p>
+          <p className="text-sm text-rf-slate">
+            On {o.heldOut} held-out variants, it caught {o.heldOutCaught} ({heldOutPct}%).
+          </p>
+          {o.nextStepHref && (
+            <Link
+              href={o.nextStepHref}
+              className="self-start rounded-full border border-rf-hairline px-3 py-1 text-sm font-medium text-rf-ink hover:bg-rf-mist"
+            >
+              Next: retrain on disguised variants
+            </Link>
+          )}
+        </>
+      )}
     </div>
   );
 }

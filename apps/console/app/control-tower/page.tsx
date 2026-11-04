@@ -4,16 +4,10 @@ import { connection } from "next/server";
 import { checkClaims, investigate, redTeamRule } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek, type DemoWeek } from "@/lib/fixtures";
-import { layoutRing } from "@/lib/ring-layout";
+import { buildRingGraphData } from "@/lib/ring-layout";
 import { ControlTower, type ControlTowerData } from "./control-tower";
 
 export const metadata: Metadata = { title: "Control tower" };
-
-// Matches the ring-graph widget's actual rendered aspect ratio (measured ~825x724, ~1.14:1) rather
-// than an arbitrary one, so the SVG's viewBox scaling doesn't letterbox extra white margin on top
-// of what graph-layout.ts's own radius/collision spacing already leaves.
-const GRAPH_WIDTH = 480;
-const GRAPH_HEIGHT = 420;
 
 export default async function ControlTowerPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   await connection();
@@ -68,14 +62,15 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
         }
       : undefined;
 
+  const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
+
   const ringGraph: ControlTowerData["ringGraph"] = ring
     ? (() => {
-        const { nodes, links, operatorIds } = layoutRing(ring, run, { width: GRAPH_WIDTH, height: GRAPH_HEIGHT });
-        const memberAccountIds = new Set(nodes.map((n) => n.id));
-        const ringLabel = truth.find((t) => memberAccountIds.has(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
-        return { ringLabel, memberCount: ring.size, nodes, links, operatorIds: week === 2 ? new Set<string>() : operatorIds, width: GRAPH_WIDTH, height: GRAPH_HEIGHT };
+        const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
+        const ringLabel = truth.find((t) => nodeIds.includes(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
+        return { ringLabel, memberCount: ring.size, nodeIds, links, operatorIds: week === 2 ? new Set<string>() : operatorIds };
       })()
-    : { ringLabel: "No active ring", memberCount: 0, nodes: [], links: [], operatorIds: new Set<string>(), width: GRAPH_WIDTH, height: GRAPH_HEIGHT };
+    : { ringLabel: "No active ring", memberCount: 0, nodeIds: [], links: [], operatorIds: new Set<string>() };
 
   const ruleRobustness: ControlTowerData["ruleRobustness"] = week === 1 && ring
     ? (() => {
@@ -88,35 +83,31 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           caught: rt?.caught ?? 0,
           heldOut: rt?.held_out ?? 0,
           heldOutCaught: rt?.held_out_caught ?? 0,
+          // The existing step-to-next-week flow, not a fabricated "improved" rule: week 2's own
+          // card already shows the honest "waiting on A's evaluator" note rather than invented
+          // numbers, so this button's only real effect is navigating there, same as the nav's own
+          // "Step to week" link.
+          nextStepHref: nextWeek !== undefined ? `/control-tower?week=${nextWeek}` : undefined,
         };
       })()
     : week === 2
       ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "The learned-rule result will appear here when A's evaluator is connected." }
       : { ruleId: "—", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "No Ringfence rule was active in Week 0." };
 
-  const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
-
   return (
-    <main className="flex min-h-dvh flex-col bg-rf-mist px-8 py-6 text-rf-ink">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Control tower</h1>
-          <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
-            Simulated Week {week}: ring graph, money kept against leaked, false holds and rule robustness.
-          </p>
-        </div>
-        <Link
-          href={`/review?week=${week}`}
-          className="rounded-full border border-rf-hairline px-3 py-1.5 text-sm font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink"
-        >
-          ← Week {week} review queue
-        </Link>
+    <main className="flex min-h-dvh flex-col bg-rf-mist px-8 py-4 text-rf-ink">
+      <div>
+        <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Control tower</h1>
+        <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
+          Simulated Week {week}: ring graph, money kept against leaked, false holds and rule robustness.
+        </p>
       </div>
-      {/* State (which week you're looking at) and action (advance the demo) are visually distinct:
-          a tab group for state, one coral button - the brand's one reserved highlight - for the
-          single action. Direct Week 0/1/2 tabs replace "Previous week", which only duplicated what
+      {/* State (which week you're looking at), the one action (advance the demo) and the escape
+          hatch back to the queue are visually distinct from each other: a tab group for state, one
+          coral button - the brand's one reserved highlight - for the action, a plain outlined pill
+          for navigation. Direct Week 0/1/2 tabs replace "Previous week", which only duplicated what
           clicking a tab already does. */}
-      <nav aria-label="Demo week" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+      <nav aria-label="Demo week" className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <div className="flex gap-1 rounded-full border border-rf-hairline p-1">
           {([0, 1, 2] as const).map((w) => (
             <Link
@@ -129,22 +120,36 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
             </Link>
           ))}
         </div>
-        {nextWeek !== undefined && (
+        {nextWeek !== undefined ? (
           <Link href={`/control-tower?week=${nextWeek}`} className="rounded-full bg-rf-spark px-3 py-1.5 font-medium text-white hover:opacity-85">
             Step to week {nextWeek} →
           </Link>
+        ) : (
+          <span className="cursor-default rounded-full bg-rf-mist px-3 py-1.5 font-medium text-rf-slate">Week 2 is the most recent</span>
         )}
+        <Link
+          href={`/review?week=${week}`}
+          className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink"
+        >
+          ← Week {week} review queue
+        </Link>
       </nav>
-      {/* Exact content height, not a flex-filled viewport box: studio/theme.ts's 42 rows at
-          studioCanvasRowHeight 18px (the ringGraph widget's own ySpan, matching the three
-          right-column widgets' 14+14+14) plus its 24px top/bottom studioCanvasPadding gives 804px;
-          measured AG Studio's actual rendered content at 806px (2px of border/rounding the theme
-          tokens don't account for exactly) plus this wrapper's own p-2/border — so AG Studio
-          always renders at its natural full height and never needs its own internal scrollbar.
-          The page scrolls instead, like any normal page, at viewports shorter than that (was a
-          scrollable box nested inside a non-scrolling page). */}
-      <div className="mt-5 h-[828px] rounded-[20px] border border-rf-hairline bg-rf-white p-2">
+      {/* Flattened: no extra card (border/background/padding) wrapping AG Studio's own canvas,
+          which already matches the page's mist background (studio/theme.ts) - this div exists
+          only to give AG Studio a definite pixel height to measure itself against. Theory (42 rows
+          at 16px + 16px top/bottom padding) gives 704px; measured AG Studio's own real rendered
+          height at 706px (2px of border/rounding the theory doesn't capture, same gap found before
+          at the old row height) and used that, so it never needs its own internal scrollbar - the
+          page scrolls instead, like any normal page, at viewports shorter than that. */}
+      <div className="mt-3 h-[706px]">
+        {/* key={week}: AG Studio reads its `widgets` prop once, at mount, to register each
+            widget's options as its initial data - found by actually clicking "Step to week" through
+            all three weeks (not just navigating straight to a URL, which always mounts fresh) and
+            seeing the title update to "Week 2" while every card still showed Week 0's numbers. A
+            key forces React to unmount and remount the whole subtree on a real week change instead
+            of trying to hand AG Studio data it doesn't re-read. */}
         <ControlTower
+          key={week}
           licenseKey={process.env.AG_STUDIO}
           ringGraph={ringGraph}
           money={{ keptUsd, leakedUsd }}
