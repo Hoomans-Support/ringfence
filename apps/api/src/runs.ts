@@ -23,7 +23,9 @@ export interface RunResponse {
   run_id: string;
   rule_set_version: string;
   summary: { paid: number; held: number; blocked: number; paid_usd: number; held_usd: number; blocked_usd: number };
-  paypal: { sender_batch_id: string | null; payout_batch_id: string | null; batch_status: string | null };
+  /** batch_status is PayPal's once the batch is sent; before that QUEUED, or NOT_SENT after every
+   *  retry failed. `error` is PayPal's last refusal (e.g. INSUFFICIENT_FUNDS) while it isn't sent. */
+  paypal: { sender_batch_id: string | null; payout_batch_id: string | null; batch_status: string | null; error?: string };
   decisions: Array<{ sender_item_id: string; decision: string; state: string; ring_id?: string; hold_group_id?: string; reasons: string[]; rules: string[] }>;
 }
 
@@ -203,6 +205,11 @@ export async function getRun(db: Db, programId: string, runId: string): Promise<
       "SELECT sender_batch_id, payout_batch_id, batch_status FROM batches WHERE program_id = $1 AND sender_batch_id = $2",
       [programId, runId],
     );
+    const [send] = await q.query<{ status: string; last_error: string | null }>(
+      "SELECT status, last_error FROM outbox WHERE program_id = $1 AND kind = 'create_batch' AND ref = $2",
+      [programId, runId],
+    );
+    const unsent = send && send.status !== "done";
 
     const summary = { paid: 0, held: 0, blocked: 0, paid_usd: 0, held_usd: 0, blocked_usd: 0 };
     for (const item of items) {
@@ -217,7 +224,8 @@ export async function getRun(db: Db, programId: string, runId: string): Promise<
       paypal: {
         sender_batch_id: batch?.sender_batch_id ?? null,
         payout_batch_id: batch?.payout_batch_id ?? null,
-        batch_status: batch?.batch_status ?? (batch ? "QUEUED" : null),
+        batch_status: batch?.batch_status ?? (!batch ? null : send?.status === "failed" ? "NOT_SENT" : "QUEUED"),
+        ...(unsent && send.last_error ? { error: send.last_error } : {}),
       },
       decisions: items.map((i) => ({
         sender_item_id: i.sender_item_id,

@@ -157,6 +157,16 @@ async function cancelPayout(db: Db, paypal: PayPalClient, event: OutboxEvent, us
   });
 }
 
+/**
+ * Puts batch sends that ran out of retries back in the queue. A send fails for good only on
+ * something a person has to fix, such as INSUFFICIENT_FUNDS (seen in the sandbox): once they have,
+ * the next pass sends it. Always safe to retry: PayPal refuses a sender_batch_id it already has.
+ */
+export async function requeueFailedSends(db: Db): Promise<number> {
+  const rows = await db.query("UPDATE outbox SET status = 'pending', attempts = 0, locked_until = NULL WHERE kind = 'create_batch' AND status = 'failed' RETURNING 1");
+  return rows.length;
+}
+
 /** Works the outbox until it's empty (or just `only`). Returns how many events it completed. */
 export async function drainOutbox(db: Db, paypal: PayPalClient, opts: DrainOptions = {}): Promise<number> {
   const leaseSeconds = opts.leaseSeconds ?? Number(process.env.RINGFENCE_LEASE_SECONDS ?? 30);

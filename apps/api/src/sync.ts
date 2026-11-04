@@ -127,7 +127,7 @@ export async function pollBatches(db: Db, paypal: PayPalClient): Promise<number>
 export interface ReconcileGap {
   sender_batch_id: string;
   sender_item_id?: string;
-  issue: "not_at_paypal" | "unknown_to_ringfence" | "status_conflict" | "batch_id_unknown";
+  issue: "not_at_paypal" | "unknown_to_ringfence" | "status_conflict" | "batch_id_unknown" | "batch_not_sent";
   ours?: string;
   paypal?: string;
 }
@@ -145,10 +145,15 @@ export async function reconcile(db: Db, paypal: PayPalClient): Promise<{ batches
 
   for (const batch of batches) {
     if (!batch.payout_batch_id) {
-      const [pending] = await db.query("SELECT 1 FROM outbox WHERE kind = 'create_batch' AND ref = $1 AND status = 'pending'", [batch.sender_batch_id]);
-      // Sent but PayPal's id never learned: a retried duplicate PayPal didn't name, with no webhook
-      // since to name it. Nobody was paid twice; its items wait on that webhook.
-      if (!pending) gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_id_unknown" });
+      const [send] = await db.query<{ status: string; last_error: string | null }>(
+        "SELECT status, last_error FROM outbox WHERE kind = 'create_batch' AND ref = $1",
+        [batch.sender_batch_id],
+      );
+      // failed: PayPal kept refusing it (e.g. INSUFFICIENT_FUNDS); the cron puts it back in the queue.
+      // done: sent, but PayPal's id never learned (a retried duplicate PayPal didn't name, with no
+      // webhook since to name it). Nobody was paid twice either way.
+      if (send?.status === "failed") gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_not_sent", paypal: send.last_error ?? undefined });
+      else if (send?.status === "done") gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_id_unknown" });
       continue;
     }
     const result = await applyBatch(db, batch, paypal);

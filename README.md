@@ -78,6 +78,7 @@ curl -X POST localhost:3000/v1/payout-runs -H 'authorization: Bearer dev-key' -H
 
 - `npm test`: the engine, agents and API, with the API on Postgres (PGlite) as an ordinary role, so row-level security applies as it does in production.
 - `npm run smoke`: day-one smoke tests 1 to 7 against the PayPal sandbox (`-- --mock` to check the script itself).
+- `npm run sandbox:week1`: week 1 through the API against the real sandbox: 387 payees in one real batch, the roommates released into their own, the ring confirmed, then reconciled. Needs $7,740+ in the sandbox business account.
 - `npm run fire-drill`: no gate, a per-request gate and Ringfence on one synthetic program; [docs/fire-drill.md](docs/fire-drill.md).
 - `npm run chaos`: the demo weeks with the process killed at 5 crash points, then an audit of PayPal's ledger; [docs/chaos-run.txt](docs/chaos-run.txt).
 

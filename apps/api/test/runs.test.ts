@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MockPayPal, type PayPalClient } from "@ringfence/paypal";
-import { drainOutbox } from "../src/executor";
+import { MockPayPal, PayPalError, type PayPalClient } from "@ringfence/paypal";
+import { drainOutbox, requeueFailedSends } from "../src/executor";
 import { pollBatches } from "../src/sync";
 import { auth, crashOnceAt, expireLeases, setup, week1 } from "./helpers";
 
@@ -99,6 +99,37 @@ describe("POST /v1/payout-runs", () => {
     expect(attempt).toBe(2);
     expect(after.paypal.payout_batch_id).toMatch(/^MOCKB/);
     expectPaidExactlyOnce(mock, after.decisions);
+  });
+
+  it("when PayPal refuses the send (insufficient funds), the run says why, and it goes out once the balance is topped up", async () => {
+    const mock = new MockPayPal();
+    let funded = false;
+    const broke: PayPalClient = {
+      createBatch: (body, id) =>
+        funded ? mock.createBatch(body, id) : Promise.reject(new PayPalError(422, "INSUFFICIENT_FUNDS", "Sender does not have sufficient funds. Please add funds and retry.")),
+      getBatch: (id) => mock.getBatch(id),
+      getItem: (id) => mock.getItem(id),
+      cancelItem: (id) => mock.cancelItem(id),
+      verifyWebhook: (h, b) => mock.verifyWebhook(h, b),
+    };
+    const { app, db } = await setup(broke);
+    const res = await app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: week1 });
+    expect(res.statusCode).toBe(202);
+    expect(res.json().paypal).toMatchObject({ payout_batch_id: null, batch_status: "QUEUED", error: expect.stringContaining("INSUFFICIENT_FUNDS") });
+
+    for (let i = 0; i < 8; i++) {
+      await expireLeases(db);
+      await drainOutbox(db, broke); // every retry refused, until the outbox gives up on it
+    }
+    expect((await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: auth })).json().paypal.batch_status).toBe("NOT_SENT");
+
+    funded = true;
+    expect(await requeueFailedSends(db)).toBe(1);
+    await drainOutbox(db, broke);
+    const sent = (await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: auth })).json();
+    expect(sent.paypal.payout_batch_id).toMatch(/^MOCKB/);
+    expect(sent.paypal.error).toBeUndefined();
+    expectPaidExactlyOnce(mock, sent.decisions);
   });
 
   it("rejects requests without a key, malformed bodies and repeated sender_item_ids", async () => {
