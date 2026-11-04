@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
-  "workspaces": ["packages/engine", "packages/agents", "packages/paypal", "scripts/demo-generator", "apps/console"],
+  "workspaces": ["packages/engine", "packages/agents", "packages/paypal", "scripts/demo-generator", "apps/console", "apps/api"],
   "scripts": {
     "test": "vitest run",
     "demo:generate": "tsx scripts/demo-generator/src/cli.ts",

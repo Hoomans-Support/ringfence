@@ -1,0 +1,19 @@
+{
+  "name": "@ringfence/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@ringfence/engine": "*",
+    "@ringfence/paypal": "*",
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@types/pg": "^8.23.1"
+  }
+}
