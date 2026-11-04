@@ -88,6 +88,9 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       <div className="flex items-center justify-between">
         <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Review queue</h1>
         <div className="flex items-center gap-4">
+          <Link href={`/review/calendar?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+            Hold calendar →
+          </Link>
           <Link href={`/control-tower?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             Control tower →
           </Link>
