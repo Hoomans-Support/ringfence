@@ -53,10 +53,14 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     .map((d): ReviewRow | undefined => {
       const item = itemById.get(d.sender_item_id);
       if (!item) return undefined;
-      const group = d.ring_id ? (ringLabelById.get(d.ring_id) ?? d.ring_id) : (d.hold_group_id ?? "—");
+      const group = d.ring_id ? (ringLabelById.get(d.ring_id) ?? d.ring_id) : (d.hold_group_id ?? d.sender_item_id);
+      const kind = d.ring_id ? "ring" : d.hold_group_id?.startsWith("rule:") ? "rule" : d.hold_group_id?.startsWith("P-") ? "pair" : "solo";
+      const selfReleaseUrl = kind === "solo" && process.env.RINGFENCE_API_URL
+        ? (() => { const url = new URL("/self-release/start", process.env.RINGFENCE_API_URL); url.searchParams.set("program_id", process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp"); url.searchParams.set("run_id", run.sender_batch_header.sender_batch_id); url.searchParams.set("sender_item_id", d.sender_item_id); return url.toString(); })()
+        : undefined;
       return {
         group,
-        kind: d.ring_id ? "ring" : d.hold_group_id?.startsWith("rule:") ? "rule" : "pair",
+        kind,
         senderItemId: d.sender_item_id,
         receiver: item.receiver,
         amount: Number(item.amount.value),
@@ -64,6 +68,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         // The fixture has no hold-created timestamp. Use signup time only as a visible,
         // explicitly simulated age proxy until the API supplies the actual hold timestamp.
         holdExpiresAt: new Date(new Date(item.context.signup_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        // This operator-facing copy action demonstrates a future delivery path; it is not a payee notification channel.
+        selfReleaseUrl,
       };
     })
     .filter((r): r is ReviewRow => Boolean(r))

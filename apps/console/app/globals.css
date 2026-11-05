@@ -60,6 +60,12 @@ body {
   color: var(--rf-white);
 }
 
+.ringfence-scheduler .b-sch-event.rf-overdue-event {
+  background-color: var(--rf-spark-text);
+  outline: 2px solid var(--rf-ink);
+  outline-offset: 1px;
+}
+
 .ringfence-scheduler .b-grid-header,
 .ringfence-scheduler .b-grid-header-container {
   background: var(--rf-mist);

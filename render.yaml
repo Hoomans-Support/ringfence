@@ -64,6 +64,20 @@ services:
         value: "true"
       - key: RINGFENCE_API_KEY
         generateValue: true
+      - key: RINGFENCE_SURVEY_PROGRAM_ID
+        value: surveyapp
+      - key: RINGFENCE_SURVEY_PROGRAM_NAME
+        value: Survey app
+      - key: RINGFENCE_SURVEY_API_KEY
+        generateValue: true
+      - key: PAYPAL_LOGIN_CLIENT_ID
+        sync: false
+      - key: PAYPAL_LOGIN_CLIENT_SECRET
+        sync: false
+      - key: RINGFENCE_SELF_RELEASE_KEY
+        generateValue: true
+      - key: RINGFENCE_SELF_RELEASE_REDIRECT_URL
+        sync: false
       - key: RINGFENCE_MCP_KEY # read-only, for AI agents on POST /mcp
         generateValue: true
       - key: ADMIN_TOKEN

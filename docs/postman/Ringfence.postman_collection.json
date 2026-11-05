@@ -1,0 +1,90 @@
+{
+  "info": {
+    "_postman_id": "f62fc436-67a7-4d7f-9842-84de9675f041",
+    "name": "Ringfence API",
+    "description": "Local mock-mode smoke flow for the REST API. The two three-payee runs create independent rings so release and confirmation can both be exercised. Set the matching local credentials in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{api_key}}", "type": "string" }] },
+  "variable": [
+    { "key": "api_host", "value": "http://localhost:3000" },
+    { "key": "api_key", "value": "" },
+    { "key": "mcp_key", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "run_id", "value": "" },
+    { "key": "confirm_run_id", "value": "" },
+    { "key": "ring_id", "value": "R-12" },
+    { "key": "confirm_ring_id", "value": "R-13" },
+    { "key": "rule_id", "value": "R-07" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [{
+        "name": "Liveness check",
+        "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{api_host}}/health" },
+        "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('API is healthy', () => pm.response.to.have.status(200));", "pm.test('sandbox mode is reported', () => pm.expect(pm.response.json().sandbox).to.eql(true));"] } }]
+      }]
+    },
+    {
+      "name": "Runs",
+      "item": [
+        {
+          "name": "Submit release ring run",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"sender_batch_header\": { \"sender_batch_id\": \"postman-release-{{$timestamp}}\", \"email_subject\": \"Your payout\" },\n  \"items\": [\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"ring.one@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"release-one\", \"context\": { \"account_id\": \"release-one\", \"signup_at\": \"2026-11-01T10:00:00Z\", \"device_hash\": \"postman-release-device\", \"referrer_id\": \"postman-release-ring\", \"onboarding_seconds\": 70, \"activity_after_onboarding\": 0 } },\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"ring.two@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"release-two\", \"context\": { \"account_id\": \"release-two\", \"signup_at\": \"2026-11-01T10:03:00Z\", \"device_hash\": \"postman-release-device\", \"referrer_id\": \"postman-release-ring\", \"onboarding_seconds\": 75, \"activity_after_onboarding\": 0 } },\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"ring.three@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"release-three\", \"context\": { \"account_id\": \"release-three\", \"signup_at\": \"2026-11-01T10:06:00Z\", \"device_hash\": \"postman-release-device\", \"referrer_id\": \"postman-release-ring\", \"onboarding_seconds\": 80, \"activity_after_onboarding\": 0 } }\n  ]\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{api_host}}/v1/payout-runs"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ring run is created with three holds', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().summary.held).to.eql(3); });", "const result = pm.response.json(); pm.environment.set('run_id', result.run_id); pm.environment.set('ring_id', result.decisions.find(d => d.ring_id)?.ring_id || 'R-12');"] } }]
+        },
+        {
+          "name": "Submit confirmation ring run",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"sender_batch_header\": { \"sender_batch_id\": \"postman-confirm-{{$timestamp}}\" },\n  \"items\": [\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"confirm.one@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"confirm-one\", \"context\": { \"account_id\": \"confirm-one\", \"signup_at\": \"2026-11-02T10:00:00Z\", \"device_hash\": \"postman-confirm-device\", \"referrer_id\": \"postman-confirm-ring\", \"onboarding_seconds\": 70, \"activity_after_onboarding\": 0 } },\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"confirm.two@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"confirm-two\", \"context\": { \"account_id\": \"confirm-two\", \"signup_at\": \"2026-11-02T10:03:00Z\", \"device_hash\": \"postman-confirm-device\", \"referrer_id\": \"postman-confirm-ring\", \"onboarding_seconds\": 75, \"activity_after_onboarding\": 0 } },\n    { \"recipient_type\": \"EMAIL\", \"receiver\": \"confirm.three@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"confirm-three\", \"context\": { \"account_id\": \"confirm-three\", \"signup_at\": \"2026-11-02T10:06:00Z\", \"device_hash\": \"postman-confirm-device\", \"referrer_id\": \"postman-confirm-ring\", \"onboarding_seconds\": 80, \"activity_after_onboarding\": 0 } }\n  ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/payout-runs" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('second ring run is created with three holds', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().summary.held).to.eql(3); });", "const result = pm.response.json(); pm.environment.set('confirm_run_id', result.run_id); pm.environment.set('confirm_ring_id', result.decisions.find(d => d.ring_id)?.ring_id || 'R-13');"] } }]
+        },
+        {
+          "name": "Get payout run",
+          "request": { "method": "GET", "url": "{{api_host}}/v1/payout-runs/{{run_id}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('run can be retrieved', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Screen payees",
+          "request": { "method": "POST", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{mcp_key}}", "type": "string" }] }, "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"sender_batch_header\":{\"sender_batch_id\":\"postman-screen\"},\"items\":[{\"recipient_type\":\"EMAIL\",\"receiver\":\"screen@example.com\",\"amount\":{\"value\":\"5.00\",\"currency\":\"USD\"},\"sender_item_id\":\"screen-one\"}]}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/screen" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('read-only key can screen', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().summary.pay).to.eql(1); });"] } }]
+        },
+        {
+          "name": "Import existing PayPal payout run",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"payout_batch_id\": \"PAYPAL-BATCH-POSTMAN\",\n  \"sender_batch_header\": { \"sender_batch_id\": \"postman-import-{{$timestamp}}\" },\n  \"items\": [{ \"recipient_type\": \"EMAIL\", \"receiver\": \"import@example.com\", \"amount\": { \"value\": \"20.00\", \"currency\": \"USD\" }, \"sender_item_id\": \"import-one\" }]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/payout-runs/import" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('existing run imports', () => pm.response.to.have.status(201));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Holds and rings",
+      "item": [
+        { "name": "Explain ring", "request": { "method": "GET", "url": "{{api_host}}/v1/rings/{{ring_id}}?run_id={{run_id}}" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ring explanation is available', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().size).to.eql(3); });"] } }] },
+        { "name": "Release held ring", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"run_id\":\"{{run_id}}\",\"hold_group_id\":\"{{ring_id}}\",\"released_by\":\"postman-demo\"}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/holds/release" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ring release creates a payout batch', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().released.length).to.eql(3); });"] } }] },
+        { "name": "Confirm held ring", "request": { "method": "POST", "url": "{{api_host}}/v1/rings/{{confirm_ring_id}}/confirm", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"run_id\":\"{{confirm_run_id}}\",\"confirmed_by\":\"postman-demo\"}", "options": { "raw": { "language": "json" } } } }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('confirmation blocks the second ring', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().blocked).to.eql(3); });"] } }] }
+      ]
+    },
+    {
+      "name": "Rules and events",
+      "item": [
+        { "name": "List rules", "request": { "method": "GET", "url": "{{api_host}}/v1/rules" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('rules are listed', () => pm.response.to.have.status(200));"] } }] },
+        { "name": "Propose rule from confirmed ring", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"rule\": { \"id\": \"R-07\", \"action\": \"HOLD\", \"when\": { \"all\": [{ \"signal\": \"signup_burst\", \"same\": \"referrer\", \"window_min\": 30, \"min_accounts\": 3 }, { \"signal\": \"onboarding_seconds\", \"max\": 120 }, { \"signal\": \"activity_after_onboarding\", \"max\": 0 }] } },\n  \"learned_from\": { \"ring_id\": \"{{confirm_ring_id}}\", \"run_id\": \"{{confirm_run_id}}\" }\n}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/rules" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('rule proposal is created', () => { pm.response.to.have.status(201); pm.environment.set('rule_id', pm.response.json().rule_id); });"] } }] },
+        { "name": "Approve rule", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"approved_by\":\"postman-demo\",\"acknowledge_flags\":true}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/rules/{{rule_id}}/approve" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('rule is approved', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('approved'); });"] } }] },
+        { "name": "Record signup event", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"account_id\":\"postman-event\",\"receiver\":\"event@example.com\",\"signup_at\":\"2026-11-01T10:00:00Z\",\"device_hash\":\"postman-device\",\"ip_prefix\":\"10.4.2.0/24\"}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/events" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('signup event is accepted', () => pm.response.to.have.status(202));"] } }] },
+        { "name": "List at-risk accounts", "request": { "method": "GET", "url": "{{api_host}}/v1/events/at-risk" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('at-risk list is available', () => pm.response.to.have.status(200));"] } }] }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        { "name": "Reject unsigned PayPal webhook", "request": { "method": "POST", "auth": { "type": "noauth" }, "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"id\":\"WH-UNSIGNED\",\"event_type\":\"PAYMENT.PAYOUTS-ITEM.SUCCEEDED\",\"resource\":{\"transaction_status\":\"SUCCESS\"}}", "options": { "raw": { "language": "json" } } }, "url": "{{api_host}}/v1/webhooks/paypal" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('unsigned webhook is rejected', () => pm.response.to.have.status(400));"] } }] },
+        { "name": "List verified webhook events", "request": { "method": "GET", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] }, "url": "{{api_host}}/v1/webhooks/events" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('admin event feed is available', () => pm.response.to.have.status(200));"] } }] }
+      ]
+    }
+  ]
+}

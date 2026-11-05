@@ -36,11 +36,17 @@ Every proposed rule is attacked with 200 disguised copies of the ring it came fr
 
 ### Control tower
 
-Four widgets built on the AG Studio dashboard engine: the ring graph, money kept vs. leaked, a false-hold meter, and rule robustness — all driven by the same run, no separate data path.
+Six widgets built on the AG Studio dashboard engine: the ring graph, money kept vs. leaked, a false-hold meter, rule robustness, a Ring Watch panel, and an analyst read.
 
 ![Control tower: ring graph, $460 kept vs. $0 leaked, an 8% false-hold rate, and 24% rule robustness](docs/screenshots/control-tower.png)
 
 Week 2 shows what a learned rule would hold — labeled simulated, since the real rule evaluator is A's and not yet connected.
+
+Ring Watch polls the live API every eight seconds for the ring's current member states. To see it update, open the same run's ring in another tab and confirm or release the hold. Set `RINGFENCE_API_URL`, the read-only `RINGFENCE_MCP_KEY`, and the server-side `RINGFENCE_RING_WATCH_THRESHOLD_USD` on the console host.
+
+### Survey app
+
+The `/survey-app` page submits a fresh 120-payee fixture to the API's `surveyapp` program on each run. Six payees reuse the confirmed Budgeting app ring R-12 device fingerprint; with the API's cross-program network configured, the expected result is 114 paid and 6 held with `network_match` reasons. Configure `RINGFENCE_SURVEY_API_KEY` on the console host to match the API's survey program key.
 
 ![Week 2's review queue, 18 payouts held under the learned rule R-07, labeled as fixture presentation](docs/screenshots/review-queue-week2.png)
 
@@ -48,7 +54,7 @@ Week 2 shows what a learned rule would hold — labeled simulated, since the rea
 
 Every sponsor component keeps the ink/mist/coral theme (design.md), not its stock look.
 
-**AG Grid + AG Studio** — `apps/console/app/review/data-grid.tsx` groups the review queue by ring/pair, so one decision clears 23 payees at once (review-queue screenshot above). `apps/console/app/control-tower/control-tower.tsx` and `apps/console/app/control-tower/studio/widgets.tsx` are AG Studio's four custom widgets — ring graph, money kept vs. leaked, a false-hold meter and rule robustness, all driven by the same run (control-tower screenshot above).
+**AG Grid + AG Studio** — `apps/console/app/review/data-grid.tsx` groups the review queue by hold group, so one decision clears 23 payees at once (review-queue screenshot above). `apps/console/app/control-tower/control-tower.tsx` and `apps/console/app/control-tower/studio/widgets.tsx` provide six widgets; Ring Watch is the only one that polls live API state, while the analyst read uses checked case-file evidence.
 
 **Bryntum Scheduler** — `apps/console/app/review/[ringId]/ring-timeline.tsx` is the ring timeline: one row per account, sign-up to payout, so a 23-account ring's 15-minute burst is visible at a glance (ring-detail screenshot above). `apps/console/app/review/calendar/hold-calendar.tsx` is the hold calendar: one row per held group, with 7-day hold limits and 30-day cancel countdowns.
 
@@ -63,6 +69,10 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 ## Payout API
 
 `apps/api` is the part that sits between a program and PayPal: `POST /v1/payout-runs` takes a PayPal Payouts request body (plus optional per-payee context), decides every payee, and sends the paid ones to PayPal as one batch, exactly once. Every `/v1` route takes the program's API key as `Authorization: Bearer <key>`.
+
+Import the [Postman collection](docs/postman/Ringfence.postman_collection.json) and [local environment](docs/postman/Ringfence.postman_environment.json) to call the REST API. Set `api_key`, `mcp_key` and `admin_token` to the credentials for your instance; the collection's `api_host` defaults to `http://localhost:3000`. [Local mock-mode run results](docs/postman-run.txt) record 16 passing requests and 17 assertions.
+
+Payees with an individually held payout can prove address ownership through the API's `/self-release/start` and `/self-release/callback` PayPal OIDC flow. Ring and pair members, and shared rule holds, are ineligible. The review queue's copy-link control is an operator demo convenience; the build does not yet deliver links through a payee notification channel.
 
 A run's `summary` counts its payouts as **paid** (let through and sent on time), **held** or **blocked** (held, confirmed). Paid says nothing about whether the payee has collected the money: that's each payout's `state`, which follows PayPal's own words once sent, **succeeded**, **unclaimed**, **returned** or **failed** (before that: `queued`, `sent`, `held`, `blocked`). The words are defined in [GLOSSARY.md](GLOSSARY.md).
 

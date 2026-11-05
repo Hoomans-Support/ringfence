@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MockPayPal } from "@ringfence/paypal";
 import { withProgram } from "../src/db";
-import { auth, setup, week1 } from "./helpers";
+import { auth, fixture, setup, week1 } from "./helpers";
 
 const surveyAuth = { authorization: "Bearer survey-key" };
 const post = (app: Awaited<ReturnType<typeof setup>>["app"], url: string, payload: unknown, headers = auth) =>
@@ -48,6 +48,16 @@ describe("ring network (FR-19)", () => {
     };
     const screened = (await post(app, "/v1/screen", atSurveyApp, surveyAuth)).json();
     expect(screened.decisions[0]).toMatchObject({ decision: "HOLD", rules: ["S-03"] });
+  });
+
+  it("screens the judge-facing survey-app fixture as 114 paid and 6 held on first sight", async () => {
+    const { app } = await budgetappConfirmedRing();
+    const screened = (await post(app, "/v1/screen", fixture("surveyapp"), surveyAuth)).json();
+    expect(screened.summary).toMatchObject({ pay: 114, hold: 6, block: 0 });
+    const held = screened.decisions.filter((decision: { decision: string }) => decision.decision === "HOLD");
+    expect(held).toHaveLength(6);
+    expect(held.every((decision: { reasons: string[] }) => decision.reasons.includes("network_match"))).toBe(true);
+    expect(screened.decisions.filter((decision: { decision: string }) => decision.decision === "PAY")).toHaveLength(114);
   });
 
   it("never reveals the other program's data: the receiving program's own confirmed-fraud list stays empty", async () => {

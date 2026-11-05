@@ -40,12 +40,13 @@ const theme = themeQuartz.withParams({
 
 export interface ReviewRow {
   group: string;
-  kind: "ring" | "pair" | "rule";
+  kind: "ring" | "pair" | "rule" | "solo";
   senderItemId: string;
   receiver: string;
   amount: number;
   reasons: string;
   holdExpiresAt: string;
+  selfReleaseUrl?: string;
 }
 
 /** A group's own collapsible header row — rendered full-width, never a real payout. */
@@ -170,8 +171,21 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
         valueGetter: ({ data }) => (isGroupHeader(data) ? undefined : data?.holdExpiresAt),
         valueFormatter: formatExpiry,
         cellClass: "font-mono text-rf-slate",
+        cellClassRules: {
+          "text-rf-spark-text": (params) => !isGroupHeader(params.data) && typeof params.value === "string" && Date.parse(params.value) < Date.now(),
+        },
       },
       { headerName: "Why it's held", flex: 2, valueGetter: ({ data }) => (isGroupHeader(data) ? undefined : data?.reasons) },
+      {
+        headerName: "Payee action",
+        sortable: false,
+        filter: false,
+        valueGetter: ({ data }) => (isGroupHeader(data) ? undefined : data?.selfReleaseUrl),
+        cellRenderer: ({ data }: { data?: GridRow }) => {
+          if (isGroupHeader(data) || data?.kind !== "solo" || !data.selfReleaseUrl) return null;
+          return <button type="button" onClick={() => void navigator.clipboard.writeText(data.selfReleaseUrl!)} className="rounded-full border border-rf-hairline px-2 py-1 text-xs font-medium text-rf-ink hover:bg-rf-mist">Copy self-release link</button>;
+        },
+      },
     ],
     [],
   );

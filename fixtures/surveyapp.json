@@ -1,0 +1,2048 @@
+{
+  "sender_batch_header": {
+    "sender_batch_id": "surveyapp_first_sight",
+    "email_subject": "Survey app rewards"
+  },
+  "items": [
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee001@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_001",
+      "context": {
+        "account_id": "survey_u_001",
+        "signup_at": "2026-11-01T00:00:00.000Z",
+        "device_hash": "survey_device_001",
+        "referrer_id": "survey_ref_001",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee002@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_002",
+      "context": {
+        "account_id": "survey_u_002",
+        "signup_at": "2026-11-02T01:00:00.000Z",
+        "device_hash": "survey_device_002",
+        "referrer_id": "survey_ref_002",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee003@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_003",
+      "context": {
+        "account_id": "survey_u_003",
+        "signup_at": "2026-11-03T02:00:00.000Z",
+        "device_hash": "survey_device_003",
+        "referrer_id": "survey_ref_003",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee004@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_004",
+      "context": {
+        "account_id": "survey_u_004",
+        "signup_at": "2026-11-04T03:00:00.000Z",
+        "device_hash": "survey_device_004",
+        "referrer_id": "survey_ref_004",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee005@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_005",
+      "context": {
+        "account_id": "survey_u_005",
+        "signup_at": "2026-11-05T04:00:00.000Z",
+        "device_hash": "survey_device_005",
+        "referrer_id": "survey_ref_005",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee006@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_006",
+      "context": {
+        "account_id": "survey_u_006",
+        "signup_at": "2026-11-01T05:00:00.000Z",
+        "device_hash": "survey_device_006",
+        "referrer_id": "survey_ref_006",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee007@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_007",
+      "context": {
+        "account_id": "survey_u_007",
+        "signup_at": "2026-11-02T06:00:00.000Z",
+        "device_hash": "survey_device_007",
+        "referrer_id": "survey_ref_007",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee008@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_008",
+      "context": {
+        "account_id": "survey_u_008",
+        "signup_at": "2026-11-03T07:00:00.000Z",
+        "device_hash": "survey_device_008",
+        "referrer_id": "survey_ref_008",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee009@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_009",
+      "context": {
+        "account_id": "survey_u_009",
+        "signup_at": "2026-11-04T08:00:00.000Z",
+        "device_hash": "survey_device_009",
+        "referrer_id": "survey_ref_009",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee010@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_010",
+      "context": {
+        "account_id": "survey_u_010",
+        "signup_at": "2026-11-05T00:00:00.000Z",
+        "device_hash": "survey_device_010",
+        "referrer_id": "survey_ref_010",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee011@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_011",
+      "context": {
+        "account_id": "survey_u_011",
+        "signup_at": "2026-11-01T01:00:00.000Z",
+        "device_hash": "survey_device_011",
+        "referrer_id": "survey_ref_011",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee012@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_012",
+      "context": {
+        "account_id": "survey_u_012",
+        "signup_at": "2026-11-02T02:00:00.000Z",
+        "device_hash": "survey_device_012",
+        "referrer_id": "survey_ref_012",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee013@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_013",
+      "context": {
+        "account_id": "survey_u_013",
+        "signup_at": "2026-11-03T03:00:00.000Z",
+        "device_hash": "survey_device_013",
+        "referrer_id": "survey_ref_013",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee014@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_014",
+      "context": {
+        "account_id": "survey_u_014",
+        "signup_at": "2026-11-04T04:00:00.000Z",
+        "device_hash": "survey_device_014",
+        "referrer_id": "survey_ref_014",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee015@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_015",
+      "context": {
+        "account_id": "survey_u_015",
+        "signup_at": "2026-11-05T05:00:00.000Z",
+        "device_hash": "survey_device_015",
+        "referrer_id": "survey_ref_015",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee016@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_016",
+      "context": {
+        "account_id": "survey_u_016",
+        "signup_at": "2026-11-01T06:00:00.000Z",
+        "device_hash": "survey_device_016",
+        "referrer_id": "survey_ref_016",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee017@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_017",
+      "context": {
+        "account_id": "survey_u_017",
+        "signup_at": "2026-11-02T07:00:00.000Z",
+        "device_hash": "survey_device_017",
+        "referrer_id": "survey_ref_017",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee018@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_018",
+      "context": {
+        "account_id": "survey_u_018",
+        "signup_at": "2026-11-03T08:00:00.000Z",
+        "device_hash": "survey_device_018",
+        "referrer_id": "survey_ref_018",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee019@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_019",
+      "context": {
+        "account_id": "survey_u_019",
+        "signup_at": "2026-11-04T00:00:00.000Z",
+        "device_hash": "survey_device_019",
+        "referrer_id": "survey_ref_019",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee020@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_020",
+      "context": {
+        "account_id": "survey_u_020",
+        "signup_at": "2026-11-05T01:00:00.000Z",
+        "device_hash": "survey_device_020",
+        "referrer_id": "survey_ref_020",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee021@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_021",
+      "context": {
+        "account_id": "survey_u_021",
+        "signup_at": "2026-11-01T02:00:00.000Z",
+        "device_hash": "survey_device_021",
+        "referrer_id": "survey_ref_021",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee022@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_022",
+      "context": {
+        "account_id": "survey_u_022",
+        "signup_at": "2026-11-02T03:00:00.000Z",
+        "device_hash": "survey_device_022",
+        "referrer_id": "survey_ref_022",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee023@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_023",
+      "context": {
+        "account_id": "survey_u_023",
+        "signup_at": "2026-11-03T04:00:00.000Z",
+        "device_hash": "survey_device_023",
+        "referrer_id": "survey_ref_023",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee024@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_024",
+      "context": {
+        "account_id": "survey_u_024",
+        "signup_at": "2026-11-04T05:00:00.000Z",
+        "device_hash": "survey_device_024",
+        "referrer_id": "survey_ref_024",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee025@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_025",
+      "context": {
+        "account_id": "survey_u_025",
+        "signup_at": "2026-11-05T06:00:00.000Z",
+        "device_hash": "survey_device_025",
+        "referrer_id": "survey_ref_025",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee026@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_026",
+      "context": {
+        "account_id": "survey_u_026",
+        "signup_at": "2026-11-01T07:00:00.000Z",
+        "device_hash": "survey_device_026",
+        "referrer_id": "survey_ref_026",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee027@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_027",
+      "context": {
+        "account_id": "survey_u_027",
+        "signup_at": "2026-11-02T08:00:00.000Z",
+        "device_hash": "survey_device_027",
+        "referrer_id": "survey_ref_027",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee028@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_028",
+      "context": {
+        "account_id": "survey_u_028",
+        "signup_at": "2026-11-03T00:00:00.000Z",
+        "device_hash": "survey_device_028",
+        "referrer_id": "survey_ref_028",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee029@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_029",
+      "context": {
+        "account_id": "survey_u_029",
+        "signup_at": "2026-11-04T01:00:00.000Z",
+        "device_hash": "survey_device_029",
+        "referrer_id": "survey_ref_029",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee030@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_030",
+      "context": {
+        "account_id": "survey_u_030",
+        "signup_at": "2026-11-05T02:00:00.000Z",
+        "device_hash": "survey_device_030",
+        "referrer_id": "survey_ref_030",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee031@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_031",
+      "context": {
+        "account_id": "survey_u_031",
+        "signup_at": "2026-11-01T03:00:00.000Z",
+        "device_hash": "survey_device_031",
+        "referrer_id": "survey_ref_031",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee032@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_032",
+      "context": {
+        "account_id": "survey_u_032",
+        "signup_at": "2026-11-02T04:00:00.000Z",
+        "device_hash": "survey_device_032",
+        "referrer_id": "survey_ref_032",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee033@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_033",
+      "context": {
+        "account_id": "survey_u_033",
+        "signup_at": "2026-11-03T05:00:00.000Z",
+        "device_hash": "survey_device_033",
+        "referrer_id": "survey_ref_033",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee034@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_034",
+      "context": {
+        "account_id": "survey_u_034",
+        "signup_at": "2026-11-04T06:00:00.000Z",
+        "device_hash": "survey_device_034",
+        "referrer_id": "survey_ref_034",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee035@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_035",
+      "context": {
+        "account_id": "survey_u_035",
+        "signup_at": "2026-11-05T07:00:00.000Z",
+        "device_hash": "survey_device_035",
+        "referrer_id": "survey_ref_035",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee036@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_036",
+      "context": {
+        "account_id": "survey_u_036",
+        "signup_at": "2026-11-01T08:00:00.000Z",
+        "device_hash": "survey_device_036",
+        "referrer_id": "survey_ref_036",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee037@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_037",
+      "context": {
+        "account_id": "survey_u_037",
+        "signup_at": "2026-11-02T00:00:00.000Z",
+        "device_hash": "survey_device_037",
+        "referrer_id": "survey_ref_037",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee038@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_038",
+      "context": {
+        "account_id": "survey_u_038",
+        "signup_at": "2026-11-03T01:00:00.000Z",
+        "device_hash": "survey_device_038",
+        "referrer_id": "survey_ref_038",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee039@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_039",
+      "context": {
+        "account_id": "survey_u_039",
+        "signup_at": "2026-11-04T02:00:00.000Z",
+        "device_hash": "survey_device_039",
+        "referrer_id": "survey_ref_039",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee040@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_040",
+      "context": {
+        "account_id": "survey_u_040",
+        "signup_at": "2026-11-05T03:00:00.000Z",
+        "device_hash": "survey_device_040",
+        "referrer_id": "survey_ref_040",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee041@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_041",
+      "context": {
+        "account_id": "survey_u_041",
+        "signup_at": "2026-11-01T04:00:00.000Z",
+        "device_hash": "survey_device_041",
+        "referrer_id": "survey_ref_041",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee042@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_042",
+      "context": {
+        "account_id": "survey_u_042",
+        "signup_at": "2026-11-02T05:00:00.000Z",
+        "device_hash": "survey_device_042",
+        "referrer_id": "survey_ref_042",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee043@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_043",
+      "context": {
+        "account_id": "survey_u_043",
+        "signup_at": "2026-11-03T06:00:00.000Z",
+        "device_hash": "survey_device_043",
+        "referrer_id": "survey_ref_043",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee044@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_044",
+      "context": {
+        "account_id": "survey_u_044",
+        "signup_at": "2026-11-04T07:00:00.000Z",
+        "device_hash": "survey_device_044",
+        "referrer_id": "survey_ref_044",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee045@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_045",
+      "context": {
+        "account_id": "survey_u_045",
+        "signup_at": "2026-11-05T08:00:00.000Z",
+        "device_hash": "survey_device_045",
+        "referrer_id": "survey_ref_045",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee046@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_046",
+      "context": {
+        "account_id": "survey_u_046",
+        "signup_at": "2026-11-01T00:00:00.000Z",
+        "device_hash": "survey_device_046",
+        "referrer_id": "survey_ref_046",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee047@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_047",
+      "context": {
+        "account_id": "survey_u_047",
+        "signup_at": "2026-11-02T01:00:00.000Z",
+        "device_hash": "survey_device_047",
+        "referrer_id": "survey_ref_047",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee048@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_048",
+      "context": {
+        "account_id": "survey_u_048",
+        "signup_at": "2026-11-03T02:00:00.000Z",
+        "device_hash": "survey_device_048",
+        "referrer_id": "survey_ref_048",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee049@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_049",
+      "context": {
+        "account_id": "survey_u_049",
+        "signup_at": "2026-11-04T03:00:00.000Z",
+        "device_hash": "survey_device_049",
+        "referrer_id": "survey_ref_049",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee050@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_050",
+      "context": {
+        "account_id": "survey_u_050",
+        "signup_at": "2026-11-05T04:00:00.000Z",
+        "device_hash": "survey_device_050",
+        "referrer_id": "survey_ref_050",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee051@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_051",
+      "context": {
+        "account_id": "survey_u_051",
+        "signup_at": "2026-11-01T05:00:00.000Z",
+        "device_hash": "survey_device_051",
+        "referrer_id": "survey_ref_051",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee052@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_052",
+      "context": {
+        "account_id": "survey_u_052",
+        "signup_at": "2026-11-02T06:00:00.000Z",
+        "device_hash": "survey_device_052",
+        "referrer_id": "survey_ref_052",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee053@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_053",
+      "context": {
+        "account_id": "survey_u_053",
+        "signup_at": "2026-11-03T07:00:00.000Z",
+        "device_hash": "survey_device_053",
+        "referrer_id": "survey_ref_053",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee054@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_054",
+      "context": {
+        "account_id": "survey_u_054",
+        "signup_at": "2026-11-04T08:00:00.000Z",
+        "device_hash": "survey_device_054",
+        "referrer_id": "survey_ref_054",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee055@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_055",
+      "context": {
+        "account_id": "survey_u_055",
+        "signup_at": "2026-11-05T00:00:00.000Z",
+        "device_hash": "survey_device_055",
+        "referrer_id": "survey_ref_055",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee056@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_056",
+      "context": {
+        "account_id": "survey_u_056",
+        "signup_at": "2026-11-01T01:00:00.000Z",
+        "device_hash": "survey_device_056",
+        "referrer_id": "survey_ref_056",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee057@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_057",
+      "context": {
+        "account_id": "survey_u_057",
+        "signup_at": "2026-11-02T02:00:00.000Z",
+        "device_hash": "survey_device_057",
+        "referrer_id": "survey_ref_057",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee058@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_058",
+      "context": {
+        "account_id": "survey_u_058",
+        "signup_at": "2026-11-03T03:00:00.000Z",
+        "device_hash": "survey_device_058",
+        "referrer_id": "survey_ref_058",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee059@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_059",
+      "context": {
+        "account_id": "survey_u_059",
+        "signup_at": "2026-11-04T04:00:00.000Z",
+        "device_hash": "survey_device_059",
+        "referrer_id": "survey_ref_059",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee060@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_060",
+      "context": {
+        "account_id": "survey_u_060",
+        "signup_at": "2026-11-05T05:00:00.000Z",
+        "device_hash": "survey_device_060",
+        "referrer_id": "survey_ref_060",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee061@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_061",
+      "context": {
+        "account_id": "survey_u_061",
+        "signup_at": "2026-11-01T06:00:00.000Z",
+        "device_hash": "survey_device_061",
+        "referrer_id": "survey_ref_061",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee062@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_062",
+      "context": {
+        "account_id": "survey_u_062",
+        "signup_at": "2026-11-02T07:00:00.000Z",
+        "device_hash": "survey_device_062",
+        "referrer_id": "survey_ref_062",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee063@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_063",
+      "context": {
+        "account_id": "survey_u_063",
+        "signup_at": "2026-11-03T08:00:00.000Z",
+        "device_hash": "survey_device_063",
+        "referrer_id": "survey_ref_063",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee064@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_064",
+      "context": {
+        "account_id": "survey_u_064",
+        "signup_at": "2026-11-04T00:00:00.000Z",
+        "device_hash": "survey_device_064",
+        "referrer_id": "survey_ref_064",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee065@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_065",
+      "context": {
+        "account_id": "survey_u_065",
+        "signup_at": "2026-11-05T01:00:00.000Z",
+        "device_hash": "survey_device_065",
+        "referrer_id": "survey_ref_065",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee066@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_066",
+      "context": {
+        "account_id": "survey_u_066",
+        "signup_at": "2026-11-01T02:00:00.000Z",
+        "device_hash": "survey_device_066",
+        "referrer_id": "survey_ref_066",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee067@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_067",
+      "context": {
+        "account_id": "survey_u_067",
+        "signup_at": "2026-11-02T03:00:00.000Z",
+        "device_hash": "survey_device_067",
+        "referrer_id": "survey_ref_067",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee068@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_068",
+      "context": {
+        "account_id": "survey_u_068",
+        "signup_at": "2026-11-03T04:00:00.000Z",
+        "device_hash": "survey_device_068",
+        "referrer_id": "survey_ref_068",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee069@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_069",
+      "context": {
+        "account_id": "survey_u_069",
+        "signup_at": "2026-11-04T05:00:00.000Z",
+        "device_hash": "survey_device_069",
+        "referrer_id": "survey_ref_069",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee070@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_070",
+      "context": {
+        "account_id": "survey_u_070",
+        "signup_at": "2026-11-05T06:00:00.000Z",
+        "device_hash": "survey_device_070",
+        "referrer_id": "survey_ref_070",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee071@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_071",
+      "context": {
+        "account_id": "survey_u_071",
+        "signup_at": "2026-11-01T07:00:00.000Z",
+        "device_hash": "survey_device_071",
+        "referrer_id": "survey_ref_071",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee072@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_072",
+      "context": {
+        "account_id": "survey_u_072",
+        "signup_at": "2026-11-02T08:00:00.000Z",
+        "device_hash": "survey_device_072",
+        "referrer_id": "survey_ref_072",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee073@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_073",
+      "context": {
+        "account_id": "survey_u_073",
+        "signup_at": "2026-11-03T00:00:00.000Z",
+        "device_hash": "survey_device_073",
+        "referrer_id": "survey_ref_073",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee074@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_074",
+      "context": {
+        "account_id": "survey_u_074",
+        "signup_at": "2026-11-04T01:00:00.000Z",
+        "device_hash": "survey_device_074",
+        "referrer_id": "survey_ref_074",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee075@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_075",
+      "context": {
+        "account_id": "survey_u_075",
+        "signup_at": "2026-11-05T02:00:00.000Z",
+        "device_hash": "survey_device_075",
+        "referrer_id": "survey_ref_075",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee076@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_076",
+      "context": {
+        "account_id": "survey_u_076",
+        "signup_at": "2026-11-01T03:00:00.000Z",
+        "device_hash": "survey_device_076",
+        "referrer_id": "survey_ref_076",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee077@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_077",
+      "context": {
+        "account_id": "survey_u_077",
+        "signup_at": "2026-11-02T04:00:00.000Z",
+        "device_hash": "survey_device_077",
+        "referrer_id": "survey_ref_077",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee078@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_078",
+      "context": {
+        "account_id": "survey_u_078",
+        "signup_at": "2026-11-03T05:00:00.000Z",
+        "device_hash": "survey_device_078",
+        "referrer_id": "survey_ref_078",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee079@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_079",
+      "context": {
+        "account_id": "survey_u_079",
+        "signup_at": "2026-11-04T06:00:00.000Z",
+        "device_hash": "survey_device_079",
+        "referrer_id": "survey_ref_079",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee080@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_080",
+      "context": {
+        "account_id": "survey_u_080",
+        "signup_at": "2026-11-05T07:00:00.000Z",
+        "device_hash": "survey_device_080",
+        "referrer_id": "survey_ref_080",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee081@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_081",
+      "context": {
+        "account_id": "survey_u_081",
+        "signup_at": "2026-11-01T08:00:00.000Z",
+        "device_hash": "survey_device_081",
+        "referrer_id": "survey_ref_081",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee082@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_082",
+      "context": {
+        "account_id": "survey_u_082",
+        "signup_at": "2026-11-02T00:00:00.000Z",
+        "device_hash": "survey_device_082",
+        "referrer_id": "survey_ref_082",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee083@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_083",
+      "context": {
+        "account_id": "survey_u_083",
+        "signup_at": "2026-11-03T01:00:00.000Z",
+        "device_hash": "survey_device_083",
+        "referrer_id": "survey_ref_083",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee084@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_084",
+      "context": {
+        "account_id": "survey_u_084",
+        "signup_at": "2026-11-04T02:00:00.000Z",
+        "device_hash": "survey_device_084",
+        "referrer_id": "survey_ref_084",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee085@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_085",
+      "context": {
+        "account_id": "survey_u_085",
+        "signup_at": "2026-11-05T03:00:00.000Z",
+        "device_hash": "survey_device_085",
+        "referrer_id": "survey_ref_085",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee086@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_086",
+      "context": {
+        "account_id": "survey_u_086",
+        "signup_at": "2026-11-01T04:00:00.000Z",
+        "device_hash": "survey_device_086",
+        "referrer_id": "survey_ref_086",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee087@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_087",
+      "context": {
+        "account_id": "survey_u_087",
+        "signup_at": "2026-11-02T05:00:00.000Z",
+        "device_hash": "survey_device_087",
+        "referrer_id": "survey_ref_087",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee088@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_088",
+      "context": {
+        "account_id": "survey_u_088",
+        "signup_at": "2026-11-03T06:00:00.000Z",
+        "device_hash": "survey_device_088",
+        "referrer_id": "survey_ref_088",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee089@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_089",
+      "context": {
+        "account_id": "survey_u_089",
+        "signup_at": "2026-11-04T07:00:00.000Z",
+        "device_hash": "survey_device_089",
+        "referrer_id": "survey_ref_089",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee090@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_090",
+      "context": {
+        "account_id": "survey_u_090",
+        "signup_at": "2026-11-05T08:00:00.000Z",
+        "device_hash": "survey_device_090",
+        "referrer_id": "survey_ref_090",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee091@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_091",
+      "context": {
+        "account_id": "survey_u_091",
+        "signup_at": "2026-11-01T00:00:00.000Z",
+        "device_hash": "survey_device_091",
+        "referrer_id": "survey_ref_091",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee092@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_092",
+      "context": {
+        "account_id": "survey_u_092",
+        "signup_at": "2026-11-02T01:00:00.000Z",
+        "device_hash": "survey_device_092",
+        "referrer_id": "survey_ref_092",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee093@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_093",
+      "context": {
+        "account_id": "survey_u_093",
+        "signup_at": "2026-11-03T02:00:00.000Z",
+        "device_hash": "survey_device_093",
+        "referrer_id": "survey_ref_093",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee094@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_094",
+      "context": {
+        "account_id": "survey_u_094",
+        "signup_at": "2026-11-04T03:00:00.000Z",
+        "device_hash": "survey_device_094",
+        "referrer_id": "survey_ref_094",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee095@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_095",
+      "context": {
+        "account_id": "survey_u_095",
+        "signup_at": "2026-11-05T04:00:00.000Z",
+        "device_hash": "survey_device_095",
+        "referrer_id": "survey_ref_095",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee096@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_096",
+      "context": {
+        "account_id": "survey_u_096",
+        "signup_at": "2026-11-01T05:00:00.000Z",
+        "device_hash": "survey_device_096",
+        "referrer_id": "survey_ref_096",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee097@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_097",
+      "context": {
+        "account_id": "survey_u_097",
+        "signup_at": "2026-11-02T06:00:00.000Z",
+        "device_hash": "survey_device_097",
+        "referrer_id": "survey_ref_097",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee098@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_098",
+      "context": {
+        "account_id": "survey_u_098",
+        "signup_at": "2026-11-03T07:00:00.000Z",
+        "device_hash": "survey_device_098",
+        "referrer_id": "survey_ref_098",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee099@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_099",
+      "context": {
+        "account_id": "survey_u_099",
+        "signup_at": "2026-11-04T08:00:00.000Z",
+        "device_hash": "survey_device_099",
+        "referrer_id": "survey_ref_099",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee100@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_100",
+      "context": {
+        "account_id": "survey_u_100",
+        "signup_at": "2026-11-05T00:00:00.000Z",
+        "device_hash": "survey_device_100",
+        "referrer_id": "survey_ref_100",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee101@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_101",
+      "context": {
+        "account_id": "survey_u_101",
+        "signup_at": "2026-11-01T01:00:00.000Z",
+        "device_hash": "survey_device_101",
+        "referrer_id": "survey_ref_101",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee102@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_102",
+      "context": {
+        "account_id": "survey_u_102",
+        "signup_at": "2026-11-02T02:00:00.000Z",
+        "device_hash": "survey_device_102",
+        "referrer_id": "survey_ref_102",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee103@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_103",
+      "context": {
+        "account_id": "survey_u_103",
+        "signup_at": "2026-11-03T03:00:00.000Z",
+        "device_hash": "survey_device_103",
+        "referrer_id": "survey_ref_103",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee104@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_104",
+      "context": {
+        "account_id": "survey_u_104",
+        "signup_at": "2026-11-04T04:00:00.000Z",
+        "device_hash": "survey_device_104",
+        "referrer_id": "survey_ref_104",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee105@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_105",
+      "context": {
+        "account_id": "survey_u_105",
+        "signup_at": "2026-11-05T05:00:00.000Z",
+        "device_hash": "survey_device_105",
+        "referrer_id": "survey_ref_105",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee106@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_106",
+      "context": {
+        "account_id": "survey_u_106",
+        "signup_at": "2026-11-01T06:00:00.000Z",
+        "device_hash": "survey_device_106",
+        "referrer_id": "survey_ref_106",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee107@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_107",
+      "context": {
+        "account_id": "survey_u_107",
+        "signup_at": "2026-11-02T07:00:00.000Z",
+        "device_hash": "survey_device_107",
+        "referrer_id": "survey_ref_107",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee108@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_108",
+      "context": {
+        "account_id": "survey_u_108",
+        "signup_at": "2026-11-03T08:00:00.000Z",
+        "device_hash": "survey_device_108",
+        "referrer_id": "survey_ref_108",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee109@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_109",
+      "context": {
+        "account_id": "survey_u_109",
+        "signup_at": "2026-11-04T00:00:00.000Z",
+        "device_hash": "survey_device_109",
+        "referrer_id": "survey_ref_109",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee110@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_110",
+      "context": {
+        "account_id": "survey_u_110",
+        "signup_at": "2026-11-05T01:00:00.000Z",
+        "device_hash": "survey_device_110",
+        "referrer_id": "survey_ref_110",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee111@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_111",
+      "context": {
+        "account_id": "survey_u_111",
+        "signup_at": "2026-11-01T02:00:00.000Z",
+        "device_hash": "survey_device_111",
+        "referrer_id": "survey_ref_111",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee112@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_112",
+      "context": {
+        "account_id": "survey_u_112",
+        "signup_at": "2026-11-02T03:00:00.000Z",
+        "device_hash": "survey_device_112",
+        "referrer_id": "survey_ref_112",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee113@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_113",
+      "context": {
+        "account_id": "survey_u_113",
+        "signup_at": "2026-11-03T04:00:00.000Z",
+        "device_hash": "survey_device_113",
+        "referrer_id": "survey_ref_113",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee114@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_114",
+      "context": {
+        "account_id": "survey_u_114",
+        "signup_at": "2026-11-04T05:00:00.000Z",
+        "device_hash": "survey_device_114",
+        "referrer_id": "survey_ref_114",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee115@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_115",
+      "context": {
+        "account_id": "survey_u_115",
+        "signup_at": "2026-11-05T06:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_115",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee116@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_116",
+      "context": {
+        "account_id": "survey_u_116",
+        "signup_at": "2026-11-01T07:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_116",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee117@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_117",
+      "context": {
+        "account_id": "survey_u_117",
+        "signup_at": "2026-11-02T08:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_117",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee118@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_118",
+      "context": {
+        "account_id": "survey_u_118",
+        "signup_at": "2026-11-03T00:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_118",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee119@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_119",
+      "context": {
+        "account_id": "survey_u_119",
+        "signup_at": "2026-11-04T01:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_119",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    },
+    {
+      "recipient_type": "EMAIL",
+      "receiver": "survey.payee120@example.test",
+      "amount": {
+        "value": "10.00",
+        "currency": "USD"
+      },
+      "sender_item_id": "survey_120",
+      "context": {
+        "account_id": "survey_u_120",
+        "signup_at": "2026-11-05T02:00:00.000Z",
+        "device_hash": "d_ring_falcon",
+        "referrer_id": "survey_ref_120",
+        "onboarding_seconds": 360,
+        "activity_after_onboarding": 5
+      }
+    }
+  ]
+}

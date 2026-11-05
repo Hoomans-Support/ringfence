@@ -8,7 +8,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import type { AgReportState } from "ag-studio";
 import { AgStudio, AgStudioProvider } from "ag-studio-react";
-import type { ControlTowerRegistry, FalseHoldOptions, MoneyOptions, RingGraphOptions, RuleRobustnessOptions } from "./studio/widgets";
+import type { AnalystOptions, ControlTowerRegistry, FalseHoldOptions, MoneyOptions, RingGraphOptions, RingWatchOptions, RuleRobustnessOptions } from "./studio/widgets";
 import { controlTowerWidgets } from "./studio/widgets";
 import { ringfenceStudioTheme } from "./studio/theme";
 
@@ -18,6 +18,8 @@ export interface ControlTowerData {
   money: MoneyOptions;
   falseHold: FalseHoldOptions;
   ruleRobustness: RuleRobustnessOptions;
+  ringWatch: RingWatchOptions;
+  analyst: AnalystOptions;
 }
 
 const at = (xTrack: number, yTrack: number, xSpan: number, ySpan: number) => ({ xTrack, yTrack, xSpan, ySpan });
@@ -46,7 +48,7 @@ function ControlTowerSkeleton() {
   );
 }
 
-function ReadyControlTower({ licenseKey, ringGraph, money, falseHold, ruleRobustness }: ControlTowerData) {
+function ReadyControlTower({ licenseKey, ringGraph, money, falseHold, ruleRobustness, ringWatch, analyst }: ControlTowerData) {
   // Rebuilt fresh every render: each widget's `options` is how it receives this run's numbers (see
   // studio/widgets.tsx), so a new run's data means a new widgets config, not a push into Studio.
   const widgets = useMemo(() => {
@@ -63,12 +65,16 @@ function ReadyControlTower({ licenseKey, ringGraph, money, falseHold, ruleRobust
             return { ...w, options: falseHold };
           case "ruleRobustness":
             return { ...w, options: ruleRobustness };
+          case "ringWatch":
+            return { ...w, options: ringWatch };
+          case "analyst":
+            return { ...w, options: analyst };
           default:
             return w;
         }
       }),
     };
-  }, [ringGraph, money, falseHold, ruleRobustness]);
+  }, [ringGraph, money, falseHold, ruleRobustness, ringWatch, analyst]);
 
   const initialState = useMemo(
     (): AgReportState<ControlTowerRegistry> => ({
@@ -81,12 +87,16 @@ function ReadyControlTower({ licenseKey, ringGraph, money, falseHold, ruleRobust
             money: { type: "money", dataMapping: {} },
             falseHold: { type: "falseHold", dataMapping: {} },
             ruleRobustness: { type: "ruleRobustness", dataMapping: {} },
+            ringWatch: { type: "ringWatch", dataMapping: {} },
+            analyst: { type: "analyst", dataMapping: {} },
           },
           widgetLayout: {
             ringGraph: at(0, 0, 14, 42),
             money: at(14, 0, 10, 14),
             falseHold: at(14, 14, 10, 14),
             ruleRobustness: at(14, 28, 10, 14),
+            ringWatch: at(14, 42, 10, 14),
+            analyst: at(14, 56, 10, 14),
           },
         },
       ],

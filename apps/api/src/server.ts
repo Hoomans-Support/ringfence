@@ -9,7 +9,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type { PayPalClient } from "@ringfence/paypal";
 import { boot } from "./boot";
 import { startWorkerLoop } from "./loop";
-import { ApiError, bypassesRowLevelSecurity, describeNumbering, ensureProgram, programForKey, type Db } from "./db";
+import { ApiError, bypassesRowLevelSecurity, describeNumbering, ensureProgram, programForKey, withProgram, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import { recordEvent, scorePending, type SignupEvent } from "./events";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
@@ -17,6 +17,8 @@ import { approveRule, listRules, proposeRule, type Proposal } from "./learning";
 import { explainRing, registerMcp } from "./mcp";
 import { getRun, importPastRun, screenRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
+import { createPayPalIdentityProvider, signState, verifyState, type IdentityProvider } from "./paypal-identity";
+import { completeSelfRelease, findSoloHeld } from "./self-release";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -134,9 +136,19 @@ export interface AppDeps {
   inlineSend?: boolean;
   /** Bearer token for GET /v1/webhooks/events; unset means the route answers 404. */
   adminToken?: string;
+  /** PayPal identity seam for self-release. Tests inject a fake; production uses the env config. */
+  identityProvider?: IdentityProvider;
+  selfReleaseKey?: string;
 }
 
-export function buildApp({ db, paypal, inlineSend = true, adminToken = process.env.ADMIN_TOKEN }: AppDeps): FastifyInstance {
+export function buildApp({ db, paypal, inlineSend = true, adminToken = process.env.ADMIN_TOKEN, identityProvider, selfReleaseKey = process.env.RINGFENCE_SELF_RELEASE_KEY }: AppDeps): FastifyInstance {
+  const identity = identityProvider ?? (process.env.PAYPAL_LOGIN_CLIENT_ID && process.env.PAYPAL_LOGIN_CLIENT_SECRET
+    ? createPayPalIdentityProvider({
+        clientId: process.env.PAYPAL_LOGIN_CLIENT_ID,
+        clientSecret: process.env.PAYPAL_LOGIN_CLIENT_SECRET,
+        baseUrl: process.env.PAYPAL_BASE_URL ?? "https://api-m.sandbox.paypal.com",
+      })
+    : undefined);
   const app = Fastify({ logger: process.env.NODE_ENV !== "test" && !process.env.VITEST, bodyLimit: 16 * 1024 * 1024 });
   app.decorateRequest("programId", "");
   app.decorateRequest("rawBody", "");
@@ -252,6 +264,56 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   app.post("/v1/webhooks/paypal", webhook);
   app.post("/webhooks/paypal", webhook);
 
+  // A short-lived signed token carries the payout identity through PayPal's OIDC round trip. The
+  // state cannot be changed or replayed after its ten-minute expiry; the API key is never exposed.
+  app.get<{ Querystring: { program_id: string; run_id: string; sender_item_id: string } }>(
+    "/self-release/start",
+    { schema: { querystring: { type: "object", required: ["program_id", "run_id", "sender_item_id"], properties: {
+      program_id: { type: "string", minLength: 1 }, run_id: { type: "string", minLength: 1 }, sender_item_id: { type: "string", minLength: 1 },
+    } } } },
+    async (req, reply) => {
+      if (!identity || !selfReleaseKey) return reply.code(503).type("text/plain").send("Payee self-release is not configured.");
+      const { program_id, run_id, sender_item_id } = req.query;
+      const item = await findSoloHeld(db, program_id, run_id, sender_item_id);
+      if (!item) return reply.code(409).type("text/html").send(selfReleaseHtml("This payout is no longer an eligible solo hold."));
+      const state = signState({ program_id, run_id, sender_item_id, exp: Date.now() + 10 * 60_000 }, selfReleaseKey);
+      return reply.redirect(identity.authorizeUrl(state), 302);
+    },
+  );
+
+  app.get<{ Querystring: { code?: string; state?: string } }>(
+    "/self-release/callback",
+    { schema: { querystring: { type: "object", properties: { code: { type: "string" }, state: { type: "string" } } } } },
+    async (req, reply) => {
+      const payload = req.query.state && verifyState(req.query.state, selfReleaseKey);
+      if (!payload) return reply.code(400).type("text/html").send(selfReleaseHtml("This self-release link expired or is invalid. Request a new link from the payout operator."));
+      if (!identity || !req.query.code) return reply.code(400).type("text/html").send(selfReleaseHtml("PayPal sign-in could not be completed."));
+      try {
+        const { email } = await identity.exchangeCode(req.query.code);
+        const item = await findSoloHeld(db, payload.program_id, payload.run_id, payload.sender_item_id);
+        if (!item) {
+          const [current] = await withProgram(db, payload.program_id, (q) => q.query<{ state: string }>(
+            "SELECT state FROM items WHERE program_id = $1 AND run_id = $2 AND sender_item_id = $3",
+            [payload.program_id, payload.run_id, payload.sender_item_id],
+          ));
+          const message = !current ? "This payout could not be found." : current.state !== "held"
+            ? "This payout has already been released or is no longer held."
+            : "This payout is part of a ring or shared hold and cannot be self-released.";
+          return reply.code(409).type("text/html").send(selfReleaseHtml(message));
+        }
+        const release = await completeSelfRelease(db, payload.program_id, item, email);
+        if (release.created && inlineSend) await drainOutbox(db, paypal, { only: release.sender_batch_id });
+        return reply.type("text/html").send(selfReleaseHtml("Your payout hold has been released."));
+      } catch (err) {
+        const message = err instanceof ApiError && err.statusCode === 403
+          ? err.message
+          : "PayPal sign-in could not be verified. Try again or contact the payout operator.";
+        const status = err instanceof ApiError ? err.statusCode : 502;
+        return reply.code(status).type("text/html").send(selfReleaseHtml(message));
+      }
+    },
+  );
+
   app.get("/v1/webhooks/events", async (req, reply) => {
     if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) return reply.code(404).send({ error: "not found" });
     return db.query("SELECT event_id, event_type, payout_batch_id, transaction_status, applied, received_at FROM webhook_events ORDER BY received_at DESC LIMIT 20");
@@ -267,6 +329,11 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   return app;
 }
 
+function selfReleaseHtml(message: string): string {
+  const safe = message.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Payout hold</title><body style="font:16px system-ui;max-width:38rem;margin:12vh auto;padding:1.5rem;color:#20232a"><h1>Payout hold</h1><p>${safe}</p></body></html>`;
+}
+
 /** The program this deployment serves, from its environment. Optional starting numbers
  *  (RINGFENCE_FIRST_RING_NUMBER, RINGFENCE_FIRST_RULE_NUMBER) are how the hosted demo's numbering
  *  starts where the PRD's story does; a real program leaves them unset and starts at 1. */
@@ -277,6 +344,14 @@ export async function ensureProgramFromEnv(db: Db, env: NodeJS.ProcessEnv = proc
     firstRingNumber: start(env.RINGFENCE_FIRST_RING_NUMBER),
     firstRuleNumber: start(env.RINGFENCE_FIRST_RULE_NUMBER),
   });
+  if (env.RINGFENCE_SURVEY_API_KEY) {
+    await ensureProgram(
+      db,
+      env.RINGFENCE_SURVEY_PROGRAM_ID ?? "surveyapp",
+      env.RINGFENCE_SURVEY_PROGRAM_NAME ?? "Survey app",
+      env.RINGFENCE_SURVEY_API_KEY,
+    );
+  }
   return true;
 }
 

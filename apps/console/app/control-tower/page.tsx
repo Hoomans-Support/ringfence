@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { checkClaims, investigate, redTeamRule } from "@ringfence/agents";
+import { checkClaims, investigate, redTeamRule, summarizeForAnalyst } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek, type DemoWeek } from "@/lib/fixtures";
 import { buildRingGraphData } from "@/lib/ring-layout";
@@ -65,6 +65,8 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
 
   const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
 
+  const caseFile = week === 1 && ring ? checkClaims(investigate(ring, run), run) : undefined;
+
   const ringGraph: ControlTowerData["ringGraph"] = ring
     ? (() => {
         const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
@@ -76,8 +78,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
 
   const ruleRobustness: ControlTowerData["ruleRobustness"] = week === 1 && ring
     ? (() => {
-        const caseFile = checkClaims(investigate(ring, run), run);
-        const rule = redTeamRule(caseFile.proposed_rule);
+        const rule = redTeamRule(caseFile!.proposed_rule);
         const rt = rule.red_team;
         return {
           ruleId: rule.id,
@@ -96,12 +97,26 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
       ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "The learned-rule result will appear here when A's evaluator is connected." }
       : { ruleId: "—", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "No Ringfence rule was active in Week 0." };
 
+  const analystNote = caseFile
+    ? await summarizeForAnalyst(caseFile, { keptUsd, leakedUsd })
+    : "No linked ring is active in this week. Keep watching the payout run for new signals.";
+  const rawThreshold = Number(process.env.RINGFENCE_RING_WATCH_THRESHOLD_USD ?? 500);
+  const ringWatch: ControlTowerData["ringWatch"] = {
+    runId: run.sender_batch_header.sender_batch_id,
+    ringId: ringGraph.ringLabel,
+    thresholdUsd: Number.isFinite(rawThreshold) && rawThreshold > 0 ? rawThreshold : 500,
+    keptUsd,
+    leakedUsd,
+    memberAmounts: Object.fromEntries((ring?.member_sender_item_ids ?? []).map((id) => [id, amountBySenderItemId.get(id) ?? 0])),
+    enabled: Boolean(process.env.RINGFENCE_API_URL && process.env.RINGFENCE_MCP_KEY && ring),
+  };
+
   return (
     <main className="flex min-h-dvh flex-col bg-rf-mist px-8 py-4 text-rf-ink">
       <div>
         <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Control tower</h1>
         <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
-          Simulated Week {week}: ring graph, money kept against leaked, false holds and rule robustness.
+          Simulated Week {week}: ring graph, money kept against leaked, false holds, rule robustness, live Ring Watch and analyst read.
         </p>
       </div>
       {/* State (which week you're looking at), the one action (advance the demo) and the escape
@@ -135,6 +150,9 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
         >
           ← Week {week} review queue
         </Link>
+        <Link href="/survey-app" className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink">
+          Survey app demo
+        </Link>
       </nav>
       {/* Flattened: no extra card (border/background/padding) wrapping AG Studio's own canvas,
           which already matches the page's mist background (studio/theme.ts) - this div exists
@@ -143,7 +161,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           height at 706px (2px of border/rounding the theory doesn't capture, same gap found before
           at the old row height) and used that, so it never needs its own internal scrollbar - the
           page scrolls instead, like any normal page, at viewports shorter than that. */}
-      <div className="mt-3 h-[706px]">
+      <div className="mt-3 h-[940px]">
         {/* key={week}: AG Studio reads its `widgets` prop once, at mount, to register each
             widget's options as its initial data - found by actually clicking "Step to week" through
             all three weeks (not just navigating straight to a URL, which always mounts fresh) and
@@ -157,6 +175,8 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           money={{ kind: week === 2 ? "rule" : "ring", keptUsd, leakedUsd }}
           falseHold={{ heldCount, falseHoldCount }}
           ruleRobustness={ruleRobustness}
+          ringWatch={ringWatch}
+          analyst={{ note: analystNote }}
         />
       </div>
     </main>

@@ -1,0 +1,13 @@
+Local Postman collection check — 2026-11-05
+
+Started `npm start -w @ringfence/api` under the workspace-local Node 22.23.4 runtime with
+`DATABASE_URL=pglite://memory`, `PAYPAL_MODE=mock`, and local dev API, MCP, and admin credentials.
+This environment's Windows identity lookup also fails under Node 22 (`os.userInfo()` returns
+`uv_os_get_passwd returned ENOMEM`), so the local-only launch used a preload shim that supplies a
+username if that OS lookup fails. No application source was changed for the workaround.
+
+`GET /health` returned `{"ok":true,"sandbox":true}`. Newman ran the collection in order: 16 requests,
+17 assertions, 0 failures. The flow created two three-payee rings, retrieved and explained a run,
+screened a payee using the read key, imported a run, released one ring, confirmed the other, proposed
+and approved a rule, recorded and listed signup events, rejected an unsigned webhook, and read the
+admin event feed. All payouts used the mock PayPal client; no live PayPal request was made.

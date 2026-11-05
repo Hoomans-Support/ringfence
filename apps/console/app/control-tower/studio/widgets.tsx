@@ -61,6 +61,18 @@ export interface RuleRobustnessOptions {
   nextStepHref?: string;
 }
 
+export interface RingWatchOptions {
+  runId: string;
+  ringId: string;
+  thresholdUsd: number;
+  keptUsd: number;
+  leakedUsd: number;
+  memberAmounts: Record<string, number>;
+  enabled: boolean;
+}
+
+export interface AnalystOptions { note: string }
+
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 // --- Components: plain cards in the app's own voice, not a generic chart/gauge look ---
@@ -255,6 +267,54 @@ function RuleRobustnessWidget({ config, widgetApi }: AgWidgetParams) {
   );
 }
 
+function RingWatchWidget({ config, widgetApi }: AgWidgetParams) {
+  useDisplayedOnMount(widgetApi);
+  const o = config.options as RingWatchOptions;
+  const [latest, setLatest] = useState<{ states: { sender_item_id: string; state: string }[] }>();
+  const [status, setStatus] = useState(o.enabled ? "Connecting to the live API…" : "Live API is not configured.");
+  const keptUsd = latest ? latest.states.filter((member) => member.state === "held" || member.state === "blocked").reduce((sum, member) => sum + (o.memberAmounts[member.sender_item_id] ?? 0), 0) : o.keptUsd;
+  const leakedUsd = latest ? latest.states.filter((member) => member.state !== "held" && member.state !== "blocked").reduce((sum, member) => sum + (o.memberAmounts[member.sender_item_id] ?? 0), 0) : o.leakedUsd;
+  const totalUsd = keptUsd + leakedUsd;
+  const crossed = totalUsd >= o.thresholdUsd;
+
+  useEffect(() => {
+    if (!o.enabled) return;
+    let disposed = false;
+    const poll = async () => {
+      try {
+        const query = new URLSearchParams({ run_id: o.runId, ring_id: o.ringId });
+        const response = await fetch(`/api/ring-watch?${query}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(response.status === 404 ? "Ring not found in the live run." : "Live API is unavailable.");
+        const data = await response.json() as { members?: { sender_item_id: string; state: string }[] };
+        if (!disposed) {
+          setLatest({ states: data.members ?? [] });
+          setStatus("Updated from the live API just now.");
+        }
+      } catch (error) {
+        if (!disposed) setStatus(error instanceof Error ? error.message : "Live API is unavailable.");
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 8000);
+    return () => { disposed = true; clearInterval(timer); };
+  }, [o.enabled, o.runId, o.ringId]);
+
+  const stateSummary = latest ? `${latest.states.filter((member) => member.state === "held").length} held · ${latest.states.filter((member) => member.state === "blocked").length} blocked · ${latest.states.filter((member) => member.state === "sent" || member.state === "succeeded").length} paid` : "Waiting for first poll";
+  return <div className="flex h-full flex-col gap-2 p-5">
+    <WidgetHeading>Ring Watch</WidgetHeading>
+    <p className={`font-mono text-[30px] font-semibold leading-[1.1] ${crossed ? "text-rf-spark-text" : "text-rf-ink"}`}>{money(totalUsd)}</p>
+    <p className="text-sm text-rf-slate">Kept {money(keptUsd)} · leaked {money(leakedUsd)}. {crossed ? "Above" : "Below"} the {money(o.thresholdUsd)} threshold for {o.ringId}.</p>
+    <p className="text-sm text-rf-ink">{stateSummary}</p>
+    <p className="text-xs text-rf-slate">{status} · polling every 8 seconds</p>
+  </div>;
+}
+
+function AnalystWidget({ config, widgetApi }: AgWidgetParams) {
+  useDisplayedOnMount(widgetApi);
+  const o = config.options as AnalystOptions;
+  return <div className="flex h-full flex-col gap-2 p-5"><WidgetHeading>Analyst read</WidgetHeading><p className="text-sm leading-[1.5] text-rf-slate">{o.note}</p></div>;
+}
+
 // --- Definitions: minimal `form` (no data-mapping UI — these widgets take no fields, only options) ---
 
 const noMappingForm = (params: AgWidgetFormParams) => params.createDefaults({});
@@ -295,6 +355,16 @@ const ruleRobustnessWidgetDefinition: AgWidgetDefinition<"ruleRobustness", any, 
   minSize: { width: 220, height: 160 },
 };
 
+const ringWatchWidgetDefinition: AgWidgetDefinition<"ringWatch", any, any, RingWatchOptions> = {
+  id: "ringWatch", label: "Ring Watch", form: noMappingForm, comp: RingWatchWidget,
+  defaultSize: { width: 320, height: 220 }, minSize: { width: 220, height: 160 },
+};
+
+const analystWidgetDefinition: AgWidgetDefinition<"analyst", any, any, AnalystOptions> = {
+  id: "analyst", label: "Analyst read", form: noMappingForm, comp: AnalystWidget,
+  defaultSize: { width: 320, height: 220 }, minSize: { width: 220, height: 160 },
+};
+
 export interface ControlTowerRegistry extends AgRegistry {
   widgets: readonly (
     | AgDefaultWidgetDefinition
@@ -302,15 +372,17 @@ export interface ControlTowerRegistry extends AgRegistry {
     | typeof moneyWidgetDefinition
     | typeof falseHoldWidgetDefinition
     | typeof ruleRobustnessWidgetDefinition
+    | typeof ringWatchWidgetDefinition
+    | typeof analystWidgetDefinition
   )[];
 }
 
 export const controlTowerWidgets = createWidgets<ControlTowerRegistry>({
-  additionalTypes: [ringGraphWidgetDefinition, moneyWidgetDefinition, falseHoldWidgetDefinition, ruleRobustnessWidgetDefinition],
+  additionalTypes: [ringGraphWidgetDefinition, moneyWidgetDefinition, falseHoldWidgetDefinition, ruleRobustnessWidgetDefinition, ringWatchWidgetDefinition, analystWidgetDefinition],
   menu: [
     {
       label: "Control tower",
-      widgetIds: ["ringGraph", "money", "falseHold", "ruleRobustness"],
+      widgetIds: ["ringGraph", "money", "falseHold", "ruleRobustness", "ringWatch", "analyst"],
     },
   ],
 });

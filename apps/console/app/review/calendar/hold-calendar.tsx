@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 type Resource = { id: string; name: string };
-type CalendarEvent = { id: string; resourceId: string; name: string; startDate: string; endDate: string };
+type CalendarEvent = { id: string; resourceId: string; name: string; startDate: string; endDate: string; cls?: string };
 type BryntumSchedulerInstance = { destroy: () => void; scrollToDate: (date: Date) => void };
 
 export function HoldCalendar({ resources, events }: { resources: Resource[]; events: CalendarEvent[] }) {
@@ -39,7 +39,7 @@ export function HoldCalendar({ resources, events }: { resources: Resource[]; eve
         viewPreset: "weekAndDay",
         columns: [{ text: "Held group", field: "name", width: 160 }],
         resources,
-        events: events.map((e) => ({ ...e, startDate: new Date(e.startDate), endDate: new Date(e.endDate) })),
+        events: events.map((e) => ({ ...e, cls: Date.parse(e.endDate) < Date.now() ? "rf-overdue-event" : undefined, startDate: new Date(e.startDate), endDate: new Date(e.endDate) })),
         features: { eventTooltip: true },
       });
       schedulerRef.current = scheduler;
