@@ -24,7 +24,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRealClient, MockPayPal, startMockServer, type PayoutBatchRequest } from "@ringfence/paypal";
-import { connect, ensureProgram, migrate, withProgram, type Db } from "../apps/api/src/db";
+import { connect, DEMO_NUMBERING, ensureProgram, migrate, withProgram, type Db } from "../apps/api/src/db";
 import { drainOutbox } from "../apps/api/src/executor";
 import { confirmRing, releaseHolds } from "../apps/api/src/holds";
 import { approveRule, proposeRule } from "../apps/api/src/learning";
@@ -63,10 +63,10 @@ const STEPS: Record<string, (db: Db, paypal: ReturnType<typeof createRealClient>
     const confirmed = await confirmRing(db, PROGRAM, "R-12", { run_id: "run_2026w45", confirmed_by: "rina@budgetapp.test" });
     return `ring R-12: ${confirmed.blocked} newly blocked, ${confirmed.cancels_queued} cancels queued; ${await drainOutbox(db, paypal)} outbox event(s) done`;
   },
-  async "learn-r07"(db) {
-    const proposed = await proposeRule(db, PROGRAM, R07, "R-12", "run_2026w45");
-    await approveRule(db, PROGRAM, "R-07", "rina@budgetapp.test", true);
-    return `R-07 v${proposed.version} approved (backtest ${proposed.backtest.caught} caught, red team ${proposed.red_team.caught}/200)`;
+  async "learn-rule"(db) {
+    const proposed = await proposeRule(db, PROGRAM, { rule: R07, learned_from: { ring_id: "R-12", run_id: "run_2026w45" } });
+    await approveRule(db, PROGRAM, proposed.rule_id, "rina@budgetapp.test", true);
+    return `${proposed.rule_id} v${proposed.version} approved, learned from ring R-12 (backtest ${proposed.backtest.caught} caught, red team ${proposed.red_team.caught}/200)`;
   },
   async "submit-week2"(db, paypal) {
     const { created } = await submitRun(db, PROGRAM, fixture("week2"));
@@ -112,7 +112,7 @@ async function parent(): Promise<void> {
   const db = await connect(DATABASE_URL);
   await db.exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
   await migrate(db);
-  await ensureProgram(db, PROGRAM, "Budgeting app", "chaos-key", undefined, { startRing: 12, startRule: 7 });
+  await ensureProgram(db, PROGRAM, "Budgeting app", "chaos-key", undefined, DEMO_NUMBERING);
 
   // The sandbox as observed: duplicates refused without naming the original, batches processed on
   // their own whether or not anyone polls them.
@@ -141,7 +141,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ["release-roommates", "after_claim"],
     ["poll", undefined],
     ["confirm-ring", "after_cancel"],
-    ["learn-r07", undefined],
+    ["learn-rule", undefined],
     ["submit-week2", "after_paypal"],
     ["webhooks", undefined],
     ["poll", undefined],

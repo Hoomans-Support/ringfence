@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS programs (
   mcp_key_hash text UNIQUE,           -- sha256 of the read-only key AI agents use over MCP
   created_at   timestamptz NOT NULL DEFAULT now()
 );
--- Permanent per-program numbering (issue #2, #3): a ring, pair or learned rule's number is taken
--- from here and never reused. CREATE TABLE IF NOT EXISTS never alters a table that already exists,
--- so these are added explicitly for a database that was already running.
+-- A program's rings and pairs keep their numbers for good: each run's first ring is numbered after
+-- the program's last one (runs.ts, decideRun).
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_ring_number integer NOT NULL DEFAULT 1;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_pair_number integer NOT NULL DEFAULT 1;
+-- Learned rules have their own numbering, assigned by Ringfence, never borrowed from a ring.
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_rule_number integer NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -54,26 +54,6 @@ CREATE TABLE IF NOT EXISTS items (
 CREATE INDEX IF NOT EXISTS items_by_batch ON items (batch_id);
 CREATE UNIQUE INDEX IF NOT EXISTS items_by_payout_item ON items (payout_item_id) WHERE payout_item_id IS NOT NULL;
 
--- Issue #5: PayPal's success outcome was called 'paid', the same word the run summary uses for
--- "sent on time" — renamed to 'succeeded' everywhere. A database that already has the items table
--- (CREATE TABLE IF NOT EXISTS above is then a no-op, so the inline CHECK edit alone never reaches
--- it) needs its rows moved and its constraint replaced explicitly. Safe every boot: once no row
--- says 'paid', the UPDATE is a no-op and the DROP+CREATE pair just re-applies the same constraint,
--- the same idiom this file already uses for RLS policies below.
-DO $$
-DECLARE con text;
-BEGIN
-  -- The old constraint (whatever it's actually named) has to go *before* the UPDATE below, or the
-  -- UPDATE itself is rejected by the still-active old constraint it's trying to move rows past.
-  SELECT conname INTO con FROM pg_constraint
-    WHERE conrelid = 'items'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%state%paid%';
-  IF con IS NOT NULL THEN EXECUTE format('ALTER TABLE items DROP CONSTRAINT %I', con); END IF;
-  ALTER TABLE items DROP CONSTRAINT IF EXISTS items_state_check;
-  UPDATE items SET state = 'succeeded' WHERE state = 'paid';
-  ALTER TABLE items ADD CONSTRAINT items_state_check
-    CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed'));
-END $$;
-
 -- One row per PayPal batch. Not tenant-scoped on purpose: it holds ids and statuses only, no payee
 -- data, and the worker and webhook handler need it to find which program a PayPal batch belongs
 -- to. sender_batch_id is globally unique because PayPal dedupes it per PayPal account, and a
@@ -110,25 +90,23 @@ CREATE INDEX IF NOT EXISTS outbox_pending ON outbox (id) WHERE status = 'pending
 -- version applies to new runs, and it carries its provenance: the ring it came from, its backtest,
 -- its red-team score, and who approved it.
 CREATE TABLE IF NOT EXISTS rules (
-  program_id     text NOT NULL REFERENCES programs (id),
-  rule_id        text NOT NULL,
-  version        integer NOT NULL,
-  body           jsonb NOT NULL,              -- { id, action, when: { all: [...] } }
-  source         text,                        -- legacy free text; source_ring_id/source_run_id are authoritative (issue #3)
-  status         text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved')),
-  backtest       jsonb,
-  red_team       jsonb,
-  flags          jsonb NOT NULL DEFAULT '[]', -- e.g. "holds_over_5_percent": needs a deliberate second look
-  approved_by    text,
-  approved_at    timestamptz,
-  created_at     timestamptz NOT NULL DEFAULT now(),
+  program_id  text NOT NULL REFERENCES programs (id),
+  rule_id     text NOT NULL,
+  version     integer NOT NULL,
+  body        jsonb NOT NULL,              -- { id, action, when: { all: [...] } }
+  source      text,
+  status      text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved')),
+  backtest    jsonb,
+  red_team    jsonb,
+  flags       jsonb NOT NULL DEFAULT '[]', -- e.g. "holds_over_5_percent": needs a deliberate second look
+  approved_by text,
+  approved_at timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (program_id, rule_id, version)
 );
--- Issue #3: a learned rule records the ring and run it was learned from, structurally, in place of
--- the free-text source above. Nullable: a rule proposed before this column existed has no way to be
--- backfilled from its free text, so it's left NULL rather than guessed at.
-ALTER TABLE rules ADD COLUMN IF NOT EXISTS source_ring_id text;
-ALTER TABLE rules ADD COLUMN IF NOT EXISTS source_run_id text;
+-- The ring a learned rule was learned from, and the run that ring was held in.
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS learned_from_ring text;
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS learned_from_run text;
 
 -- Devices and normalized payout addresses from rings this program confirmed (starter rule S-02).
 CREATE TABLE IF NOT EXISTS known_fraud (
@@ -141,12 +119,10 @@ CREATE TABLE IF NOT EXISTS known_fraud (
   PRIMARY KEY (program_id, kind, value)
 );
 
--- Confirmed rings' devices and payout addresses, shared across every program as one-way keyed
--- hashes (FR-19, S-03 in packages/engine/src/rules.ts): never the raw value, and no ring_id or
--- run_id travels with it, so a hash on its own tells another program nothing but "a ring somewhere
--- had this". program_id here is who contributed it (for audit, never read by a match lookup); RLS
--- below restricts inserting to a program's own hashes, but deliberately leaves matching open to
--- every program, since checking "has anyone seen this fingerprint" is the entire point.
+-- Confirmed fraud shared across programs as keyed hashes (FR-19): a device or payout address from a
+-- ring any program confirmed, so a payee reusing it elsewhere is held, never blocked, without either
+-- program learning anything about the other's rings. Any program may insert its own; every program
+-- may check whether a hash is present.
 CREATE TABLE IF NOT EXISTS network_fingerprints (
   hash       text PRIMARY KEY,
   program_id text NOT NULL REFERENCES programs (id),
@@ -208,6 +184,45 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS tenant ON %I', t);
     EXECUTE format('CREATE POLICY tenant ON %I USING (program_id = current_setting(''app.program_id'', true)) WITH CHECK (program_id = current_setting(''app.program_id'', true))', t);
   END LOOP;
+END $$;
+
+-- The state for PayPal's success was "paid" until "paid" came to mean only "sent on time"
+-- (GLOSSARY.md); it's "succeeded" now. Moves a database's existing payouts across once: after that
+-- the constraint no longer allows "paid", and this is skipped. Items are tenant-scoped, so each
+-- program's are moved under its own app.program_id.
+DO $$
+DECLARE p record;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'items'::regclass AND conname = 'items_state_check' AND pg_get_constraintdef(oid) LIKE '%''paid''%'
+  ) THEN
+    ALTER TABLE items DROP CONSTRAINT items_state_check;
+    FOR p IN SELECT id FROM programs LOOP
+      PERFORM set_config('app.program_id', p.id, true);
+      UPDATE items SET state = 'succeeded' WHERE program_id = p.id AND state = 'paid';
+    END LOOP;
+    PERFORM set_config('app.program_id', '', true);
+    ALTER TABLE items ADD CONSTRAINT items_state_check
+      CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed'));
+  END IF;
+END $$;
+
+-- Never reuse a number a program already gave out (rings, pairs and rules recorded before the
+-- counters existed: rings and pairs restarted at 1 every run, rules took their ring's number). Items are tenant-scoped, so each program is read under
+-- its own app.program_id. A no-op once the counters are ahead, so safe on every boot.
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN SELECT id FROM programs LOOP
+    PERFORM set_config('app.program_id', p.id, true);
+    UPDATE programs SET
+      next_ring_number = GREATEST(next_ring_number, 1 + COALESCE((SELECT max(substring(ring_id FROM 3)::int) FROM items WHERE program_id = p.id AND ring_id ~ '^R-[0-9]+$'), 0)),
+      next_pair_number = GREATEST(next_pair_number, 1 + COALESCE((SELECT max(substring(hold_group_id FROM 3)::int) FROM items WHERE program_id = p.id AND hold_group_id ~ '^P-[0-9]+$'), 0)),
+      next_rule_number = GREATEST(next_rule_number, 1 + COALESCE((SELECT max(substring(rule_id FROM 3)::int) FROM rules WHERE program_id = p.id AND rule_id ~ '^R-[0-9]+$'), 0))
+    WHERE id = p.id;
+  END LOOP;
+  PERFORM set_config('app.program_id', '', true);
 END $$;
 
 COMMIT;

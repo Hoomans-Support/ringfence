@@ -61,12 +61,15 @@ export interface ScoreRunResult {
 }
 
 /**
- * Numbering offsets for a program's permanent ring/pair identity (issue #2): the caller (apps/api,
- * which owns the program's counters) passes the number its next ring/pair should start from, so two
- * scoring passes over the same items never disagree. Omitted, scoring starts at 1 like before this
- * existed — this package stays free of any program or database concern either way.
+ * Reserved for cross-run context (e.g. network matches against rings
+ * confirmed at other programs, FR-19 — a P2 stretch item). Unused by the
+ * graph-and-risk-flag baseline in this package; A's rule engine (FR-4,
+ * FR-11) layers versioned starter and learned rules on top of this output.
  */
 export interface ScoreRunContext {
-  startRing?: number;
-  startPair?: number;
+  priorRings?: unknown;
+  /** The number this run's first ring and first pair get. A program's rings and pairs keep their
+   *  numbers for good, so its runs count on from where the last one stopped. Default 1. */
+  firstRingNumber?: number;
+  firstPairNumber?: number;
 }

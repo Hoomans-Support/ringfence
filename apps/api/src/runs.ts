@@ -8,7 +8,7 @@
  * time, without deciding or sending anything again.
  */
 import { evaluateRules, normalizeEmail, type Decision, type PayoutItem, type PayoutRun, type RuleRunResult } from "@ringfence/engine";
-import { ApiError, audit, peekNumbers, reserveNumbers, sha256, withProgram, type Db, type NumberOffsets, type Queryable } from "./db";
+import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
 import { chaos } from "./executor";
 import { loadRuleContext } from "./learning";
 import { matchNetwork } from "./network";
@@ -87,7 +87,7 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
       let version = "imported";
       let decide = (_item: PayoutItem): ItemRow => ({ decision: "PAY", ring_id: null, hold_group_id: null, reasons: [], rules: ["import"], state: "sent", batch_id: runId });
       if (!importedBatchId) {
-        const result = await decideRun(q, programId, run, (counts) => reserveNumbers(q, programId, counts));
+        const result = await decideRun(q, programId, run, { reserve: true });
         const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
         version = result.rule_set_version;
         decide = (item) => {
@@ -148,28 +148,39 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
   }
 }
 
-/** The one decision step: the run, under this program's approved rules, confirmed-fraud list and
- *  the ring network (FR-19). POST /v1/payout-runs and the MCP screen both come through here, so
- *  they can't disagree.
- *
- *  Ring and pair ids are a program's permanent numbering (issue #2): how many a run will produce
- *  can only be known by scoring it, so this scores once to count them, reserves exactly that many
- *  numbers (via `reserve` — advancing the program's counters for a real run, or only peeking for a
- *  screen), then re-scores with the real starting offsets. Skipped when the offsets are already
- *  `{1, 1}` (an unconfigured program, or its first-ever run): the first pass is already correct. */
-async function decideRun(q: Queryable, programId: string, run: PayoutRun, reserve: (counts: { rings: number; pairs: number }) => Promise<NumberOffsets>): Promise<RuleRunResult> {
+/**
+ * The one decision step: the run, under this program's approved rules and confirmed-fraud list,
+ * with its rings and pairs numbered on from the program's last ones. POST /v1/payout-runs and the
+ * screens both come through here, so they can't disagree. `reserve` (a run being recorded) locks the
+ * program's next numbers and moves them past this run's rings and pairs, in the caller's transaction;
+ * a screen only reads them, so it shows the numbers the next run would get without using them up.
+ */
+async function decideRun(q: Queryable, programId: string, run: PayoutRun, opts: { reserve?: boolean } = {}): Promise<RuleRunResult> {
   const { rules, ctx, version } = await loadRuleContext(q, programId);
+  const [next] = await q.query<{ next_ring_number: number; next_pair_number: number }>(
+    `SELECT next_ring_number, next_pair_number FROM programs WHERE id = $1${opts.reserve ? " FOR UPDATE" : ""}`,
+    [programId],
+  );
   const networkMatch = await matchNetwork(
     q,
     run.items.map((i) => i.context.device_hash),
     run.items.map((i) => normalizeEmail(i.receiver).email),
   );
-  const fullCtx = { ...ctx, networkMatch };
-  const probe = evaluateRules(run, rules, fullCtx, version);
-  const pairs = new Set(probe.decisions.map((d) => d.hold_group_id).filter((id): id is string => /^P-\d+$/.test(id ?? ""))).size;
-  const { startRing, startPair } = await reserve({ rings: probe.rings.length, pairs });
-  if (startRing === 1 && startPair === 1) return probe;
-  return evaluateRules(run, rules, fullCtx, version, { startRing, startPair });
+  const result = evaluateRules(
+    run,
+    rules,
+    { ...ctx, firstRingNumber: next?.next_ring_number, firstPairNumber: next?.next_pair_number, networkMatch },
+    version,
+  );
+  if (opts.reserve) {
+    const pairs = new Set(result.decisions.filter((d) => !d.ring_id && d.hold_group_id?.startsWith("P-")).map((d) => d.hold_group_id)).size;
+    await q.query("UPDATE programs SET next_ring_number = next_ring_number + $2, next_pair_number = next_pair_number + $3 WHERE id = $1", [
+      programId,
+      result.rings.length,
+      pairs,
+    ]);
+  }
+  return result;
 }
 
 export interface ScreenResult {
@@ -183,7 +194,7 @@ export async function screenRun(db: Db, programId: string, body: RunRequest): Pr
   if (new Set(body.items.map((i) => i.sender_item_id)).size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
   const receivedAt = new Date().toISOString();
   const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
-  const result = await withProgram(db, programId, (q) => decideRun(q, programId, run, () => peekNumbers(q, programId)));
+  const result = await withProgram(db, programId, (q) => decideRun(q, programId, run));
   const count = (d: Decision) => result.decisions.filter((x) => x.decision === d).length;
   return {
     rule_set_version: result.rule_set_version,

@@ -1,7 +1,11 @@
 /**
  * The per-item state machine (FR-5). Every state change in the database is a conditional UPDATE
  * guarded by `movableFrom(to)`, so a late, replayed or out-of-order event can only move an item
- * forward, never back: a webhook saying PENDING can't un-pay a paid item.
+ * forward, never back: a webhook saying PENDING can't undo a payout that succeeded.
+ *
+ * Once sent, a payout's state is its outcome in PayPal's words: succeeded, unclaimed, returned or
+ * failed. "Paid" is not a state: it means a payout Ringfence let through and sent on time
+ * (the run summary's count), whatever its outcome turns out to be (GLOSSARY.md).
  */
 import type { ItemStatus } from "@ringfence/paypal";
 

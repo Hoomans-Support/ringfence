@@ -11,7 +11,7 @@
  * context today.
  */
 import { scoreRun, type PayoutItem, type RingSummary } from "@ringfence/engine";
-import { audit, peekNumbers, sha256, withProgram, type Db } from "./db";
+import { audit, sha256, withProgram, type Db } from "./db";
 
 export interface SignupEvent {
   account_id: string;
@@ -71,8 +71,14 @@ export async function scorePending(db: Db, programId: string): Promise<AtRiskRes
       },
     }));
     // A preview, like a screen: shows the number a real run would give without consuming it (issue #2).
-    const { startRing, startPair } = await peekNumbers(q, programId);
-    const { decisions, rings } = scoreRun({ sender_batch_header: { sender_batch_id: `pending-${programId}` }, items }, { startRing, startPair });
+    const [next] = await q.query<{ next_ring_number: number; next_pair_number: number }>(
+      "SELECT next_ring_number, next_pair_number FROM programs WHERE id = $1",
+      [programId],
+    );
+    const { decisions, rings } = scoreRun(
+      { sender_batch_header: { sender_batch_id: `pending-${programId}` }, items },
+      { firstRingNumber: next?.next_ring_number, firstPairNumber: next?.next_pair_number },
+    );
     const held = decisions
       .filter((d) => d.decision !== "PAY")
       .map((d) => ({ account_id: d.sender_item_id, ...(d.ring_id ? { ring_id: d.ring_id } : {}), ...(d.hold_group_id ? { hold_group_id: d.hold_group_id } : {}), reasons: d.reasons }));

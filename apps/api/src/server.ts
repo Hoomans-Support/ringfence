@@ -11,10 +11,9 @@ import { boot } from "./boot";
 import { startWorkerLoop } from "./loop";
 import { ApiError, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
-import type { Rule } from "@ringfence/engine";
 import { recordEvent, scorePending, type SignupEvent } from "./events";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
-import { approveRule, listRules, proposeRule } from "./learning";
+import { approveRule, listRules, proposeRule, type Proposal } from "./learning";
 import { explainRing, registerMcp } from "./mcp";
 import { getRun, importPastRun, screenRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
@@ -83,6 +82,22 @@ const importBody = {
   ...runBody,
   required: [...runBody.required, "payout_batch_id"],
   properties: { ...runBody.properties, payout_batch_id: { type: "string", minLength: 1, maxLength: 64 } },
+} as const;
+
+// A rule's id is Ringfence's to give: a proposal says where a new rule was learned from, or which
+// existing rule it revises (learning.ts).
+const proposalBody = {
+  type: "object",
+  required: ["rule"],
+  properties: {
+    rule: { type: "object" },
+    learned_from: {
+      type: "object",
+      required: ["ring_id", "run_id"],
+      properties: { ring_id: { type: "string", pattern: "^R-[0-9]{2,}$" }, run_id: { type: "string", minLength: 1, maxLength: 100 } },
+    },
+    revises: { type: "string", pattern: "^R-[0-9]{2,}$" },
+  },
 } as const;
 
 const eventBody = {
@@ -163,7 +178,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
     v1.get<{ Params: { id: string }; Querystring: { run_id: string } }>(
       "/rings/:id",
       { schema: { querystring: { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } } } },
-      async (req, reply) => (await explainRing(db, req.programId, req.params.id, req.query.run_id)) ?? reply.code(404).send({ error: "no such held ring in that run" }),
+      async (req, reply) => (await explainRing(db, req.programId, req.params.id, req.query.run_id)) ?? reply.code(404).send({ error: "no such hold group in that run" }),
     );
 
     v1.post<{ Body: RunRequest }>("/payout-runs", { schema: { body: runBody } }, async (req, reply) => {
@@ -213,19 +228,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 
     v1.get("/rules", async (req) => listRules(db, req.programId));
 
-    v1.post<{ Body: { rule: Rule; source_ring_id: string; source_run_id: string } }>(
-      "/rules",
-      {
-        schema: {
-          body: {
-            type: "object",
-            required: ["rule", "source_ring_id", "source_run_id"],
-            properties: { rule: { type: "object" }, source_ring_id: { type: "string", minLength: 1, maxLength: 63 }, source_run_id: { type: "string", minLength: 1, maxLength: 100 } },
-          },
-        },
-      },
-      async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body.rule, req.body.source_ring_id, req.body.source_run_id)),
-    );
+    v1.post<{ Body: Proposal }>("/rules", { schema: { body: proposalBody } }, async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body)));
 
     v1.post<{ Params: { id: string }; Body: { approved_by: string; acknowledge_flags?: boolean } }>(
       "/rules/:id/approve",
@@ -264,26 +267,22 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   return app;
 }
 
+/** The program this deployment serves, from its environment. Optional starting numbers
+ *  (RINGFENCE_FIRST_RING_NUMBER, RINGFENCE_FIRST_RULE_NUMBER) are how the hosted demo's numbering
+ *  starts where the PRD's story does; a real program leaves them unset and starts at 1. */
+export async function ensureProgramFromEnv(db: Db, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  if (!env.RINGFENCE_API_KEY) return false;
+  const start = (value: string | undefined) => (value && /^[1-9][0-9]*$/.test(value) ? Number(value) : undefined);
+  await ensureProgram(db, env.RINGFENCE_PROGRAM_ID ?? "budgetapp", env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app", env.RINGFENCE_API_KEY, env.RINGFENCE_MCP_KEY, {
+    firstRingNumber: start(env.RINGFENCE_FIRST_RING_NUMBER),
+    firstRuleNumber: start(env.RINGFENCE_FIRST_RULE_NUMBER),
+  });
+  return true;
+}
+
 async function main(): Promise<void> {
   const { db, paypal } = await boot();
-  if (process.env.RINGFENCE_API_KEY) {
-    // Issue #6: the demo program's week 1 ring is seeded to come out R-12 and its learned rule
-    // R-07, so the hosted app, the chaos run and the README all tell the same story. Only takes
-    // effect when the program is first created (ensureProgram) — a real program left unset starts
-    // at 1 for both, as it always has.
-    const startRing = process.env.RINGFENCE_PROGRAM_START_RING ? Number(process.env.RINGFENCE_PROGRAM_START_RING) : undefined;
-    const startRule = process.env.RINGFENCE_PROGRAM_START_RULE ? Number(process.env.RINGFENCE_PROGRAM_START_RULE) : undefined;
-    await ensureProgram(
-      db,
-      process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp",
-      process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app",
-      process.env.RINGFENCE_API_KEY,
-      process.env.RINGFENCE_MCP_KEY,
-      { startRing, startRule },
-    );
-  } else {
-    console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
-  }
+  if (!(await ensureProgramFromEnv(db))) console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
   const app = buildApp({ db, paypal });
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
   // The worker's loop in this process, instead of a separate worker service (render.yaml).

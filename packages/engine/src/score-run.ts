@@ -42,7 +42,7 @@ function riskFlagsFor(item: PayoutItem): string[] {
   return flags;
 }
 
-export function scoreRun(run: PayoutRun, context?: ScoreRunContext): ScoreRunResult {
+export function scoreRun(run: PayoutRun, context: ScoreRunContext = {}): ScoreRunResult {
   const items = run.items;
   const byAccount = new Map(items.map((it) => [it.context.account_id, it] as const));
 
@@ -59,8 +59,8 @@ export function scoreRun(run: PayoutRun, context?: ScoreRunContext): ScoreRunRes
 
   const decisions: ItemDecision[] = [];
   const rings: RingSummary[] = [];
-  let ringCounter = (context?.startRing ?? 1) - 1;
-  let pairCounter = (context?.startPair ?? 1) - 1;
+  let ringCounter = (context.firstRingNumber ?? 1) - 1;
+  let pairCounter = (context.firstPairNumber ?? 1) - 1;
 
   for (const members of membersByComponent.values()) {
     const size = members.length;

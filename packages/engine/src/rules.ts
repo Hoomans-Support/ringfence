@@ -22,7 +22,7 @@
  */
 import { normalizeEmail } from "./identity";
 import { scoreRun } from "./score-run";
-import type { Decision, ItemDecision, PayoutItem, PayoutRun, RingSummary, ScoreRunContext } from "./types";
+import type { Decision, ItemDecision, PayoutItem, PayoutRun, RingSummary } from "./types";
 
 export interface RuleCondition {
   signal: string;
@@ -48,6 +48,9 @@ export interface RuleDecision extends ItemDecision {
 export interface RuleContext {
   /** Devices and normalized payout addresses from rings confirmed in this program (S-02). */
   knownFraud?: { devices: Iterable<string>; payoutAddresses: Iterable<string> };
+  /** Where this run's ring and pair numbering starts (see ScoreRunContext). */
+  firstRingNumber?: number;
+  firstPairNumber?: number;
   /**
    * Devices and normalized payout addresses, among *this run's own items*, that matched a ring
    * confirmed at another program (S-03, FR-19). The caller resolves this from keyed-hash lookups
@@ -183,14 +186,8 @@ function matchRule(rule: Rule, run: PayoutRun, graphHeld: Set<string>, ctx: Rule
  * `ruleSetVersion` names the learned set (e.g. its approval count) so a stored decision can be
  * traced to the exact rules it ran under.
  */
-export function evaluateRules(
-  run: PayoutRun,
-  learnedRules: Rule[] = [],
-  ctx: RuleContext = {},
-  ruleSetVersion = STARTER_RULE_SET_VERSION,
-  scoreContext?: ScoreRunContext,
-): RuleRunResult {
-  const scored = scoreRun(run, scoreContext);
+export function evaluateRules(run: PayoutRun, learnedRules: Rule[] = [], ctx: RuleContext = {}, ruleSetVersion = STARTER_RULE_SET_VERSION): RuleRunResult {
+  const scored = scoreRun(run, { firstRingNumber: ctx.firstRingNumber, firstPairNumber: ctx.firstPairNumber });
   const baseline = new Map(scored.decisions.map((d) => [d.sender_item_id, d] as const));
   const graphHeld = new Set(scored.decisions.filter((d) => d.decision !== "PAY").map((d) => d.sender_item_id));
 
@@ -211,8 +208,8 @@ export function evaluateRules(
     const decision = rules.reduce<Decision>((worst, r) => (SEVERITY[r.action] > SEVERITY[worst] ? r.action : worst), "PAY");
     const reasons = new Set(base.reasons);
     for (const r of rules) for (const c of r.when.all) if (c.signal !== "graph_community") reasons.add(c.signal);
-    // A payee held only by a rule (no graph group) is bulk-decided under that rule's own hold group,
-    // prefixed so it can never collide with or be mistaken for a ring's id (issue #4).
+    // A payee held only by a rule (no ring or pair) is decided with the rest of that rule's hold
+    // group, "rule:R-07": never a bare rule id, which could be mistaken for, or collide with, a ring.
     const firstRule = rules.find((r) => r.id !== "S-01");
     return {
       ...base,

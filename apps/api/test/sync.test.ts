@@ -101,7 +101,7 @@ describe("reconciler", () => {
       { sender_batch_id: "run_2026w45", sender_item_id: unclaimedItem!.sender_item_id, issue: "status_conflict", ours: "succeeded", paypal: "UNCLAIMED" },
       { sender_batch_id: "run_2026w45", sender_item_id: "ref_phantom", issue: "not_at_paypal", ours: "sent" },
     ]);
-    // The missed update is applied; the conflict is reported, not overwritten, so it stays succeeded for a person to look at.
+    // The missed update is applied; the conflict is reported, not overwritten, so it stays paid for a person to look at.
     expect((await states()).succeeded).toBe(384);
     const logged = await asBudgetApp(db, "SELECT detail FROM audit_log WHERE action = 'reconcile_gap'");
     expect(logged).toHaveLength(2);

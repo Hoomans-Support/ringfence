@@ -1,5 +1,5 @@
-Ringfence chaos run, 2026-11-04T12:57:18.231Z
-Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:61195 (outlives every kill)
+Ringfence chaos run, 2026-11-05T07:25:54.966Z
+Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:64758 (outlives every kill)
 
  1  import-week0      week 0 paid straight through PayPal before Ringfence (398 payees), imported
  2  poll              KILLED at mid_poll
@@ -10,8 +10,8 @@ Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0
                       restarted -> 2 roommates in run_2026w45-rel-1f6ff70175; 1 outbox event(s) sent
  5  poll              389 item statuses applied
  6  confirm-ring      KILLED at after_cancel
-                      restarted -> ring R-01: 0 newly blocked, 0 cancels queued; 4 outbox event(s) done
- 7  learn-r07         R-07 v1 approved (backtest 32 caught, red team 52/200)
+                      restarted -> ring R-12: 0 newly blocked, 0 cancels queued; 4 outbox event(s) done
+ 7  learn-rule        R-07 v1 approved, learned from ring R-12 (backtest 32 caught, red team 47/200)
  8  submit-week2      KILLED at after_paypal
                       restarted -> week 2 run already recorded; 1 outbox event(s) sent
  9  webhooks          1210 delivered late: 419 applied, 791 already known; 1 unnamed batch(es) named
@@ -26,6 +26,6 @@ Audit, PayPal's ledger against Ringfence's records
   PayPal batches Ringfence doesn't know         0
   cancels at PayPal / items returned            4 / 4 ($80)
   reconciler gaps                               0
-  paid / unclaimed / held / blocked             1202 / 0 / 18 / 23
+  succeeded / unclaimed / held / blocked        1202 / 0 / 18 / 23
 
 RESULT: zero duplicates. Every payee paid exactly once, across 5 kills at 5 crash points.

@@ -1,6 +1,7 @@
 /**
  * The PRD's Wednesday gate as one command: week 1 through the real API code (decide, send, poll,
- * release the roommates, confirm the ring, reconcile) against the real PayPal sandbox.
+ * release the roommates, confirm the ring, learn a rule from it, reconcile) against the real PayPal
+ * sandbox, as the demo program, so its ring is R-12 and the rule learned from it R-07.
  *
  *   npm run sandbox:week1     needs PAYPAL_CLIENT_ID/SECRET in .env, and $7,740+ in the sandbox
  *                             business account; DATABASE_URL defaults to an in-memory PGlite
@@ -10,7 +11,8 @@
  */
 import { readFileSync } from "node:fs";
 import { createPayPalClient } from "@ringfence/paypal";
-import { connect, ensureProgram, migrate, withProgram } from "../apps/api/src/db";
+import { connect, DEMO_NUMBERING, ensureProgram, migrate, withProgram } from "../apps/api/src/db";
+import { R07 } from "./fire-drill";
 import { pollBatches, reconcile } from "../apps/api/src/sync";
 import { buildApp } from "../apps/api/src/server";
 
@@ -18,7 +20,7 @@ process.loadEnvFile(".env");
 const paypal = createPayPalClient({ ...process.env, PAYPAL_MODE: "sandbox" });
 const db = await connect(process.env.DATABASE_URL);
 await migrate(db);
-await ensureProgram(db, "budgetapp", "Budgeting app", "verify-key", undefined, { startRing: 12, startRule: 7 });
+await ensureProgram(db, "budgetapp", "Budgeting app", "verify-key", undefined, DEMO_NUMBERING);
 const app = buildApp({ db, paypal });
 const auth = { authorization: "Bearer verify-key" };
 const states = async () =>
@@ -48,6 +50,11 @@ console.log(`3. release P-01 -> ${release.statusCode}`, release.json());
 
 const confirm = await app.inject({ method: "POST", url: "/v1/rings/R-12/confirm", headers: auth, payload: { run_id: runId } });
 console.log(`4. confirm R-12 -> ${confirm.statusCode}`, confirm.json());
+
+const { id: _suggested, ...rule } = R07;
+const learned = (await app.inject({ method: "POST", url: "/v1/rules", headers: auth, payload: { rule, learned_from: { ring_id: "R-12", run_id: runId } } })).json();
+const approved = (await app.inject({ method: "POST", url: `/v1/rules/${learned.rule_id}/approve`, headers: auth, payload: { approved_by: "rina@budgetapp.test", acknowledge_flags: true } })).json();
+console.log(`4b. rule learned from ring R-12 -> ${learned.rule_id} v${learned.version}, ${approved.status} (backtest ${learned.backtest?.caught} caught, red team ${learned.red_team?.caught}/200)`);
 
 for (let i = 0; i < 40; i++) {
   await pollBatches(db, paypal);

@@ -13,8 +13,6 @@ async function week1Decided() {
   return { ...ctx, mock, run, pair };
 }
 
-// id is only a lookup key for a revision (issue #3); budgetapp isn't seeded with a starting rule
-// number, so proposing this as a new rule mints "R-01", not this literal id.
 const R07 = {
   id: "R-07",
   action: "HOLD",
@@ -82,19 +80,13 @@ describe("confirm and learn", () => {
     const { app, mock } = await week1Decided();
     await post(app, "/v1/rings/R-01/confirm", { run_id: "run_2026w45" });
 
-    expect((await post(app, "/v1/rules", { rule: { ...R07, action: "PAY" }, source_ring_id: "R-01", source_run_id: "run_2026w45" })).statusCode).toBe(400);
-    const proposed = await post(app, "/v1/rules", { rule: R07, source_ring_id: "R-01", source_run_id: "run_2026w45" });
+    const learnedFrom = { ring_id: "R-01", run_id: "run_2026w45" };
+    expect((await post(app, "/v1/rules", { rule: { ...R07, action: "PAY" }, learned_from: learnedFrom })).statusCode).toBe(400);
+    const proposed = await post(app, "/v1/rules", { rule: R07, learned_from: learnedFrom });
     expect(proposed.statusCode).toBe(201);
     const rule = proposed.json();
-    // Ringfence assigns the id itself (issue #3): budgetapp's first rule is R-01, not R07's literal id.
-    expect(rule).toMatchObject({
-      rule_id: "R-01",
-      version: 1,
-      status: "proposed",
-      source_ring_id: "R-01",
-      source_run_id: "run_2026w45",
-      backtest: { weeks: 1, caught: 23, usd: 460, false_holds: 0 },
-    });
+    // The program's first learned rule: Ringfence numbers it R-01, whatever id the proposal carried.
+    expect(rule).toMatchObject({ rule_id: "R-01", version: 1, status: "proposed", learned_from: learnedFrom, backtest: { weeks: 1, caught: 23, usd: 460, false_holds: 0 } });
     expect(rule.red_team).toMatchObject({ variants: 200, held_out: 50 });
     // 23 of 412 is 5.6% of week 1: big enough that approving it takes a deliberate second look.
     expect(rule.flags).toEqual(["holds_over_5_percent"]);

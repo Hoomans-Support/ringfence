@@ -64,13 +64,15 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 
 `apps/api` is the part that sits between a program and PayPal: `POST /v1/payout-runs` takes a PayPal Payouts request body (plus optional per-payee context), decides every payee, and sends the paid ones to PayPal as one batch, exactly once. Every `/v1` route takes the program's API key as `Authorization: Bearer <key>`.
 
+A run's `summary` counts its payouts as **paid** (let through and sent on time), **held** or **blocked** (held, confirmed). Paid says nothing about whether the payee has collected the money: that's each payout's `state`, which follows PayPal's own words once sent, **succeeded**, **unclaimed**, **returned** or **failed** (before that: `queued`, `sent`, `held`, `blocked`). The words are defined in [GLOSSARY.md](GLOSSARY.md).
+
 | Route | Does |
 | --- | --- |
 | `POST /v1/payout-runs`, `GET /v1/payout-runs/:id` | Decide and send a run; read its decisions and PayPal batch |
 | `POST /v1/payout-runs/import` | Record a run already paid straight through PayPal, so it's tracked and cancellable |
-| `POST /v1/holds/release` | Pay held payees in a batch of their own |
-| `POST /v1/rings/:id/confirm` | Block a ring, remember its devices and addresses, cancel its earlier unclaimed payouts |
-| `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule (backtested and red-teamed on the way in), approve it |
+| `POST /v1/holds/release` | Pay held payees, or a whole hold group, in a batch of their own |
+| `POST /v1/rings/:id/confirm` | Confirm a hold group (a ring `R-12`, a pair `P-01`, or the payouts a learned rule held, `rule:R-07`): never pay it, remember its devices and addresses, cancel its earlier unclaimed payouts |
+| `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule learned from a held ring (`learned_from: { ring_id, run_id }`) or a new version of one (`revises`); Ringfence gives it its number and backtests and red-teams it on the way in; approve it |
 | `POST /v1/screen`, `GET /v1/rings/:id?run_id=` | The decisions a run would get, with nothing stored or sent; a held ring's checked case file |
 | `POST /v1/webhooks/paypal` | PayPal webhooks, signature-verified before they change anything |
 | `POST /mcp` | The MCP server for AI agents: `screen_payees` and `explain_ring`, both read-only |
