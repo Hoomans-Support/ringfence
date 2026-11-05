@@ -136,6 +136,8 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
         ]);
         if (!importedBatchId) await q.query("INSERT INTO outbox (program_id, kind, ref) VALUES ($1, 'create_batch', $2)", [programId, runId]);
       }
+      // Payday has now happened for these accounts (FR-21): they're no longer "pending".
+      await q.query("DELETE FROM pending_signups WHERE program_id = $1 AND account_id = ANY($2::text[])", [programId, run.items.map((i) => i.context.account_id)]);
       await audit(q, programId, "api", importedBatchId ? "run_imported" : "run_received", { run_id: runId, items: run.items.length, rule_set_version: version });
       return { created: true, runId };
     });

@@ -128,6 +128,21 @@ CREATE POLICY insert_own ON network_fingerprints FOR INSERT WITH CHECK (program_
 DROP POLICY IF EXISTS match_any ON network_fingerprints;
 CREATE POLICY match_any ON network_fingerprints FOR SELECT USING (true);
 
+-- Sign-up and referral events sent during the week (FR-21), before a payout run exists for these
+-- accounts, so a ring can be scored ahead of payday instead of only at payout time (apps/api/src/
+-- events.ts). One row per account: a later event for the same account_id merges into it rather
+-- than replacing it, since a referral touch can arrive before the account's payout email is even
+-- known. Cleared once a real run is recorded for that account_id — by payday it's not "pending"
+-- anymore, and scoreRun over the real run already covers it.
+CREATE TABLE IF NOT EXISTS pending_signups (
+  program_id text NOT NULL REFERENCES programs (id),
+  account_id text NOT NULL,
+  receiver   text,
+  context    jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (program_id, account_id)
+);
+
 -- Every verified PayPal webhook, keyed by PayPal's event id: a redelivered event is recognized and
 -- applied once. Ids and statuses only, no payee data, so like batches it isn't tenant-scoped.
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -156,7 +171,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['runs', 'items', 'audit_log', 'rules', 'known_fraud'] LOOP
+  FOREACH t IN ARRAY ARRAY['runs', 'items', 'audit_log', 'rules', 'known_fraud', 'pending_signups'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS tenant ON %I', t);

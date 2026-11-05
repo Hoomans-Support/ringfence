@@ -12,6 +12,7 @@ import { startWorkerLoop } from "./loop";
 import { ApiError, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import type { Rule } from "@ringfence/engine";
+import { recordEvent, scorePending, type SignupEvent } from "./events";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
 import { approveRule, listRules, proposeRule } from "./learning";
 import { explainRing, registerMcp } from "./mcp";
@@ -84,6 +85,21 @@ const importBody = {
   properties: { ...runBody.properties, payout_batch_id: { type: "string", minLength: 1, maxLength: 64 } },
 } as const;
 
+const eventBody = {
+  type: "object",
+  required: ["account_id"],
+  properties: {
+    account_id: { type: "string", minLength: 1, maxLength: 128 },
+    receiver: { type: "string", maxLength: 127 },
+    signup_at: { type: "string", format: "date-time" },
+    device_hash: { type: "string", maxLength: 128 },
+    ip_prefix: { type: "string", maxLength: 64 },
+    referrer_id: { type: "string", maxLength: 128 },
+    answer: { type: "string", maxLength: 2000 },
+    onboarding_seconds: { type: "number", minimum: 0 },
+  },
+} as const;
+
 const releaseBody = {
   type: "object",
   required: ["run_id"],
@@ -136,6 +152,13 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
     });
 
     v1.post<{ Body: RunRequest }>("/screen", { schema: { body: runBody } }, async (req) => screenRun(db, req.programId, req.body));
+
+    // Event feed (FR-21, stretch): sign-ups and referrals reported during the week, ahead of payday.
+    v1.post<{ Body: SignupEvent }>("/events", { schema: { body: eventBody } }, async (req, reply) => {
+      await recordEvent(db, req.programId, req.body);
+      return reply.code(202).send({ ok: true });
+    });
+    v1.get("/events/at-risk", async (req) => scorePending(db, req.programId));
 
     v1.get<{ Params: { id: string }; Querystring: { run_id: string } }>(
       "/rings/:id",
