@@ -75,7 +75,7 @@ describe("POST /v1/payout-runs", () => {
 
     const settled = (await app.inject({ url: "/v1/payout-runs/run_2026w45", headers: auth })).json();
     expect(settled.paypal.payout_batch_id).toBe(batchId);
-    expect(settled.decisions.filter((d: { state: string }) => d.state === "paid")).toHaveLength(387);
+    expect(settled.decisions.filter((d: { state: string }) => d.state === "succeeded")).toHaveLength(387);
     expectPaidExactlyOnce(mock, settled.decisions);
   });
 

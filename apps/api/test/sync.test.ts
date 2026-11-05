@@ -34,7 +34,7 @@ describe("webhooks", () => {
     expect(await states()).toEqual({ sent: 387, held: 25 });
 
     for (const event of events) expect((await deliver(event)).outcome).toBe("applied");
-    expect(await states()).toEqual({ paid: 383, unclaimed: 4, held: 25 });
+    expect(await states()).toEqual({ succeeded: 383, unclaimed: 4, held: 25 });
   });
 
   it("a redelivered event is applied once, and a late out-of-order one can't move an item back", async () => {
@@ -45,7 +45,7 @@ describe("webhooks", () => {
     expect((await deliver(succeeded)).outcome).toBe("duplicate");
     const late = { ...succeeded, id: "WH-LATE", event_type: "PAYMENT.PAYOUTS-ITEM.HELD", resource: { ...succeeded.resource, transaction_status: "ONHOLD" as const } };
     expect((await deliver(late)).outcome).toBe("ignored");
-    expect((await states()).paid).toBe(1);
+    expect((await states()).succeeded).toBe(1);
   });
 
   it("answers 5xx when PayPal can't be asked to verify, so PayPal redelivers instead of the event being dropped", async () => {
@@ -70,9 +70,9 @@ describe("poller", () => {
     const { db, mock, states } = await sentRun();
     crashOnceAt("mid_poll");
     await expect(pollBatches(db, mock)).rejects.toThrow(/mid_poll/);
-    expect(await states()).toEqual({ paid: 1, sent: 386, held: 25 });
+    expect(await states()).toEqual({ succeeded: 1, sent: 386, held: 25 });
     expect(await pollBatches(db, mock)).toBe(386);
-    expect(await states()).toEqual({ paid: 383, unclaimed: 4, held: 25 });
+    expect(await states()).toEqual({ succeeded: 383, unclaimed: 4, held: 25 });
     expect(await pollBatches(db, mock)).toBe(0); // nothing left waiting on PayPal
   });
 });
@@ -85,10 +85,10 @@ describe("reconciler", () => {
 
     const [paidItem, unclaimedItem] = await asBudgetApp<{ sender_item_id: string }>(
       db,
-      "SELECT sender_item_id FROM items WHERE state IN ('paid', 'unclaimed') ORDER BY state, sender_item_id LIMIT 2 OFFSET 382",
+      "SELECT sender_item_id FROM items WHERE state IN ('succeeded', 'unclaimed') ORDER BY state, sender_item_id LIMIT 2 OFFSET 382",
     );
     await asBudgetApp(db, "UPDATE items SET state = 'sent' WHERE sender_item_id = $1", [paidItem!.sender_item_id]); // a missed update
-    await asBudgetApp(db, "UPDATE items SET state = 'paid' WHERE sender_item_id = $1", [unclaimedItem!.sender_item_id]); // disagrees with PayPal
+    await asBudgetApp(db, "UPDATE items SET state = 'succeeded' WHERE sender_item_id = $1", [unclaimedItem!.sender_item_id]); // disagrees with PayPal
     await asBudgetApp(
       db,
       `INSERT INTO items (program_id, run_id, sender_item_id, receiver, amount_value, currency, context, decision, reasons, rules, state, batch_id)
@@ -98,11 +98,11 @@ describe("reconciler", () => {
     const report = await reconcile(db, mock);
     expect(report.applied).toBe(1);
     expect(report.gaps).toEqual([
-      { sender_batch_id: "run_2026w45", sender_item_id: unclaimedItem!.sender_item_id, issue: "status_conflict", ours: "paid", paypal: "UNCLAIMED" },
+      { sender_batch_id: "run_2026w45", sender_item_id: unclaimedItem!.sender_item_id, issue: "status_conflict", ours: "succeeded", paypal: "UNCLAIMED" },
       { sender_batch_id: "run_2026w45", sender_item_id: "ref_phantom", issue: "not_at_paypal", ours: "sent" },
     ]);
     // The missed update is applied; the conflict is reported, not overwritten, so it stays paid for a person to look at.
-    expect((await states()).paid).toBe(384);
+    expect((await states()).succeeded).toBe(384);
     const logged = await asBudgetApp(db, "SELECT detail FROM audit_log WHERE action = 'reconcile_gap'");
     expect(logged).toHaveLength(2);
   });

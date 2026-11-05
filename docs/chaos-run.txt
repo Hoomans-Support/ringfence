@@ -1,5 +1,5 @@
-Ringfence chaos run, 2026-11-05T07:11:02.305Z
-Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:64313 (outlives every kill)
+Ringfence chaos run, 2026-11-05T07:21:03.553Z
+Postgres localhost:55432/ringfence_chaos · PayPal mock server at http://127.0.0.1:64554 (outlives every kill)
 
  1  import-week0      week 0 paid straight through PayPal before Ringfence (398 payees), imported
  2  poll              KILLED at mid_poll
@@ -26,6 +26,6 @@ Audit, PayPal's ledger against Ringfence's records
   PayPal batches Ringfence doesn't know         0
   cancels at PayPal / items returned            4 / 4 ($80)
   reconciler gaps                               0
-  paid / unclaimed / held / blocked             1202 / 0 / 18 / 23
+  succeeded / unclaimed / held / blocked        1202 / 0 / 18 / 23
 
 RESULT: zero duplicates. Every payee paid exactly once, across 5 kills at 5 crash points.

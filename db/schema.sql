@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 -- One row per payee per run, and the per-item state machine (apps/api/src/states.ts):
---   held -> queued | blocked      queued -> sent      sent -> paid | unclaimed | returned | failed
---   unclaimed -> paid | returned | failed             paid -> failed (refunded or reversed)
+--   held -> queued | blocked      queued -> sent      sent -> succeeded | unclaimed | returned | failed
+--   unclaimed -> succeeded | returned | failed        succeeded -> failed (refunded or reversed)
 CREATE TABLE IF NOT EXISTS items (
   program_id     text NOT NULL,
   run_id         text NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS items (
   hold_group_id  text,
   reasons        jsonb NOT NULL,
   rules          jsonb NOT NULL,           -- every rule behind the decision (FR-4)
-  state          text NOT NULL CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'paid', 'unclaimed', 'returned', 'failed')),
+  state          text NOT NULL CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed')),
   batch_id       text,                     -- the sender_batch_id it was queued in; fixed once set
   payout_item_id text,
   paypal_status  text,
@@ -153,6 +153,28 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS tenant ON %I', t);
     EXECUTE format('CREATE POLICY tenant ON %I USING (program_id = current_setting(''app.program_id'', true)) WITH CHECK (program_id = current_setting(''app.program_id'', true))', t);
   END LOOP;
+END $$;
+
+-- The state for PayPal's success was "paid" until "paid" came to mean only "sent on time"
+-- (GLOSSARY.md); it's "succeeded" now. Moves a database's existing payouts across once: after that
+-- the constraint no longer allows "paid", and this is skipped. Items are tenant-scoped, so each
+-- program's are moved under its own app.program_id.
+DO $$
+DECLARE p record;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'items'::regclass AND conname = 'items_state_check' AND pg_get_constraintdef(oid) LIKE '%''paid''%'
+  ) THEN
+    ALTER TABLE items DROP CONSTRAINT items_state_check;
+    FOR p IN SELECT id FROM programs LOOP
+      PERFORM set_config('app.program_id', p.id, true);
+      UPDATE items SET state = 'succeeded' WHERE program_id = p.id AND state = 'paid';
+    END LOOP;
+    PERFORM set_config('app.program_id', '', true);
+    ALTER TABLE items ADD CONSTRAINT items_state_check
+      CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed'));
+  END IF;
 END $$;
 
 -- Never reuse a number a program already gave out (rings, pairs and rules recorded before the

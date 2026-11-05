@@ -197,7 +197,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ),
   );
   if (items.length === 0) throw new Error("the audit read no items: it must be scoped to the program (row-level security)");
-  const shouldBePaid = items.filter((i) => ["sent", "paid", "unclaimed", "returned", "failed"].includes(i.state));
+  const shouldBePaid = items.filter((i) => ["sent", "succeeded", "unclaimed", "returned", "failed"].includes(i.state));
   const missing = shouldBePaid.filter((i) => (perRunItem.get(`${i.run_id}/${i.sender_item_id}`) ?? 0) !== 1).length;
   const leakedHolds = items.filter((i) => ["held", "blocked"].includes(i.state) && perRunItem.has(`${i.run_id}/${i.sender_item_id}`)).length;
   const cancelEvents = mock.events.filter((e) => e.event_type === "PAYMENT.PAYOUTS-ITEM.CANCELED");
@@ -215,7 +215,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ["PayPal batches Ringfence doesn't know", unknownBatches],
     ["cancels at PayPal / items returned", `${cancelEvents.length} / ${returned.length} ($${returned.reduce((s, i) => s + Number(i.amount_value), 0)})`],
     ["reconciler gaps", report.gaps.length],
-    ["paid / unclaimed / held / blocked", `${count("paid")} / ${count("unclaimed")} / ${count("held")} / ${count("blocked")}`],
+    ["succeeded / unclaimed / held / blocked", `${count("succeeded")} / ${count("unclaimed")} / ${count("held")} / ${count("blocked")}`],
   ];
   for (const [k, v] of rows) say(`  ${k.padEnd(46)}${v}`);
   const ok = duplicates === 0 && missing === 0 && leakedHolds === 0 && unknownBatches === 0 && cancelEvents.length === returned.length && report.gaps.length === 0;

@@ -52,6 +52,8 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 
 `apps/api` is the part that sits between a program and PayPal: `POST /v1/payout-runs` takes a PayPal Payouts request body (plus optional per-payee context), decides every payee, and sends the paid ones to PayPal as one batch, exactly once. Every `/v1` route takes the program's API key as `Authorization: Bearer <key>`.
 
+A run's `summary` counts its payouts as **paid** (let through and sent on time), **held** or **blocked** (held, confirmed). Paid says nothing about whether the payee has collected the money: that's each payout's `state`, which follows PayPal's own words once sent, **succeeded**, **unclaimed**, **returned** or **failed** (before that: `queued`, `sent`, `held`, `blocked`). The words are defined in [GLOSSARY.md](GLOSSARY.md).
+
 | Route | Does |
 | --- | --- |
 | `POST /v1/payout-runs`, `GET /v1/payout-runs/:id` | Decide and send a run; read its decisions and PayPal batch |
