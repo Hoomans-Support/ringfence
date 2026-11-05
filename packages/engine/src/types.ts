@@ -61,10 +61,11 @@ export interface ScoreRunResult {
 }
 
 /**
- * Reserved for cross-run context (e.g. network matches against rings
- * confirmed at other programs, FR-19 — a P2 stretch item). Unused by the
- * graph-and-risk-flag baseline in this package; A's rule engine (FR-4,
- * FR-11) layers versioned starter and learned rules on top of this output.
+ * Reserved for future cross-run context. Unused by the graph-and-risk-flag baseline in this
+ * package; A's rule engine (FR-4, FR-11) layers versioned starter and learned rules on top of this
+ * output. FR-19's network matches ended up living there instead (`RuleContext.networkMatch`, S-03)
+ * rather than here: a keyed-hash match is a direct lookup against externally-confirmed fraud, the
+ * same shape as S-02's `knownFraud`, not a graph-structural signal this package's baseline forms.
  */
 export interface ScoreRunContext {
   priorRings?: unknown;

@@ -8,10 +8,13 @@
  *
  * Confirm: a held ring becomes blocked, and its devices and payout addresses join this program's
  * confirmed-fraud list, which starter rule S-02 blocks on sight in every later run. Any payout from
- * an earlier run that went to them and is still unclaimed is queued for cancellation (FR-16).
+ * an earlier run that went to them and is still unclaimed is queued for cancellation (FR-16). The
+ * same devices and addresses also go to the ring network as keyed hashes (FR-19), so another
+ * program can hold (S-03), never block, a repeat on first sight.
  */
 import { normalizeEmail } from "@ringfence/engine";
 import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
+import { publishToNetwork } from "./network";
 
 export interface ReleaseRequest {
   run_id: string;
@@ -83,6 +86,7 @@ export async function confirmRing(
        ON CONFLICT DO NOTHING`,
       [programId, ringId, req.run_id, JSON.stringify([...devices.map((value) => ({ kind: "device", value })), ...addresses.map((value) => ({ kind: "payout_address", value }))])],
     );
+    await publishToNetwork(q, programId, devices, addresses);
     const cancels = await queueFraudCancels(q, programId);
     await audit(q, programId, req.confirmed_by ?? "api", "ring_confirmed", { run_id: req.run_id, ring_id: ringId, blocked: blocked.length, devices: devices.length, ...cancels });
     return { ring_id: ringId, blocked: blocked.length, devices: devices.length, payout_addresses: addresses.length, cancels_queued: cancels.queued, cancel_usd: cancels.usd };

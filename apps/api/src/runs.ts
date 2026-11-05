@@ -7,10 +7,11 @@
  * losing or repeating it. Resending a run that already exists returns what was recorded the first
  * time, without deciding or sending anything again.
  */
-import { evaluateRules, type Decision, type PayoutItem, type PayoutRun, type RuleRunResult } from "@ringfence/engine";
+import { evaluateRules, normalizeEmail, type Decision, type PayoutItem, type PayoutRun, type RuleRunResult } from "@ringfence/engine";
 import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
 import { chaos } from "./executor";
 import { loadRuleContext } from "./learning";
+import { matchNetwork } from "./network";
 import type { ItemState } from "./states";
 
 /** The request body: PayPal's own, with Ringfence's optional `context` on each item. */
@@ -145,11 +146,17 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
   }
 }
 
-/** The one decision step: the run, under this program's approved rules and confirmed-fraud list.
- *  POST /v1/payout-runs and the MCP screen both come through here, so they can't disagree. */
+/** The one decision step: the run, under this program's approved rules, confirmed-fraud list and
+ *  the ring network (FR-19). POST /v1/payout-runs and the MCP screen both come through here, so
+ *  they can't disagree. */
 async function decideRun(q: Queryable, programId: string, run: PayoutRun): Promise<RuleRunResult> {
   const { rules, ctx, version } = await loadRuleContext(q, programId);
-  return evaluateRules(run, rules, ctx, version);
+  const networkMatch = await matchNetwork(
+    q,
+    run.items.map((i) => i.context.device_hash),
+    run.items.map((i) => normalizeEmail(i.receiver).email),
+  );
+  return evaluateRules(run, rules, { ...ctx, networkMatch }, version);
 }
 
 export interface ScreenResult {

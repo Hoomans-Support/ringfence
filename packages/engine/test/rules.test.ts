@@ -51,6 +51,16 @@ describe("evaluateRules", () => {
     // The roommates stay held, not paid, alongside the blocks.
     expect(decisions.filter((d) => d.decision === "HOLD")).toHaveLength(2);
   });
+
+  it("holds (never blocks) a keyed-hash match against a ring confirmed at another program (S-03)", () => {
+    const { run, ring } = week(1);
+    const ringItems = run.items.filter((i) => ring.has(i.sender_item_id));
+    const networkMatch = { devices: ringItems.map((i) => i.context.device_hash), payoutAddresses: [normalizeEmail(ringItems[0]!.receiver).email] };
+    const { decisions } = evaluateRules(run, [], { networkMatch });
+    const ringDecisions = decisions.filter((d) => ring.has(d.sender_item_id));
+    expect(ringDecisions.every((d) => d.decision === "HOLD" && d.rules.includes("S-03"))).toBe(true);
+    expect(ringDecisions.some((d) => d.decision === "BLOCK")).toBe(false);
+  });
 });
 
 describe("validateRule", () => {
@@ -58,6 +68,8 @@ describe("validateRule", () => {
     expect(validateRule(R07)).toEqual([]);
     expect(validateRule({ ...R07, action: "PAY" })).toContain("action must be HOLD or BLOCK, got PAY");
     expect(validateRule({ ...R07, when: { all: [{ signal: "similar_answers" }] } })).toContain('unknown signal "similar_answers"');
+    // network_match (S-03) is a fixed starter signal, never a proposable one.
+    expect(validateRule({ ...R07, when: { all: [{ signal: "network_match" }] } })).toContain('unknown signal "network_match"');
     expect(validateRule({ ...R07, when: { all: [] } })).toContain("when.all needs at least one condition");
   });
 });

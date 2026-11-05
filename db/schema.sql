@@ -110,6 +110,24 @@ CREATE TABLE IF NOT EXISTS known_fraud (
   PRIMARY KEY (program_id, kind, value)
 );
 
+-- Confirmed rings' devices and payout addresses, shared across every program as one-way keyed
+-- hashes (FR-19, S-03 in packages/engine/src/rules.ts): never the raw value, and no ring_id or
+-- run_id travels with it, so a hash on its own tells another program nothing but "a ring somewhere
+-- had this". program_id here is who contributed it (for audit, never read by a match lookup); RLS
+-- below restricts inserting to a program's own hashes, but deliberately leaves matching open to
+-- every program, since checking "has anyone seen this fingerprint" is the entire point.
+CREATE TABLE IF NOT EXISTS network_fingerprints (
+  hash       text PRIMARY KEY,
+  program_id text NOT NULL REFERENCES programs (id),
+  added_at   timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE network_fingerprints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE network_fingerprints FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS insert_own ON network_fingerprints;
+CREATE POLICY insert_own ON network_fingerprints FOR INSERT WITH CHECK (program_id = current_setting('app.program_id', true));
+DROP POLICY IF EXISTS match_any ON network_fingerprints;
+CREATE POLICY match_any ON network_fingerprints FOR SELECT USING (true);
+
 -- Every verified PayPal webhook, keyed by PayPal's event id: a redelivered event is recognized and
 -- applied once. Ids and statuses only, no payee data, so like batches it isn't tenant-scoped.
 CREATE TABLE IF NOT EXISTS webhook_events (

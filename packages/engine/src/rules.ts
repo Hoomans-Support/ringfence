@@ -15,6 +15,10 @@
  *
  * Not supported yet: `similar_answers` (word-trigram overlap). The demo ring rewords its answers,
  * so trigrams barely fire on it, and no proposed rule uses it; validateRule rejects it until it does.
+ *
+ * `network_match` (S-03, FR-19) is deliberately the same: it's a fixed starter signal, not one an
+ * investigator can propose or compose into a learned rule, so validateRule doesn't recognize it —
+ * a proposed rule naming it fails the schema check as an unknown signal, same as a typo would.
  */
 import { normalizeEmail } from "./identity";
 import { scoreRun } from "./score-run";
@@ -44,6 +48,15 @@ export interface RuleDecision extends ItemDecision {
 export interface RuleContext {
   /** Devices and normalized payout addresses from rings confirmed in this program (S-02). */
   knownFraud?: { devices: Iterable<string>; payoutAddresses: Iterable<string> };
+  /**
+   * Devices and normalized payout addresses, among *this run's own items*, that matched a ring
+   * confirmed at another program (S-03, FR-19). The caller resolves this from keyed-hash lookups
+   * against the shared network before calling in — the engine never sees or computes a hash, only
+   * plaintext values it already had for its own payees, so this package stays free of any network
+   * or crypto concern. Unlike S-02, a network match only ever holds, never blocks: this program
+   * hasn't independently confirmed it yet.
+   */
+  networkMatch?: { devices: Iterable<string>; payoutAddresses: Iterable<string> };
 }
 
 export interface RuleRunResult {
@@ -58,6 +71,7 @@ export const STARTER_RULES: Rule[] = [
   { id: "S-00", action: "PAY", when: { all: [] }, source: "default: pay unless a rule holds or blocks" },
   { id: "S-01", action: "HOLD", when: { all: [{ signal: "graph_community" }] }, source: "graph engine: a linked group carrying a risk flag" },
   { id: "S-02", action: "BLOCK", when: { all: [{ signal: "known_fraud" }] }, source: "a device or payout address from a ring confirmed in this program" },
+  { id: "S-03", action: "HOLD", when: { all: [{ signal: "network_match" }] }, source: "a keyed hash matching a ring confirmed at another program" },
 ];
 
 const SEVERITY: Record<Decision, number> = { PAY: 0, HOLD: 1, BLOCK: 2 };
@@ -130,6 +144,8 @@ function withinBounds(value: number | undefined, c: RuleCondition): boolean {
 function matchRule(rule: Rule, run: PayoutRun, graphHeld: Set<string>, ctx: RuleContext): Set<string> {
   const devices = new Set(ctx.knownFraud?.devices ?? []);
   const addresses = new Set(ctx.knownFraud?.payoutAddresses ?? []);
+  const networkDevices = new Set(ctx.networkMatch?.devices ?? []);
+  const networkAddresses = new Set(ctx.networkMatch?.payoutAddresses ?? []);
   const bursts = rule.when.all
     .filter((c) => c.signal === "signup_burst")
     .map((c) => burstMembers(run.items, BURST_KEYS[c.same ?? ""] ?? (() => undefined), c.window_min ?? 0, c.min_accounts ?? Infinity));
@@ -151,6 +167,8 @@ function matchRule(rule: Rule, run: PayoutRun, graphHeld: Set<string>, ctx: Rule
           return graphHeld.has(item.sender_item_id);
         case "known_fraud":
           return devices.has(item.context.device_hash) || addresses.has(normalizeEmail(item.receiver).email);
+        case "network_match":
+          return networkDevices.has(item.context.device_hash) || networkAddresses.has(normalizeEmail(item.receiver).email);
         default:
           throw new Error(`Rule ${rule.id}: unknown signal "${c.signal}" (validateRule should have caught it)`);
       }

@@ -1,6 +1,6 @@
 // Plain-English evidence labels for the engine's reason codes. The full case file ("each claim
-// opens its evidence") is task 5 — this is just enough translation so the review queue reads as
-// a sentence, not a snake_case dump, per design.md's voice rules.
+// opens its evidence") is the ring detail page — this is just enough translation so the review
+// queue reads as a sentence, not a snake_case dump, per design.md's voice rules.
 const REASON_LABELS: Record<string, string> = {
   shared_payout_address: "shares a payout address with another account",
   alias_pattern: "email looks like a patterned alias",
@@ -8,6 +8,8 @@ const REASON_LABELS: Record<string, string> = {
   onboarding_speed: "onboarded in under 2 minutes",
   quiet_after_onboarding: "no activity since onboarding",
   disposable_email: "disposable email domain",
+  known_fraud: "a device or payout address confirmed as fraud in a past ring",
+  network_match: "confirmed by another program",
 };
 
 export function prettifyReason(code: string): string {
