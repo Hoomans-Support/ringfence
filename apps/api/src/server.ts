@@ -155,7 +155,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
     v1.get<{ Params: { id: string }; Querystring: { run_id: string } }>(
       "/rings/:id",
       { schema: { querystring: { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } } } },
-      async (req, reply) => (await explainRing(db, req.programId, req.params.id, req.query.run_id)) ?? reply.code(404).send({ error: "no such held ring in that run" }),
+      async (req, reply) => (await explainRing(db, req.programId, req.params.id, req.query.run_id)) ?? reply.code(404).send({ error: "no such hold group in that run" }),
     );
 
     v1.post<{ Body: RunRequest }>("/payout-runs", { schema: { body: runBody } }, async (req, reply) => {

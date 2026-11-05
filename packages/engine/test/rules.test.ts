@@ -36,7 +36,7 @@ describe("evaluateRules", () => {
     const { decisions } = evaluateRules(run, [R07]);
     const held = decisions.filter((d) => d.decision === "HOLD");
     expect(new Set(held.map((d) => d.sender_item_id))).toEqual(ring);
-    expect(held.every((d) => d.rules.join() === "R-07" && d.hold_group_id === "R-07")).toBe(true);
+    expect(held.every((d) => d.rules.join() === "R-07" && d.hold_group_id === "rule:R-07" && d.ring_id === undefined)).toBe(true);
     expect(held[0]?.reasons).toEqual(["signup_burst", "onboarding_seconds", "activity_after_onboarding"]);
     expect(decisions.filter((d) => d.decision === "PAY")).toHaveLength(419);
   });

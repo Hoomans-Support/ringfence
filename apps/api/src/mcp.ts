@@ -20,7 +20,11 @@ import { programForKey, withProgram, type Db } from "./db";
 import { screenRun } from "./runs";
 
 export interface RingExplanation {
-  ring_id: string;
+  /** The hold group: a ring (R-12), a pair (P-01), or the payouts one learned rule held (rule:R-07). */
+  hold_group_id: string;
+  kind: "ring" | "pair" | "rule";
+  /** Set only when the hold group is a ring. */
+  ring_id: string | null;
   run_id: string;
   size: number;
   reasons: string[];
@@ -38,8 +42,8 @@ function maskEmails<T>(value: T): T {
 /** A held ring (or any hold group, e.g. a learned rule's) as recorded in one run. */
 export async function explainRing(db: Db, programId: string, ringId: string, runId: string): Promise<RingExplanation | undefined> {
   const rows = await withProgram(db, programId, (q) =>
-    q.query<{ sender_item_id: string; receiver: string; amount_value: string; currency: string; context: PayoutItem["context"]; state: string; reasons: string[]; rules: string[] }>(
-      `SELECT sender_item_id, receiver, amount_value, currency, context, state, reasons, rules FROM items
+    q.query<{ sender_item_id: string; receiver: string; amount_value: string; currency: string; context: PayoutItem["context"]; state: string; reasons: string[]; rules: string[]; ring_id: string | null }>(
+      `SELECT sender_item_id, receiver, amount_value, currency, context, state, reasons, rules, ring_id FROM items
        WHERE program_id = $1 AND run_id = $2 AND (ring_id = $3 OR hold_group_id = $3) ORDER BY sender_item_id`,
       [programId, runId, ringId],
     ),
@@ -53,8 +57,11 @@ export async function explainRing(db: Db, programId: string, ringId: string, run
   const reasons = [...new Set(rows.flatMap((r) => r.reasons))];
   const ring: RingSummary = { ring_id: ringId, member_sender_item_ids: rows.map((r) => r.sender_item_id), size: rows.length, reasons, louvain_clusters: 0 };
   const caseFile = checkClaims(investigate(ring, run), run);
+  const ringIdOfGroup = rows[0]?.ring_id ?? null;
   return {
-    ring_id: ringId,
+    hold_group_id: ringId,
+    kind: ringIdOfGroup ? "ring" : ringId.startsWith("P-") ? "pair" : "rule",
+    ring_id: ringIdOfGroup,
     run_id: runId,
     size: rows.length,
     reasons,
@@ -108,15 +115,15 @@ function serverFor(db: Db, programId: string): McpServer {
   server.registerTool(
     "explain_ring",
     {
-      title: "Explain a held ring",
+      title: "Explain a hold group",
       description:
-        "Explains why a group of payees in a run was held: the ring's signals, the rules that held it, its members (emails masked), and its case file, where every claim has been re-checked against the run's data. Read-only. There is no tool to release or unblock anyone; a person decides that in the Ringfence console.",
-      inputSchema: { ring_id: z.string().min(1).max(63).describe('e.g. "R-01", or a learned rule\'s hold group such as "R-07"'), run_id: z.string().min(1).max(100) },
+        "Explains why a hold group in a run was held: a ring of linked accounts, a pair, or the payouts one learned rule held. Returns its kind, its signals, the rules that held it, its members (emails masked), and its case file, where every claim has been re-checked against the run's data. Read-only. There is no tool to release or unblock anyone; a person decides that in the Ringfence console.",
+      inputSchema: { ring_id: z.string().min(1).max(63).describe('The hold group: a ring such as "R-12", a pair such as "P-01", or a learned rule\'s hold group such as "rule:R-07"'), run_id: z.string().min(1).max(100) },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ ring_id, run_id }) => {
       const explained = await explainRing(db, programId, ring_id, run_id);
-      return explained ? asText(explained) : { ...asText({ error: `no held ring ${ring_id} in run ${run_id}` }), isError: true };
+      return explained ? asText(explained) : { ...asText({ error: `no hold group ${ring_id} in run ${run_id}` }), isError: true };
     },
   );
 

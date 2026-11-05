@@ -190,12 +190,13 @@ export function evaluateRules(run: PayoutRun, learnedRules: Rule[] = [], ctx: Ru
     const decision = rules.reduce<Decision>((worst, r) => (SEVERITY[r.action] > SEVERITY[worst] ? r.action : worst), "PAY");
     const reasons = new Set(base.reasons);
     for (const r of rules) for (const c of r.when.all) if (c.signal !== "graph_community") reasons.add(c.signal);
-    // A payee held only by a rule (no graph group) is bulk-decided under that rule's id.
+    // A payee held only by a rule (no ring or pair) is decided with the rest of that rule's hold
+    // group, "rule:R-07": never a bare rule id, which could be mistaken for, or collide with, a ring.
     const firstRule = rules.find((r) => r.id !== "S-01");
     return {
       ...base,
       decision,
-      hold_group_id: base.hold_group_id ?? firstRule?.id,
+      hold_group_id: base.hold_group_id ?? (firstRule ? `rule:${firstRule.id}` : undefined),
       reasons: [...reasons],
       rules: rules.map((r) => r.id),
     };
