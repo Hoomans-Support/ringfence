@@ -40,9 +40,7 @@ describe("buildHoldCalendarData", () => {
     expect(resourceIds).toEqual(eventResourceIds);
   });
 
-  it("groups week 2's fixture-presented learned-rule holds under rule:R-07, never a ring", () => {
-    const { resources, events } = buildHoldCalendarData(2);
-    expect(resources).toEqual([{ id: "rule:R-07", name: "rule:R-07" }]);
-    expect(events[0]?.name).toBe("18 accounts");
+  it("mirrors week 1's calendar exactly, since week 2 reviews week 1's real outcome", () => {
+    expect(buildHoldCalendarData(2)).toEqual(buildHoldCalendarData(1));
   });
 });

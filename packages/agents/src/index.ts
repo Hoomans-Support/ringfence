@@ -1,4 +1,5 @@
 export { attackRule, caughtBy, failingSignals, redTeamRule } from "./attack-rule";
+export { applyRule } from "./apply-rule";
 export type { RedTeamResult } from "./attack-rule";
 export { checkClaims } from "./check-claims";
 export { investigate } from "./investigate";

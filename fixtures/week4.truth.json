@@ -1,0 +1,608 @@
+[
+  {
+    "sender_item_id": "survey_001",
+    "account_id": "survey_u_001",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_002",
+    "account_id": "survey_u_002",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_003",
+    "account_id": "survey_u_003",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_004",
+    "account_id": "survey_u_004",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_005",
+    "account_id": "survey_u_005",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_006",
+    "account_id": "survey_u_006",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_007",
+    "account_id": "survey_u_007",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_008",
+    "account_id": "survey_u_008",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_009",
+    "account_id": "survey_u_009",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_010",
+    "account_id": "survey_u_010",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_011",
+    "account_id": "survey_u_011",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_012",
+    "account_id": "survey_u_012",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_013",
+    "account_id": "survey_u_013",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_014",
+    "account_id": "survey_u_014",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_015",
+    "account_id": "survey_u_015",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_016",
+    "account_id": "survey_u_016",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_017",
+    "account_id": "survey_u_017",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_018",
+    "account_id": "survey_u_018",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_019",
+    "account_id": "survey_u_019",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_020",
+    "account_id": "survey_u_020",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_021",
+    "account_id": "survey_u_021",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_022",
+    "account_id": "survey_u_022",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_023",
+    "account_id": "survey_u_023",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_024",
+    "account_id": "survey_u_024",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_025",
+    "account_id": "survey_u_025",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_026",
+    "account_id": "survey_u_026",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_027",
+    "account_id": "survey_u_027",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_028",
+    "account_id": "survey_u_028",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_029",
+    "account_id": "survey_u_029",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_030",
+    "account_id": "survey_u_030",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_031",
+    "account_id": "survey_u_031",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_032",
+    "account_id": "survey_u_032",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_033",
+    "account_id": "survey_u_033",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_034",
+    "account_id": "survey_u_034",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_035",
+    "account_id": "survey_u_035",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_036",
+    "account_id": "survey_u_036",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_037",
+    "account_id": "survey_u_037",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_038",
+    "account_id": "survey_u_038",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_039",
+    "account_id": "survey_u_039",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_040",
+    "account_id": "survey_u_040",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_041",
+    "account_id": "survey_u_041",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_042",
+    "account_id": "survey_u_042",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_043",
+    "account_id": "survey_u_043",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_044",
+    "account_id": "survey_u_044",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_045",
+    "account_id": "survey_u_045",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_046",
+    "account_id": "survey_u_046",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_047",
+    "account_id": "survey_u_047",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_048",
+    "account_id": "survey_u_048",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_049",
+    "account_id": "survey_u_049",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_050",
+    "account_id": "survey_u_050",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_051",
+    "account_id": "survey_u_051",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_052",
+    "account_id": "survey_u_052",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_053",
+    "account_id": "survey_u_053",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_054",
+    "account_id": "survey_u_054",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_055",
+    "account_id": "survey_u_055",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_056",
+    "account_id": "survey_u_056",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_057",
+    "account_id": "survey_u_057",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_058",
+    "account_id": "survey_u_058",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_059",
+    "account_id": "survey_u_059",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_060",
+    "account_id": "survey_u_060",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_061",
+    "account_id": "survey_u_061",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_062",
+    "account_id": "survey_u_062",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_063",
+    "account_id": "survey_u_063",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_064",
+    "account_id": "survey_u_064",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_065",
+    "account_id": "survey_u_065",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_066",
+    "account_id": "survey_u_066",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_067",
+    "account_id": "survey_u_067",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_068",
+    "account_id": "survey_u_068",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_069",
+    "account_id": "survey_u_069",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_070",
+    "account_id": "survey_u_070",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_071",
+    "account_id": "survey_u_071",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_072",
+    "account_id": "survey_u_072",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_073",
+    "account_id": "survey_u_073",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_074",
+    "account_id": "survey_u_074",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_075",
+    "account_id": "survey_u_075",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_076",
+    "account_id": "survey_u_076",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_077",
+    "account_id": "survey_u_077",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_078",
+    "account_id": "survey_u_078",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_079",
+    "account_id": "survey_u_079",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_080",
+    "account_id": "survey_u_080",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_081",
+    "account_id": "survey_u_081",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_082",
+    "account_id": "survey_u_082",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_083",
+    "account_id": "survey_u_083",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_084",
+    "account_id": "survey_u_084",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_085",
+    "account_id": "survey_u_085",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_086",
+    "account_id": "survey_u_086",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_087",
+    "account_id": "survey_u_087",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_088",
+    "account_id": "survey_u_088",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_089",
+    "account_id": "survey_u_089",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_090",
+    "account_id": "survey_u_090",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_091",
+    "account_id": "survey_u_091",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_092",
+    "account_id": "survey_u_092",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_093",
+    "account_id": "survey_u_093",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_094",
+    "account_id": "survey_u_094",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_095",
+    "account_id": "survey_u_095",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_096",
+    "account_id": "survey_u_096",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_097",
+    "account_id": "survey_u_097",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_098",
+    "account_id": "survey_u_098",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_099",
+    "account_id": "survey_u_099",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_100",
+    "account_id": "survey_u_100",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_101",
+    "account_id": "survey_u_101",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_102",
+    "account_id": "survey_u_102",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_103",
+    "account_id": "survey_u_103",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_104",
+    "account_id": "survey_u_104",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_105",
+    "account_id": "survey_u_105",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_106",
+    "account_id": "survey_u_106",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_107",
+    "account_id": "survey_u_107",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_108",
+    "account_id": "survey_u_108",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_109",
+    "account_id": "survey_u_109",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_110",
+    "account_id": "survey_u_110",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_111",
+    "account_id": "survey_u_111",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_112",
+    "account_id": "survey_u_112",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_113",
+    "account_id": "survey_u_113",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_114",
+    "account_id": "survey_u_114",
+    "group": "honest"
+  },
+  {
+    "sender_item_id": "survey_115",
+    "account_id": "survey_u_115",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  },
+  {
+    "sender_item_id": "survey_116",
+    "account_id": "survey_u_116",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  },
+  {
+    "sender_item_id": "survey_117",
+    "account_id": "survey_u_117",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  },
+  {
+    "sender_item_id": "survey_118",
+    "account_id": "survey_u_118",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  },
+  {
+    "sender_item_id": "survey_119",
+    "account_id": "survey_u_119",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  },
+  {
+    "sender_item_id": "survey_120",
+    "account_id": "survey_u_120",
+    "group": "ring_match",
+    "ring_label": "R-12"
+  }
+]
