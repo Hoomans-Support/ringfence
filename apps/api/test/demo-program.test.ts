@@ -1,7 +1,7 @@
 // The demo program tells the PRD's story without an answer key: created the way the hosted app
 // creates it at startup, its week 1 ring is R-12 and the rule learned from it is R-07.
 import { describe, expect, it } from "vitest";
-import { ensureProgram } from "../src/db";
+import { bypassesRowLevelSecurity, describeNumbering, ensureProgram } from "../src/db";
 import { ensureProgramFromEnv } from "../src/server";
 import { fixture, setup, week1 } from "./helpers";
 
@@ -57,6 +57,19 @@ describe("the demo program", () => {
     const { ring, rule } = await demoStory({ ...hostedEnv, RINGFENCE_FIRST_RING_NUMBER: "abc", RINGFENCE_FIRST_RULE_NUMBER: "0" });
     expect(ring).toEqual(["R-01"]);
     expect(rule.rule_id).toBe("R-01");
+  });
+
+  it("the startup log says where the program's numbering stands, so a deploy shows whether its starting numbers took effect", async () => {
+    const { db } = await setup();
+    await ensureProgramFromEnv(db, hostedEnv);
+    expect(await describeNumbering(db, "demo")).toBe("program demo: next ring R-12, next pair P-01, next rule R-07");
+  });
+
+  it("the startup check tells an ordinary role from one that skips row-level security", async () => {
+    const { db } = await setup(); // tests run as an ordinary role
+    expect(await bypassesRowLevelSecurity(db)).toBe(false);
+    await db.exec("RESET ROLE"); // PGlite's own superuser
+    expect(await bypassesRowLevelSecurity(db)).toBe(true);
   });
 
   it("a fresh database gives the same numbers and the same red-team score every time, so the video can be re-recorded", async () => {

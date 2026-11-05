@@ -105,6 +105,24 @@ export async function programForKey(db: Db, key: string): Promise<{ programId: s
   return row ? { programId: row.id, scope: row.scope } : undefined;
 }
 
+/** Whether this connection's database role skips row-level security (a superuser, or BYPASSRLS):
+ *  then tenant isolation rests on each query's own program filter alone, not on the policies too. */
+export async function bypassesRowLevelSecurity(db: Queryable): Promise<boolean> {
+  const [row] = await db.query<{ bypass: boolean }>("SELECT rolsuper OR rolbypassrls AS bypass FROM pg_roles WHERE rolname = current_user");
+  return row?.bypass ?? false;
+}
+
+/** One line for the startup log: where a program's numbering stands, so a deploy shows at a glance
+ *  whether its starting numbers took effect. */
+export async function describeNumbering(db: Queryable, programId: string): Promise<string> {
+  const [row] = await db.query<{ ring: number; pair: number; rule: number }>(
+    "SELECT next_ring_number AS ring, next_pair_number AS pair, next_rule_number AS rule FROM programs WHERE id = $1",
+    [programId],
+  );
+  const n = (prefix: string, v: number) => `${prefix}-${String(v).padStart(2, "0")}`;
+  return row ? `program ${programId}: next ring ${n("R", row.ring)}, next pair ${n("P", row.pair)}, next rule ${n("R", row.rule)}` : `program ${programId}: not found`;
+}
+
 /** A request the API refuses, with the status code to refuse it with. */
 export class ApiError extends Error {
   constructor(readonly statusCode: 400 | 403 | 404 | 409, message: string) {
