@@ -1,8 +1,9 @@
 /**
  * Deterministic fixtures for the three-week demo sequence (FR-20).
  * Week 2 deliberately has no shared device or IP graph edges: the learned-rule
- * hold is represented by ground truth for the mock console until A's rule
- * evaluator supplies live decisions.
+ * hold is represented by ground truth for the mock console, which presents it
+ * as fixture data for the demo narrative rather than calling the live rule
+ * engine's own /v1/rules endpoints.
  */
 import type { PayoutItem } from "@ringfence/engine";
 import { generateWeek1 } from "./week1";

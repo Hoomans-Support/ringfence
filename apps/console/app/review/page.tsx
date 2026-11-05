@@ -18,8 +18,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const truth = loadWeekTruth(week);
   const scored = scoreRun(run);
   const learnedRingItems = new Set(truth.filter((label) => label.group === "ring").map((label) => label.sender_item_id));
-  // Week 2 displays A's expected learned-rule result as fixture data. The
-  // production rule evaluator and all payout decisions remain A-owned.
+  // Week 2 displays the expected learned-rule result as fixture data for the demo
+  // narrative, rather than calling the live rule engine's own /v1/rules endpoints.
   const decisions: ItemDecision[] = week === 0
     ? scored.decisions.map((decision) => ({ ...decision, decision: "PAY" }))
     : week === 2
@@ -165,7 +165,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       </p>
       <p className="mt-1 text-xs text-rf-slate">
         Simulated Week {week} fixture · expiry order uses signup time as an age proxy
-        {week === 2 ? " · learned-rule holds are fixture presentation until A's evaluator is connected" : ""}
+        {week === 2 ? " · learned-rule holds are fixture presentation for this walk-through, not a live call to the rule engine" : ""}
       </p>
       <div className="mt-5 flex min-h-0 flex-1 flex-col rounded-[20px] border border-rf-hairline bg-rf-white">
         <ReviewGrid rows={rows} />

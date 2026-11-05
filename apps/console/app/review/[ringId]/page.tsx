@@ -182,7 +182,7 @@ export default async function RingDetailPage({ params, searchParams }: { params:
       )}
       {week === 2 && (
         <p className="rounded-[20px] border border-rf-hairline bg-rf-white p-4 text-sm text-rf-slate">
-          Simulated Week 2 fixture: the 18 isolated accounts are shown as held by R-07 (learned). A's evaluator will supply the production decision and red-team score.
+          Simulated Week 2 fixture: the 18 isolated accounts are shown as held by R-07 (learned), presented here as fixture data for the walk-through rather than a live call to the rule engine's own `/v1/rules` endpoints for the decision and red-team score.
         </p>
       )}
 

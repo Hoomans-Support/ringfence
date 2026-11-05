@@ -56,7 +56,7 @@ export interface RuleRobustnessOptions {
   heldOutCaught: number;
   note?: string;
   /** The existing step-to-next-week URL, reused by the "Next: retrain" button - never a fabricated
-   *  "improved rule", since week 2's own card already shows the real "waiting on A's evaluator"
+   *  "improved rule", since week 2's own card already shows the honest "fixture presentation"
    *  state rather than invented numbers. */
   nextStepHref?: string;
 }

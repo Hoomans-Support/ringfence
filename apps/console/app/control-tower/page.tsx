@@ -87,14 +87,14 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           heldOut: rt?.held_out ?? 0,
           heldOutCaught: rt?.held_out_caught ?? 0,
           // The existing step-to-next-week flow, not a fabricated "improved" rule: week 2's own
-          // card already shows the honest "waiting on A's evaluator" note rather than invented
+          // card already shows the honest "fixture presentation" note rather than invented
           // numbers, so this button's only real effect is navigating there, same as the nav's own
           // "Step to week" link.
           nextStepHref: nextWeek !== undefined ? `/control-tower?week=${nextWeek}` : undefined,
         };
       })()
     : week === 2
-      ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "The learned-rule result will appear here when A's evaluator is connected." }
+      ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "This walk-through shows R-07 as fixture data; the rule engine's own red-team score comes from its live /v1/rules endpoints, not this demo step." }
       : { ruleId: "—", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "No Ringfence rule was active in Week 0." };
 
   const analystNote = caseFile
