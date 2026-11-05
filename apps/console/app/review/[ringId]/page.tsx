@@ -170,8 +170,10 @@ export default async function RingDetailPage({ params, searchParams }: { params:
         )}
         <pre className="mt-3 overflow-x-auto rounded-[20px] border border-rf-hairline bg-rf-white p-4 font-mono text-sm">
           {JSON.stringify(
-            // The miss list is for the rules page's own disclosure, not this raw-JSON preview.
-            { ...proposedRule, red_team: proposedRule.red_team && { ...proposedRule.red_team, misses: undefined } },
+            // Both miss lists (152 ids, 112 full cases for R-01) are for the rules page's own
+            // disclosure, not this raw-JSON preview — leaving either in blows this page up to
+            // thousands of pixels tall.
+            { ...proposedRule, red_team: proposedRule.red_team && { ...proposedRule.red_team, misses: undefined, open_misses: undefined } },
             null,
             2,
           )}

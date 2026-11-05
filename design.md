@@ -108,7 +108,7 @@ We sound like a calm analyst, not a security alarm. Short sentences, real number
 | "387 members were paid on time. 25 payouts are on hold." | "FRAUD DETECTED! 25 users blocked." |
 | "Ring R-12: 23 accounts that look like one person." | "23 scammers caught." |
 | "Held by mistake? Release it in one click." | "Your account has been flagged for suspicious activity." |
-| "Rule R-01 caught 37 of 200 disguised attacks." | "Our AI is now smarter than ever." |
+| "Rule R-01 caught 48 of 200 disguised attacks." | "Our AI is now smarter than ever." |
 
 **Words we use:** held · ring · real members · payout run · trace · release · recovered · rule · on time
 **Words we avoid:** blocked · banned · scammers · criminals · suspicious users · threat · AI-powered
