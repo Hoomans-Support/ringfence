@@ -44,8 +44,11 @@ function describeWidening(before: RuleCondition, after: RuleCondition): string |
   return null;
 }
 
-export default async function RulesPage() {
+export default async function RulesPage({ searchParams }: { searchParams: Promise<{ week?: string; adjusted?: string }> }) {
   await connection();
+  const { week: rawWeek, adjusted: rawAdjusted } = await searchParams;
+  const week = rawWeek === undefined ? undefined : Number.parseInt(rawWeek, 10);
+  const showRevision = rawAdjusted === "1" || (week !== undefined && week >= 3);
 
   const run = loadWeek1Run();
   const truth = loadWeek1Truth();
@@ -88,7 +91,7 @@ export default async function RulesPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 bg-rf-mist px-8 py-6 text-rf-ink">
       <div>
-        <Link href="/review" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+        <Link href={week === undefined ? "/review" : `/review?week=${week}${rawAdjusted === "1" ? "&adjusted=1" : ""}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
           ← Review queue
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-[32px] font-semibold tracking-[-0.03em]">
@@ -148,7 +151,7 @@ export default async function RulesPage() {
                   )}
                 </>
               )}
-              {openCases.length > 0 && (
+              {openCases.length > 0 && showRevision && (
                 <div className="mt-4 rounded-[16px] border border-rf-hairline bg-rf-mist p-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-rf-slate">Learning loop</h3>
                   <p className="mt-2 text-[15px] leading-[1.5] text-rf-ink">
@@ -183,6 +186,13 @@ export default async function RulesPage() {
                       </p>
                     </>
                   )}
+                </div>
+              )}
+              {label === "R-12" && week === 2 && !showRevision && revised && (
+                <div className="mt-4 rounded-[16px] border border-rf-hairline bg-rf-mist p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-rf-slate">Proposed adjustment</h3>
+                  <p className="mt-2 text-[15px] leading-[1.5]">R-07-v2 closes {closedCount} of {openCases.length} saved red-team cases. Accept it for the next demo week.</p>
+                  <Link href="/review?week=2&adjusted=1" className="mt-3 inline-flex rounded-full bg-rf-ink px-3 py-1.5 text-sm font-medium text-rf-white hover:opacity-85">Accept R-07-v2</Link>
                 </div>
               )}
             </li>

@@ -40,7 +40,7 @@ const theme = themeQuartz.withParams({
 
 export interface ReviewRow {
   group: string;
-  kind: "ring" | "pair" | "rule" | "solo";
+  kind: "ring" | "pair" | "rule" | "network" | "solo";
   senderItemId: string;
   receiver: string;
   amount: number;
@@ -69,11 +69,8 @@ const formatExpiry = ({ value }: ValueFormatterParams<GridRow>) =>
     : "";
 
 const defaultColDef: ColDef<GridRow> = { resizable: true, sortable: false };
-// "reasons" is excluded and left to its own flex: fitting it to content, like every other column,
-// would size it to its longest reason list rather than filling the remaining row. AG Grid's own
-// dev-only validator (enableDevValidations, above) still flags the flex/fitCellContents pairing
-// here (AG Grid #318) even though colIds scopes the conflict away — a known false positive, never
-// shown in a production build, so left alone rather than hand-widths.
+// "reasons" uses a readable fixed starting width instead of sizing to its longest value. AG Grid
+// does not support combining flex columns with autoSizeStrategy, even when colIds excludes them.
 const autoSizeStrategy = { type: "fitCellContents" as const, colIds: ["senderItemId", "receiver", "amount", "holdExpiresAt"] };
 
 /** A plain caret, not one of the six brand-guide icons (icons.tsx) — just a UI affordance. */
@@ -175,7 +172,7 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
           "text-rf-spark-text": (params) => !isGroupHeader(params.data) && typeof params.value === "string" && Date.parse(params.value) < Date.now(),
         },
       },
-      { headerName: "Why it's held", flex: 2, valueGetter: ({ data }) => (isGroupHeader(data) ? undefined : data?.reasons) },
+      { headerName: "Why it's held", width: 320, minWidth: 240, valueGetter: ({ data }) => (isGroupHeader(data) ? undefined : data?.reasons) },
       {
         headerName: "Payee action",
         sortable: false,

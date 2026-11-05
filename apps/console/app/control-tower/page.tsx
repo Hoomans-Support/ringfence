@@ -1,31 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { checkClaims, investigate, redTeamRule, summarizeForAnalyst } from "@ringfence/agents";
+import { applyRule, checkClaims, investigate, redTeamRule, summarizeForAnalyst } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek, type DemoWeek } from "@/lib/fixtures";
+import { buildR12Learning } from "@/lib/learned-rule";
 import { buildRingGraphData } from "@/lib/ring-layout";
 import { ControlTower, type ControlTowerData } from "./control-tower";
 
 export const metadata: Metadata = { title: "Control tower" };
 
-export default async function ControlTowerPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
+export default async function ControlTowerPage({ searchParams }: { searchParams: Promise<{ week?: string; adjusted?: string }> }) {
   await connection();
 
-  const { week: rawWeek } = await searchParams;
+  const { week: rawWeek, adjusted: rawAdjusted } = await searchParams;
   const week = parseDemoWeek(rawWeek);
-  const run = loadWeekRun(week);
-  const truth = loadWeekTruth(week);
+  const adjusted = rawAdjusted === "1";
+  const outcomeWeek: DemoWeek = week === 2 ? 1 : week;
+  const run = loadWeekRun(outcomeWeek);
+  const truth = loadWeekTruth(outcomeWeek);
   const scored = scoreRun(run);
-  const learnedRingItems = new Set(truth.filter((label) => label.group === "ring").map((label) => label.sender_item_id));
+  const learning = week >= 2 ? buildR12Learning(loadWeekRun(1), loadWeekTruth(1)) : null;
+  const selectedRule = learning ? (adjusted && learning.revised ? learning.revised : learning.rule) : null;
+  const ruleMatches = week === 3 && selectedRule ? new Set(applyRule(selectedRule, run)) : new Set<string>();
+  const networkMatches = week === 4 ? new Set(loadWeekTruth(4).filter((label) => label.group === "ring_match").map((label) => label.sender_item_id)) : new Set<string>();
   const decisions: ItemDecision[] = week === 0
     ? scored.decisions.map((decision) => ({ ...decision, decision: "PAY" }))
-    : week === 2
-      ? scored.decisions.map((decision) => learnedRingItems.has(decision.sender_item_id)
-        // No shared graph edges, so no ring_id (issue #4): this is rule R-07's own hold group, never a ring's.
-        ? { ...decision, decision: "HOLD", hold_group_id: "rule:R-07", reasons: ["R-07 learned rule"] }
+    : week === 3
+      ? scored.decisions.map((decision) => ruleMatches.has(decision.sender_item_id)
+        ? { ...decision, decision: "HOLD", ring_id: undefined, hold_group_id: `rule:${selectedRule?.id ?? "R-07"}`, reasons: [`${selectedRule?.id ?? "R-07"} learned rule`] }
         : decision)
-      : scored.decisions;
+      : week === 4
+        ? scored.decisions.map((decision) => networkMatches.has(decision.sender_item_id)
+          ? { ...decision, decision: "HOLD", ring_id: undefined, hold_group_id: "network:R-12", reasons: ["network_match"] }
+          : decision)
+        : scored.decisions;
 
   const truthBySenderItemId = new Map(truth.map((t) => [t.sender_item_id, t] as const));
   const amountBySenderItemId = new Map(run.items.map((it) => [it.sender_item_id, Number(it.amount.value)] as const));
@@ -39,7 +48,8 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
   let falseHoldCount = 0;
   for (const d of decisions) {
     const amount = amountBySenderItemId.get(d.sender_item_id) ?? 0;
-    const isRingFraud = truthBySenderItemId.get(d.sender_item_id)?.group === "ring";
+    const group = truthBySenderItemId.get(d.sender_item_id)?.group;
+    const isRingFraud = group === "ring" || group === "ring_match";
     const held = d.decision !== "PAY";
     if (isRingFraud) {
       if (held) keptUsd += amount;
@@ -51,32 +61,21 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
     }
   }
 
-  const ring: RingSummary | undefined = week === 1
-    ? scored.rings.find((r) => r.size >= 3)
-    : week === 2
-      ? {
-          ring_id: "R-07",
-          member_sender_item_ids: [...learnedRingItems],
-          size: learnedRingItems.size,
-          reasons: ["shared referrer", "20-minute signup burst", "fast onboarding", "quiet after onboarding"],
-          louvain_clusters: learnedRingItems.size,
-        }
-      : undefined;
+  const ring: RingSummary | undefined = week === 1 || week === 2 ? scored.rings.find((r) => r.size >= 3) : undefined;
 
-  const nextWeek: DemoWeek | undefined = week < 2 ? ((week + 1) as DemoWeek) : undefined;
+  const nextWeek: DemoWeek | undefined = week < 4 ? ((week + 1) as DemoWeek) : undefined;
 
-  const caseFile = week === 1 && ring ? checkClaims(investigate(ring, run), run) : undefined;
+  const caseFile = (week === 1 || week === 2) && ring ? checkClaims(investigate(ring, run), run) : undefined;
 
   const ringGraph: ControlTowerData["ringGraph"] = ring
     ? (() => {
         const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
         const ringLabel = truth.find((t) => nodeIds.includes(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
-        // Week 2's group has no shared graph edges: it's rule R-07's own hold group, never a ring's (issue #4).
-        return { kind: week === 2 ? "rule" : "ring", ringLabel, memberCount: ring.size, nodeIds, links, operatorIds: week === 2 ? new Set<string>() : operatorIds };
+        return { kind: week === 3 ? "rule" : "ring", ringLabel, memberCount: ring.size, nodeIds, links, operatorIds: week === 3 ? new Set<string>() : operatorIds };
       })()
     : { kind: "ring", ringLabel: "No active ring", memberCount: 0, nodeIds: [], links: [], operatorIds: new Set<string>() };
 
-  const ruleRobustness: ControlTowerData["ruleRobustness"] = week === 1 && ring
+  const ruleRobustness: ControlTowerData["ruleRobustness"] = (week === 1 || week === 2) && ring
     ? (() => {
         const rule = redTeamRule(caseFile!.proposed_rule);
         const rt = rule.red_team;
@@ -86,18 +85,16 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           caught: rt?.caught ?? 0,
           heldOut: rt?.held_out ?? 0,
           heldOutCaught: rt?.held_out_caught ?? 0,
-          // The existing step-to-next-week flow, not a fabricated "improved" rule: week 2's own
-          // card already shows the honest "fixture presentation" note rather than invented
-          // numbers, so this button's only real effect is navigating there, same as the nav's own
-          // "Step to week" link.
-          nextStepHref: nextWeek !== undefined ? `/control-tower?week=${nextWeek}` : undefined,
+          nextStepHref: nextWeek !== undefined ? `/review?week=${nextWeek}${adjusted ? "&adjusted=1" : ""}` : undefined,
         };
       })()
-    : week === 2
-      ? { ruleId: "R-07 (learned)", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "This walk-through shows R-07 as fixture data; the rule engine's own red-team score comes from its live /v1/rules endpoints, not this demo step." }
+    : week === 3 && selectedRule
+      ? { ruleId: selectedRule.id, variants: selectedRule.red_team?.variants ?? 0, caught: selectedRule.red_team?.caught ?? 0, heldOut: selectedRule.red_team?.held_out ?? 0, heldOutCaught: selectedRule.red_team?.held_out_caught ?? 0, note: "Week 3 applies this rule to the returning ring fixture." }
       : { ruleId: "—", variants: 0, caught: 0, heldOut: 0, heldOutCaught: 0, note: "No Ringfence rule was active in Week 0." };
 
-  const analystNote = caseFile
+  const analystNote = week === 4
+    ? "Six survey-app payees reuse an R-12 device; their cross-program holds are fixture outcomes until the live screening control is run."
+    : caseFile
     ? await summarizeForAnalyst(caseFile, { keptUsd, leakedUsd })
     : "No linked ring is active in this week. Keep watching the payout run for new signals.";
   const rawThreshold = Number(process.env.RINGFENCE_RING_WATCH_THRESHOLD_USD ?? 500);
@@ -126,7 +123,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           clicking a tab already does. */}
       <nav aria-label="Demo week" className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <div className="flex gap-1 rounded-full border border-rf-hairline p-1">
-          {([0, 1, 2] as const).map((w) => (
+          {([0, 1, 2, 3, 4] as const).map((w) => (
             <Link
               key={w}
               href={`/control-tower?week=${w}`}
@@ -138,19 +135,19 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           ))}
         </div>
         {nextWeek !== undefined ? (
-          <Link href={`/control-tower?week=${nextWeek}`} className="rounded-full bg-rf-spark px-3 py-1.5 font-medium text-white hover:opacity-85">
+          <Link href={`/control-tower?week=${nextWeek}${adjusted ? "&adjusted=1" : ""}`} className="rounded-full bg-rf-spark px-3 py-1.5 font-medium text-white hover:opacity-85">
             Step to week {nextWeek} →
           </Link>
         ) : (
-          <span className="cursor-default rounded-full bg-rf-mist px-3 py-1.5 font-medium text-rf-slate">Week 2 is the most recent</span>
+          <span className="cursor-default rounded-full bg-rf-mist px-3 py-1.5 font-medium text-rf-slate">Week 4 is the most recent</span>
         )}
         <Link
-          href={`/review?week=${week}`}
+          href={`/review?week=${week}${adjusted ? "&adjusted=1" : ""}`}
           className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink"
         >
           ← Week {week} review queue
         </Link>
-        <Link href="/survey-app" className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink">
+        <Link href="/review?week=4" className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink">
           Survey app demo
         </Link>
       </nav>

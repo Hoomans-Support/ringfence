@@ -8,17 +8,18 @@ import { HoldCalendar } from "./hold-calendar";
 
 export const metadata: Metadata = { title: "Hold calendar" };
 
-export default async function HoldCalendarPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
+export default async function HoldCalendarPage({ searchParams }: { searchParams: Promise<{ week?: string; adjusted?: string }> }) {
   await connection();
 
-  const { week: rawWeek } = await searchParams;
+  const { week: rawWeek, adjusted: rawAdjusted } = await searchParams;
   const week = parseDemoWeek(rawWeek);
-  const { resources, events } = buildHoldCalendarData(week);
+  const adjusted = rawAdjusted === "1";
+  const { resources, events } = buildHoldCalendarData(week, adjusted);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 bg-rf-mist px-8 py-6 text-rf-ink">
       <div>
-        <Link href={`/review?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+        <Link href={`/review?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
           ← Review queue
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-[32px] font-semibold tracking-[-0.03em]">
@@ -28,10 +29,10 @@ export default async function HoldCalendarPage({ searchParams }: { searchParams:
           When this week's holds expire, grouped by ring or pair — so a reviewer can plan which cases need attention first.
         </p>
         <nav aria-label="Demo week" className="mt-3 flex flex-wrap gap-2 text-sm">
-          {([0, 1, 2] as const).map((w) => (
+          {([0, 1, 2, 3, 4] as const).map((w) => (
             <Link
               key={w}
-              href={`/review/calendar?week=${w}`}
+              href={`/review/calendar?week=${w}${adjusted && w >= 3 ? "&adjusted=1" : ""}`}
               className={`rounded-full border px-3 py-1.5 ${week === w ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}
             >
               Week {w}

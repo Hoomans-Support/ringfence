@@ -10,8 +10,10 @@
  * refactoring the already-shipped, screenshot-verified review queue this close to the deadline is
  * a bigger risk than one more small copy of it.
  */
+import { applyRule } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type RingSummary } from "@ringfence/engine";
 import { loadWeekRun, loadWeekTruth, type DemoWeek } from "./fixtures";
+import { buildR12Learning } from "./learned-rule";
 
 const HOLD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -28,20 +30,22 @@ export interface CalendarEvent {
   endDate: string;
 }
 
-export function buildHoldCalendarData(week: DemoWeek): { resources: CalendarResource[]; events: CalendarEvent[] } {
-  const run = loadWeekRun(week);
-  const truth = loadWeekTruth(week);
+export function buildHoldCalendarData(week: DemoWeek, adjusted = false): { resources: CalendarResource[]; events: CalendarEvent[] } {
+  const outcomeWeek: DemoWeek = week === 2 ? 1 : week;
+  const run = loadWeekRun(outcomeWeek);
+  const truth = loadWeekTruth(outcomeWeek);
   const { decisions, rings } = scoreRun(run);
-
-  const learnedRingItems = new Set(truth.filter((label) => label.group === "ring").map((label) => label.sender_item_id));
+  const learning = week >= 2 ? buildR12Learning(loadWeekRun(1), loadWeekTruth(1)) : null;
+  const rule = learning ? (adjusted && learning.revised ? learning.revised : learning.rule) : null;
+  const ruleMatches = week === 3 && rule ? new Set(applyRule(rule, run)) : new Set<string>();
+  const networkMatches = week === 4 ? new Set(loadWeekTruth(4).filter((label) => label.group === "ring_match").map((label) => label.sender_item_id)) : new Set<string>();
   const effectiveDecisions: ItemDecision[] = week === 0
     ? decisions.map((d) => ({ ...d, decision: "PAY" }))
-    : week === 2
-      ? decisions.map((d) => learnedRingItems.has(d.sender_item_id)
-        // No shared graph edges, so no ring_id (issue #4): this is rule R-07's own hold group, never a ring's.
-        ? { ...d, decision: "HOLD", hold_group_id: "rule:R-07", reasons: ["R-07 learned rule"] }
-        : d)
-      : decisions;
+    : week === 3
+      ? decisions.map((d) => ruleMatches.has(d.sender_item_id) ? { ...d, decision: "HOLD", ring_id: undefined, hold_group_id: `rule:${rule?.id ?? "R-07"}` } : d)
+      : week === 4
+        ? decisions.map((d) => networkMatches.has(d.sender_item_id) ? { ...d, decision: "HOLD", ring_id: undefined, hold_group_id: "network:R-12" } : d)
+        : decisions;
 
   const accountBySenderItemId = new Map(run.items.map((item) => [item.sender_item_id, item.context.account_id]));
   function narrativeLabel(ringId: string | undefined, memberSenderItemIds: string[]): string | undefined {
@@ -51,7 +55,7 @@ export function buildHoldCalendarData(week: DemoWeek): { resources: CalendarReso
     );
     return truth.find((t) => memberAccountIds.has(t.account_id) && t.ring_label)?.ring_label ?? ringId;
   }
-  const ringLabelById = new Map(rings.map((r: RingSummary) => [r.ring_id, narrativeLabel(r.ring_id, r.member_sender_item_ids)]));
+  const ringLabelById = new Map((week === 4 ? [] : rings).map((r: RingSummary) => [r.ring_id, narrativeLabel(r.ring_id, r.member_sender_item_ids)]));
 
   const itemById = new Map(run.items.map((item) => [item.sender_item_id, item]));
   const held = effectiveDecisions.filter((d) => d.decision === "HOLD");
