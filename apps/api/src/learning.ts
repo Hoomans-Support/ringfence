@@ -9,7 +9,7 @@
  */
 import { attackRule, type ProposedRule } from "@ringfence/agents";
 import { backtest, normalizeEmail, STARTER_RULE_SET_VERSION, validateRule, type LabeledRun, type PayoutItem, type Rule, type RuleContext } from "@ringfence/engine";
-import { ApiError, audit, withProgram, type Db, type Queryable } from "./db";
+import { ApiError, audit, reserveRuleNumber, withProgram, type Db, type Queryable } from "./db";
 
 const BIG_RULE_SHARE = 0.05;
 const BACKTEST_RUNS = 8; // ponytail: the 8 most recent runs held in memory; page through them if history grows large
@@ -68,6 +68,8 @@ export interface StoredRule {
   version: number;
   body: Rule;
   source: string | null;
+  source_ring_id: string | null;
+  source_run_id: string | null;
   status: "proposed" | "approved";
   backtest: ReturnType<typeof backtest>;
   red_team: ReturnType<typeof attackRule>;
@@ -76,9 +78,16 @@ export interface StoredRule {
   approved_at: string | null;
 }
 
-const RULE_COLUMNS = "rule_id, version, body, source, status, backtest, red_team, flags, approved_by, approved_at";
+const RULE_COLUMNS = "rule_id, version, body, source, source_ring_id, source_run_id, status, backtest, red_team, flags, approved_by, approved_at";
 
-export async function proposeRule(db: Db, programId: string, rule: Rule, source?: string): Promise<StoredRule> {
+/**
+ * Proposes a rule (FR-11, issue #3). `rule.id` is only ever a lookup key, never a value the caller
+ * gets to choose for a brand-new rule: if it already names one of this program's rules, this is the
+ * revise-after-red-team path and gets the next version of that exact rule; otherwise Ringfence mints
+ * a fresh id from the program's own counter and overwrites whatever the caller/investigator put in
+ * `rule.id`, so two different rings' proposals can never collide (the bug this issue fixes).
+ */
+export async function proposeRule(db: Db, programId: string, rule: Rule, sourceRingId: string, sourceRunId: string): Promise<StoredRule> {
   const problems = validateRule(rule);
   if (problems.length > 0) throw new ApiError(400, `rule fails the schema check: ${problems.join("; ")}`);
 
@@ -94,16 +103,19 @@ export async function proposeRule(db: Db, programId: string, rule: Rule, source?
       ? ["holds_over_5_percent"]
       : [];
 
-    const [{ next } = { next: 1 }] = await q.query<{ next: number }>(
-      "SELECT COALESCE(max(version), 0) + 1 AS next FROM rules WHERE program_id = $1 AND rule_id = $2",
-      [programId, rule.id],
-    );
+    const [existing] = await q.query<{ version: number }>("SELECT max(version) AS version FROM rules WHERE program_id = $1 AND rule_id = $2", [programId, rule.id]);
+    const isRevision = existing?.version != null;
+    const ruleId = isRevision ? rule.id : `R-${String(await reserveRuleNumber(q, programId)).padStart(2, "0")}`;
+    const version = isRevision ? existing!.version + 1 : 1;
+    const body = { ...rule, id: ruleId };
+    const source = `ring ${sourceRingId}, run ${sourceRunId}`;
+
     const [stored] = await q.query<StoredRule>(
-      `INSERT INTO rules (program_id, rule_id, version, body, source, backtest, red_team, flags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${RULE_COLUMNS}`,
-      [programId, rule.id, next, JSON.stringify(rule), source ?? rule.source ?? null, JSON.stringify(scores), JSON.stringify(redTeam), JSON.stringify(flags)],
+      `INSERT INTO rules (program_id, rule_id, version, body, source, source_ring_id, source_run_id, backtest, red_team, flags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${RULE_COLUMNS}`,
+      [programId, ruleId, version, JSON.stringify(body), source, sourceRingId, sourceRunId, JSON.stringify(scores), JSON.stringify(redTeam), JSON.stringify(flags)],
     );
-    await audit(q, programId, "api", "rule_proposed", { rule_id: rule.id, version: next, backtest: scores, red_team_caught: redTeam.caught, flags });
+    await audit(q, programId, "api", "rule_proposed", { rule_id: ruleId, version, backtest: scores, red_team_caught: redTeam.caught, flags });
     return stored as StoredRule;
   });
 }

@@ -11,6 +11,12 @@ CREATE TABLE IF NOT EXISTS programs (
   mcp_key_hash text UNIQUE,           -- sha256 of the read-only key AI agents use over MCP
   created_at   timestamptz NOT NULL DEFAULT now()
 );
+-- Permanent per-program numbering (issue #2, #3): a ring, pair or learned rule's number is taken
+-- from here and never reused. CREATE TABLE IF NOT EXISTS never alters a table that already exists,
+-- so these are added explicitly for a database that was already running.
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_ring_number integer NOT NULL DEFAULT 1;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_pair_number integer NOT NULL DEFAULT 1;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_rule_number integer NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS runs (
   program_id       text NOT NULL REFERENCES programs (id),
@@ -22,8 +28,8 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 -- One row per payee per run, and the per-item state machine (apps/api/src/states.ts):
---   held -> queued | blocked      queued -> sent      sent -> paid | unclaimed | returned | failed
---   unclaimed -> paid | returned | failed             paid -> failed (refunded or reversed)
+--   held -> queued | blocked      queued -> sent      sent -> succeeded | unclaimed | returned | failed
+--   unclaimed -> succeeded | returned | failed        succeeded -> failed (refunded or reversed)
 CREATE TABLE IF NOT EXISTS items (
   program_id     text NOT NULL,
   run_id         text NOT NULL,
@@ -37,7 +43,7 @@ CREATE TABLE IF NOT EXISTS items (
   hold_group_id  text,
   reasons        jsonb NOT NULL,
   rules          jsonb NOT NULL,           -- every rule behind the decision (FR-4)
-  state          text NOT NULL CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'paid', 'unclaimed', 'returned', 'failed')),
+  state          text NOT NULL CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed')),
   batch_id       text,                     -- the sender_batch_id it was queued in; fixed once set
   payout_item_id text,
   paypal_status  text,
@@ -47,6 +53,26 @@ CREATE TABLE IF NOT EXISTS items (
 );
 CREATE INDEX IF NOT EXISTS items_by_batch ON items (batch_id);
 CREATE UNIQUE INDEX IF NOT EXISTS items_by_payout_item ON items (payout_item_id) WHERE payout_item_id IS NOT NULL;
+
+-- Issue #5: PayPal's success outcome was called 'paid', the same word the run summary uses for
+-- "sent on time" — renamed to 'succeeded' everywhere. A database that already has the items table
+-- (CREATE TABLE IF NOT EXISTS above is then a no-op, so the inline CHECK edit alone never reaches
+-- it) needs its rows moved and its constraint replaced explicitly. Safe every boot: once no row
+-- says 'paid', the UPDATE is a no-op and the DROP+CREATE pair just re-applies the same constraint,
+-- the same idiom this file already uses for RLS policies below.
+DO $$
+DECLARE con text;
+BEGIN
+  -- The old constraint (whatever it's actually named) has to go *before* the UPDATE below, or the
+  -- UPDATE itself is rejected by the still-active old constraint it's trying to move rows past.
+  SELECT conname INTO con FROM pg_constraint
+    WHERE conrelid = 'items'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%state%paid%';
+  IF con IS NOT NULL THEN EXECUTE format('ALTER TABLE items DROP CONSTRAINT %I', con); END IF;
+  ALTER TABLE items DROP CONSTRAINT IF EXISTS items_state_check;
+  UPDATE items SET state = 'succeeded' WHERE state = 'paid';
+  ALTER TABLE items ADD CONSTRAINT items_state_check
+    CHECK (state IN ('held', 'blocked', 'queued', 'sent', 'succeeded', 'unclaimed', 'returned', 'failed'));
+END $$;
 
 -- One row per PayPal batch. Not tenant-scoped on purpose: it holds ids and statuses only, no payee
 -- data, and the worker and webhook handler need it to find which program a PayPal batch belongs
@@ -84,20 +110,25 @@ CREATE INDEX IF NOT EXISTS outbox_pending ON outbox (id) WHERE status = 'pending
 -- version applies to new runs, and it carries its provenance: the ring it came from, its backtest,
 -- its red-team score, and who approved it.
 CREATE TABLE IF NOT EXISTS rules (
-  program_id  text NOT NULL REFERENCES programs (id),
-  rule_id     text NOT NULL,
-  version     integer NOT NULL,
-  body        jsonb NOT NULL,              -- { id, action, when: { all: [...] } }
-  source      text,
-  status      text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved')),
-  backtest    jsonb,
-  red_team    jsonb,
-  flags       jsonb NOT NULL DEFAULT '[]', -- e.g. "holds_over_5_percent": needs a deliberate second look
-  approved_by text,
-  approved_at timestamptz,
-  created_at  timestamptz NOT NULL DEFAULT now(),
+  program_id     text NOT NULL REFERENCES programs (id),
+  rule_id        text NOT NULL,
+  version        integer NOT NULL,
+  body           jsonb NOT NULL,              -- { id, action, when: { all: [...] } }
+  source         text,                        -- legacy free text; source_ring_id/source_run_id are authoritative (issue #3)
+  status         text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved')),
+  backtest       jsonb,
+  red_team       jsonb,
+  flags          jsonb NOT NULL DEFAULT '[]', -- e.g. "holds_over_5_percent": needs a deliberate second look
+  approved_by    text,
+  approved_at    timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (program_id, rule_id, version)
 );
+-- Issue #3: a learned rule records the ring and run it was learned from, structurally, in place of
+-- the free-text source above. Nullable: a rule proposed before this column existed has no way to be
+-- backfilled from its free text, so it's left NULL rather than guessed at.
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS source_ring_id text;
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS source_run_id text;
 
 -- Devices and normalized payout addresses from rings this program confirmed (starter rule S-02).
 CREATE TABLE IF NOT EXISTS known_fraud (

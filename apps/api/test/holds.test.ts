@@ -13,6 +13,8 @@ async function week1Decided() {
   return { ...ctx, mock, run, pair };
 }
 
+// id is only a lookup key for a revision (issue #3); budgetapp isn't seeded with a starting rule
+// number, so proposing this as a new rule mints "R-01", not this literal id.
 const R07 = {
   id: "R-07",
   action: "HOLD",
@@ -80,27 +82,35 @@ describe("confirm and learn", () => {
     const { app, mock } = await week1Decided();
     await post(app, "/v1/rings/R-01/confirm", { run_id: "run_2026w45" });
 
-    expect((await post(app, "/v1/rules", { rule: { ...R07, action: "PAY" } })).statusCode).toBe(400);
-    const proposed = await post(app, "/v1/rules", { rule: R07, source: "ring R-12, confirmed 2026-11-02" });
+    expect((await post(app, "/v1/rules", { rule: { ...R07, action: "PAY" }, source_ring_id: "R-01", source_run_id: "run_2026w45" })).statusCode).toBe(400);
+    const proposed = await post(app, "/v1/rules", { rule: R07, source_ring_id: "R-01", source_run_id: "run_2026w45" });
     expect(proposed.statusCode).toBe(201);
     const rule = proposed.json();
-    expect(rule).toMatchObject({ rule_id: "R-07", version: 1, status: "proposed", backtest: { weeks: 1, caught: 23, usd: 460, false_holds: 0 } });
+    // Ringfence assigns the id itself (issue #3): budgetapp's first rule is R-01, not R07's literal id.
+    expect(rule).toMatchObject({
+      rule_id: "R-01",
+      version: 1,
+      status: "proposed",
+      source_ring_id: "R-01",
+      source_run_id: "run_2026w45",
+      backtest: { weeks: 1, caught: 23, usd: 460, false_holds: 0 },
+    });
     expect(rule.red_team).toMatchObject({ variants: 200, held_out: 50 });
     // 23 of 412 is 5.6% of week 1: big enough that approving it takes a deliberate second look.
     expect(rule.flags).toEqual(["holds_over_5_percent"]);
 
-    expect((await post(app, "/v1/rules/R-07/approve", { approved_by: "rina@budgetapp.test" })).statusCode).toBe(409);
-    const approved = (await post(app, "/v1/rules/R-07/approve", { approved_by: "rina@budgetapp.test", acknowledge_flags: true })).json();
+    expect((await post(app, "/v1/rules/R-01/approve", { approved_by: "rina@budgetapp.test" })).statusCode).toBe(409);
+    const approved = (await post(app, "/v1/rules/R-01/approve", { approved_by: "rina@budgetapp.test", acknowledge_flags: true })).json();
     expect(approved).toMatchObject({ status: "approved", approved_by: "rina@budgetapp.test" });
 
     const week2 = fixture("week2");
     const ring = new Set<string>(fixture("week2.truth").filter((t: { group: string }) => t.group === "ring").map((t: { sender_item_id: string }) => t.sender_item_id));
     const decided = (await post(app, "/v1/payout-runs", week2)).json();
-    expect(decided.rule_set_version).toBe("starter-1+R-07v1");
+    expect(decided.rule_set_version).toBe("starter-1+R-01v1");
     expect(decided.summary).toMatchObject({ paid: 419, held: 18, blocked: 0 });
     const held = decided.decisions.filter((d: { decision: string }) => d.decision === "HOLD");
     expect(new Set(held.map((d: { sender_item_id: string }) => d.sender_item_id))).toEqual(ring);
-    expect(held.every((d: { rules: string[] }) => d.rules.join() === "R-07")).toBe(true);
+    expect(held.every((d: { rules: string[] }) => d.rules.join() === "R-01")).toBe(true);
     for (const id of ring) expect(mock.paidCounts().get(id)).toBeUndefined();
   });
 });

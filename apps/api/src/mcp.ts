@@ -20,7 +20,9 @@ import { programForKey, withProgram, type Db } from "./db";
 import { screenRun } from "./runs";
 
 export interface RingExplanation {
-  ring_id: string;
+  /** Unset for a learned rule's hold group (id starts with "rule:") — it isn't a ring (issue #4). */
+  ring_id?: string;
+  hold_group_id: string;
   run_id: string;
   size: number;
   reasons: string[];
@@ -46,6 +48,7 @@ export async function explainRing(db: Db, programId: string, ringId: string, run
   );
   if (rows.length === 0) return undefined;
 
+  const isRuleGroup = ringId.startsWith("rule:");
   const run: PayoutRun = {
     sender_batch_header: { sender_batch_id: runId },
     items: rows.map((r) => ({ recipient_type: "EMAIL", receiver: r.receiver, amount: { value: r.amount_value, currency: r.currency }, sender_item_id: r.sender_item_id, context: r.context })),
@@ -54,7 +57,8 @@ export async function explainRing(db: Db, programId: string, ringId: string, run
   const ring: RingSummary = { ring_id: ringId, member_sender_item_ids: rows.map((r) => r.sender_item_id), size: rows.length, reasons, louvain_clusters: 0 };
   const caseFile = checkClaims(investigate(ring, run), run);
   return {
-    ring_id: ringId,
+    ...(isRuleGroup ? {} : { ring_id: ringId }),
+    hold_group_id: ringId,
     run_id: runId,
     size: rows.length,
     reasons,
@@ -111,7 +115,7 @@ function serverFor(db: Db, programId: string): McpServer {
       title: "Explain a held ring",
       description:
         "Explains why a group of payees in a run was held: the ring's signals, the rules that held it, its members (emails masked), and its case file, where every claim has been re-checked against the run's data. Read-only. There is no tool to release or unblock anyone; a person decides that in the Ringfence console.",
-      inputSchema: { ring_id: z.string().min(1).max(63).describe('e.g. "R-01", or a learned rule\'s hold group such as "R-07"'), run_id: z.string().min(1).max(100) },
+      inputSchema: { ring_id: z.string().min(1).max(63).describe('e.g. "R-01", or a learned rule\'s hold group such as "rule:R-07"'), run_id: z.string().min(1).max(100) },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ ring_id, run_id }) => {

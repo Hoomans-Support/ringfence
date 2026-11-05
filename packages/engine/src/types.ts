@@ -61,12 +61,12 @@ export interface ScoreRunResult {
 }
 
 /**
- * Reserved for future cross-run context. Unused by the graph-and-risk-flag baseline in this
- * package; A's rule engine (FR-4, FR-11) layers versioned starter and learned rules on top of this
- * output. FR-19's network matches ended up living there instead (`RuleContext.networkMatch`, S-03)
- * rather than here: a keyed-hash match is a direct lookup against externally-confirmed fraud, the
- * same shape as S-02's `knownFraud`, not a graph-structural signal this package's baseline forms.
+ * Numbering offsets for a program's permanent ring/pair identity (issue #2): the caller (apps/api,
+ * which owns the program's counters) passes the number its next ring/pair should start from, so two
+ * scoring passes over the same items never disagree. Omitted, scoring starts at 1 like before this
+ * existed — this package stays free of any program or database concern either way.
  */
 export interface ScoreRunContext {
-  priorRings?: unknown;
+  startRing?: number;
+  startPair?: number;
 }

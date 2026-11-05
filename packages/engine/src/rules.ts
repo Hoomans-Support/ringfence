@@ -22,7 +22,7 @@
  */
 import { normalizeEmail } from "./identity";
 import { scoreRun } from "./score-run";
-import type { Decision, ItemDecision, PayoutItem, PayoutRun, RingSummary } from "./types";
+import type { Decision, ItemDecision, PayoutItem, PayoutRun, RingSummary, ScoreRunContext } from "./types";
 
 export interface RuleCondition {
   signal: string;
@@ -183,8 +183,14 @@ function matchRule(rule: Rule, run: PayoutRun, graphHeld: Set<string>, ctx: Rule
  * `ruleSetVersion` names the learned set (e.g. its approval count) so a stored decision can be
  * traced to the exact rules it ran under.
  */
-export function evaluateRules(run: PayoutRun, learnedRules: Rule[] = [], ctx: RuleContext = {}, ruleSetVersion = STARTER_RULE_SET_VERSION): RuleRunResult {
-  const scored = scoreRun(run);
+export function evaluateRules(
+  run: PayoutRun,
+  learnedRules: Rule[] = [],
+  ctx: RuleContext = {},
+  ruleSetVersion = STARTER_RULE_SET_VERSION,
+  scoreContext?: ScoreRunContext,
+): RuleRunResult {
+  const scored = scoreRun(run, scoreContext);
   const baseline = new Map(scored.decisions.map((d) => [d.sender_item_id, d] as const));
   const graphHeld = new Set(scored.decisions.filter((d) => d.decision !== "PAY").map((d) => d.sender_item_id));
 
@@ -205,12 +211,13 @@ export function evaluateRules(run: PayoutRun, learnedRules: Rule[] = [], ctx: Ru
     const decision = rules.reduce<Decision>((worst, r) => (SEVERITY[r.action] > SEVERITY[worst] ? r.action : worst), "PAY");
     const reasons = new Set(base.reasons);
     for (const r of rules) for (const c of r.when.all) if (c.signal !== "graph_community") reasons.add(c.signal);
-    // A payee held only by a rule (no graph group) is bulk-decided under that rule's id.
+    // A payee held only by a rule (no graph group) is bulk-decided under that rule's own hold group,
+    // prefixed so it can never collide with or be mistaken for a ring's id (issue #4).
     const firstRule = rules.find((r) => r.id !== "S-01");
     return {
       ...base,
       decision,
-      hold_group_id: base.hold_group_id ?? firstRule?.id,
+      hold_group_id: base.hold_group_id ?? (firstRule ? `rule:${firstRule.id}` : undefined),
       reasons: [...reasons],
       rules: rules.map((r) => r.id),
     };

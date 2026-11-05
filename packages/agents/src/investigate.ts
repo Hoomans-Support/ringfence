@@ -171,7 +171,10 @@ function proposeRule(ringId: string, claims: Claim[], memberCount: number): Prop
   }
 
   return {
-    id: `R-${ringId.replace(/^R-/, "")}`, // a rule id in the same "R-NN" space as ring ids (see types.ts)
+    // A rule id in the same "R-NN" space as ring ids (see types.ts) — this is only ever a display
+    // suggestion (Ringfence assigns the real id on proposal), so a rule-only hold group's own
+    // already-valid "rule:R-07" id passes through unprefixed rather than becoming "R-rule:R-07".
+    id: ringId.startsWith("rule:") ? ringId.slice("rule:".length) : `R-${ringId.replace(/^R-/, "")}`,
     action: "HOLD",
     when: { all: conditions },
     source: `ring ${ringId}`,

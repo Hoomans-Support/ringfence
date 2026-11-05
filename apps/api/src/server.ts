@@ -213,10 +213,18 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 
     v1.get("/rules", async (req) => listRules(db, req.programId));
 
-    v1.post<{ Body: { rule: Rule; source?: string } }>(
+    v1.post<{ Body: { rule: Rule; source_ring_id: string; source_run_id: string } }>(
       "/rules",
-      { schema: { body: { type: "object", required: ["rule"], properties: { rule: { type: "object" }, source: { type: "string", maxLength: 255 } } } } },
-      async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body.rule, req.body.source)),
+      {
+        schema: {
+          body: {
+            type: "object",
+            required: ["rule", "source_ring_id", "source_run_id"],
+            properties: { rule: { type: "object" }, source_ring_id: { type: "string", minLength: 1, maxLength: 63 }, source_run_id: { type: "string", minLength: 1, maxLength: 100 } },
+          },
+        },
+      },
+      async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body.rule, req.body.source_ring_id, req.body.source_run_id)),
     );
 
     v1.post<{ Params: { id: string }; Body: { approved_by: string; acknowledge_flags?: boolean } }>(
@@ -259,12 +267,19 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 async function main(): Promise<void> {
   const { db, paypal } = await boot();
   if (process.env.RINGFENCE_API_KEY) {
+    // Issue #6: the demo program's week 1 ring is seeded to come out R-12 and its learned rule
+    // R-07, so the hosted app, the chaos run and the README all tell the same story. Only takes
+    // effect when the program is first created (ensureProgram) — a real program left unset starts
+    // at 1 for both, as it always has.
+    const startRing = process.env.RINGFENCE_PROGRAM_START_RING ? Number(process.env.RINGFENCE_PROGRAM_START_RING) : undefined;
+    const startRule = process.env.RINGFENCE_PROGRAM_START_RULE ? Number(process.env.RINGFENCE_PROGRAM_START_RULE) : undefined;
     await ensureProgram(
       db,
       process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp",
       process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app",
       process.env.RINGFENCE_API_KEY,
       process.env.RINGFENCE_MCP_KEY,
+      { startRing, startRule },
     );
   } else {
     console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");

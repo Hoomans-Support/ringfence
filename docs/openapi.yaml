@@ -536,7 +536,7 @@ components:
         decision: { $ref: "#/components/schemas/Decision" }
         state:
           type: string
-          enum: [held, blocked, queued, sent, paid, unclaimed, returned, failed]
+          enum: [held, blocked, queued, sent, succeeded, unclaimed, returned, failed]
         ring_id: { type: string, description: "Set only for communities of 3+" }
         hold_group_id: { type: string, description: "Set for any held group, ring or pair" }
         reasons: { type: array, items: { type: string } }
@@ -545,7 +545,7 @@ components:
     RunSummary:
       type: object
       properties:
-        paid: { type: integer }
+        paid: { type: integer, description: "Sent on time in this run. Says nothing about whether PayPal's outcome for it is succeeded, unclaimed, returned or failed — see ItemDecision.state." }
         held: { type: integer }
         blocked: { type: integer }
         paid_usd: { type: number }
@@ -693,10 +693,16 @@ components:
 
     ProposeRuleRequest:
       type: object
-      required: [rule]
+      required: [rule, source_ring_id, source_run_id]
       properties:
-        rule: { $ref: "#/components/schemas/Rule" }
-        source: { type: string, maxLength: 255 }
+        rule:
+          allOf: [{ $ref: "#/components/schemas/Rule" }]
+          description: >
+            `rule.id` is only a lookup key: naming one of this program's existing rules makes this a
+            new version of it, otherwise Ringfence assigns a fresh id from its own counter and the
+            submitted id is ignored (issue #3).
+        source_ring_id: { type: string, minLength: 1, maxLength: 63, example: R-12 }
+        source_run_id: { type: string, minLength: 1, maxLength: 100, example: run_2026w45 }
 
     ApproveRuleRequest:
       type: object
@@ -731,7 +737,9 @@ components:
         rule_id: { type: string }
         version: { type: integer }
         body: { $ref: "#/components/schemas/Rule" }
-        source: { type: string, nullable: true }
+        source: { type: string, nullable: true, description: "Legacy free text, derived from source_ring_id/source_run_id." }
+        source_ring_id: { type: string, nullable: true }
+        source_run_id: { type: string, nullable: true }
         status: { type: string, enum: [proposed, approved] }
         backtest: { type: object, nullable: true, allOf: [{ $ref: "#/components/schemas/BacktestResult" }] }
         red_team: { type: object, nullable: true, allOf: [{ $ref: "#/components/schemas/RedTeamResult" }] }

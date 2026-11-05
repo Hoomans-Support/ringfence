@@ -5,15 +5,15 @@
  */
 import type { ItemStatus } from "@ringfence/paypal";
 
-export type ItemState = "held" | "blocked" | "queued" | "sent" | "paid" | "unclaimed" | "returned" | "failed";
+export type ItemState = "held" | "blocked" | "queued" | "sent" | "succeeded" | "unclaimed" | "returned" | "failed";
 
 const NEXT: Record<ItemState, ItemState[]> = {
   held: ["queued", "blocked"], // released into a batch of its own, or confirmed as fraud
   blocked: [],
   queued: ["sent"],
-  sent: ["paid", "unclaimed", "returned", "failed"],
-  unclaimed: ["paid", "returned", "failed"], // claimed, cancelled/expired, or failed
-  paid: ["failed"], // refunded or reversed after the fact
+  sent: ["succeeded", "unclaimed", "returned", "failed"],
+  unclaimed: ["succeeded", "returned", "failed"], // claimed, cancelled/expired, or failed
+  succeeded: ["failed"], // refunded or reversed after the fact
   returned: [],
   failed: [],
 };
@@ -27,7 +27,7 @@ export function movableFrom(to: ItemState): ItemState[] {
 export function stateForPayPal(status: ItemStatus): ItemState {
   switch (status) {
     case "SUCCESS":
-      return "paid";
+      return "succeeded";
     case "UNCLAIMED":
       return "unclaimed";
     case "RETURNED":

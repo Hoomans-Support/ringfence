@@ -60,11 +60,11 @@ const STEPS: Record<string, (db: Db, paypal: ReturnType<typeof createRealClient>
     return `${release.released.length} roommates in ${release.sender_batch_id}; ${await drainOutbox(db, paypal)} outbox event(s) sent`;
   },
   async "confirm-ring"(db, paypal) {
-    const confirmed = await confirmRing(db, PROGRAM, "R-01", { run_id: "run_2026w45", confirmed_by: "rina@budgetapp.test" });
-    return `ring R-01: ${confirmed.blocked} newly blocked, ${confirmed.cancels_queued} cancels queued; ${await drainOutbox(db, paypal)} outbox event(s) done`;
+    const confirmed = await confirmRing(db, PROGRAM, "R-12", { run_id: "run_2026w45", confirmed_by: "rina@budgetapp.test" });
+    return `ring R-12: ${confirmed.blocked} newly blocked, ${confirmed.cancels_queued} cancels queued; ${await drainOutbox(db, paypal)} outbox event(s) done`;
   },
   async "learn-r07"(db) {
-    const proposed = await proposeRule(db, PROGRAM, R07, "ring R-12, confirmed 2026-11-02");
+    const proposed = await proposeRule(db, PROGRAM, R07, "R-12", "run_2026w45");
     await approveRule(db, PROGRAM, "R-07", "rina@budgetapp.test", true);
     return `R-07 v${proposed.version} approved (backtest ${proposed.backtest.caught} caught, red team ${proposed.red_team.caught}/200)`;
   },
@@ -112,7 +112,7 @@ async function parent(): Promise<void> {
   const db = await connect(DATABASE_URL);
   await db.exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
   await migrate(db);
-  await ensureProgram(db, PROGRAM, "Budgeting app", "chaos-key");
+  await ensureProgram(db, PROGRAM, "Budgeting app", "chaos-key", undefined, { startRing: 12, startRule: 7 });
 
   // The sandbox as observed: duplicates refused without naming the original, batches processed on
   // their own whether or not anyone polls them.
@@ -197,7 +197,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ),
   );
   if (items.length === 0) throw new Error("the audit read no items: it must be scoped to the program (row-level security)");
-  const shouldBePaid = items.filter((i) => ["sent", "paid", "unclaimed", "returned", "failed"].includes(i.state));
+  const shouldBePaid = items.filter((i) => ["sent", "succeeded", "unclaimed", "returned", "failed"].includes(i.state));
   const missing = shouldBePaid.filter((i) => (perRunItem.get(`${i.run_id}/${i.sender_item_id}`) ?? 0) !== 1).length;
   const leakedHolds = items.filter((i) => ["held", "blocked"].includes(i.state) && perRunItem.has(`${i.run_id}/${i.sender_item_id}`)).length;
   const cancelEvents = mock.events.filter((e) => e.event_type === "PAYMENT.PAYOUTS-ITEM.CANCELED");
@@ -215,7 +215,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ["PayPal batches Ringfence doesn't know", unknownBatches],
     ["cancels at PayPal / items returned", `${cancelEvents.length} / ${returned.length} ($${returned.reduce((s, i) => s + Number(i.amount_value), 0)})`],
     ["reconciler gaps", report.gaps.length],
-    ["paid / unclaimed / held / blocked", `${count("paid")} / ${count("unclaimed")} / ${count("held")} / ${count("blocked")}`],
+    ["succeeded / unclaimed / held / blocked", `${count("succeeded")} / ${count("unclaimed")} / ${count("held")} / ${count("blocked")}`],
   ];
   for (const [k, v] of rows) say(`  ${k.padEnd(46)}${v}`);
   const ok = duplicates === 0 && missing === 0 && leakedHolds === 0 && unknownBatches === 0 && cancelEvents.length === returned.length && report.gaps.length === 0;

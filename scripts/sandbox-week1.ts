@@ -18,7 +18,7 @@ process.loadEnvFile(".env");
 const paypal = createPayPalClient({ ...process.env, PAYPAL_MODE: "sandbox" });
 const db = await connect(process.env.DATABASE_URL);
 await migrate(db);
-await ensureProgram(db, "budgetapp", "Budgeting app", "verify-key");
+await ensureProgram(db, "budgetapp", "Budgeting app", "verify-key", undefined, { startRing: 12, startRule: 7 });
 const app = buildApp({ db, paypal });
 const auth = { authorization: "Bearer verify-key" };
 const states = async () =>
@@ -46,8 +46,8 @@ console.log("2. after polling:", await states());
 const release = await app.inject({ method: "POST", url: "/v1/holds/release", headers: auth, payload: { run_id: runId, hold_group_id: "P-01", released_by: "rina@budgetapp.test" } });
 console.log(`3. release P-01 -> ${release.statusCode}`, release.json());
 
-const confirm = await app.inject({ method: "POST", url: "/v1/rings/R-01/confirm", headers: auth, payload: { run_id: runId } });
-console.log(`4. confirm R-01 -> ${confirm.statusCode}`, confirm.json());
+const confirm = await app.inject({ method: "POST", url: "/v1/rings/R-12/confirm", headers: auth, payload: { run_id: runId } });
+console.log(`4. confirm R-12 -> ${confirm.statusCode}`, confirm.json());
 
 for (let i = 0; i < 40; i++) {
   await pollBatches(db, paypal);

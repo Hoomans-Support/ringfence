@@ -58,7 +58,7 @@ describe("MCP server", () => {
     expect(screened.body.decisions.map(comparable).sort(byId)).toEqual(run.decisions.map(comparable).sort(byId));
   });
 
-  it("stays in step with the API after the program learns: week 2 is held by R-07 both ways", async () => {
+  it("stays in step with the API after the program learns: week 2 is held by the learned rule both ways", async () => {
     const { app, call } = await agentConnected();
     const post = (url: string, payload: unknown) => app.inject({ method: "POST", url, headers: auth, payload: payload as object });
     await post("/v1/payout-runs", week1);
@@ -68,13 +68,14 @@ describe("MCP server", () => {
       { signal: "onboarding_seconds", max: 120 },
       { signal: "activity_after_onboarding", max: 0 },
     ] } };
-    await post("/v1/rules", { rule });
-    await post("/v1/rules/R-07/approve", { approved_by: "rina@budgetapp.test", acknowledge_flags: true });
+    // budgetapp isn't seeded with a starting rule number, so this mints R-01, not R07's literal id.
+    await post("/v1/rules", { rule, source_ring_id: "R-01", source_run_id: "run_2026w45" });
+    await post("/v1/rules/R-01/approve", { approved_by: "rina@budgetapp.test", acknowledge_flags: true });
 
     const week2 = fixture("week2");
     const screened = await call("screen_payees", { payees: week2.items });
     const run = (await post("/v1/payout-runs", week2)).json();
-    expect(screened.body.rule_set_version).toBe("starter-1+R-07v1");
+    expect(screened.body.rule_set_version).toBe("starter-1+R-01v1");
     expect(screened.body.summary).toEqual({ pay: 419, hold: 18, block: 0 });
     expect(screened.body.decisions.map(comparable).sort(byId)).toEqual(run.decisions.map(comparable).sort(byId));
   });

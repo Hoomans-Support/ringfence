@@ -75,6 +75,8 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 | `POST /v1/webhooks/paypal` | PayPal webhooks, signature-verified before they change anything |
 | `POST /mcp` | The MCP server for AI agents: `screen_payees` and `explain_ring`, both read-only |
 
+A run's summary `paid` count means "sent on time in this run" — it's set the moment Ringfence lets a payee through, before PayPal settles anything. What PayPal actually did with a sent payout is the separate per-item `state`: `succeeded`, `unclaimed`, `returned` or `failed`. A payout can be "paid" (sent on time) and still `unclaimed` — the summary says nothing about whether the money was collected.
+
 An agent that pays people screens its payees over MCP before sending the run through the API, with the program's read-only `RINGFENCE_MCP_KEY` (refused by every route that moves money). For example, in Claude Code:
 
 ```bash

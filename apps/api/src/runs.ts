@@ -8,7 +8,7 @@
  * time, without deciding or sending anything again.
  */
 import { evaluateRules, normalizeEmail, type Decision, type PayoutItem, type PayoutRun, type RuleRunResult } from "@ringfence/engine";
-import { ApiError, audit, sha256, withProgram, type Db, type Queryable } from "./db";
+import { ApiError, audit, peekNumbers, reserveNumbers, sha256, withProgram, type Db, type NumberOffsets, type Queryable } from "./db";
 import { chaos } from "./executor";
 import { loadRuleContext } from "./learning";
 import { matchNetwork } from "./network";
@@ -87,7 +87,7 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
       let version = "imported";
       let decide = (_item: PayoutItem): ItemRow => ({ decision: "PAY", ring_id: null, hold_group_id: null, reasons: [], rules: ["import"], state: "sent", batch_id: runId });
       if (!importedBatchId) {
-        const result = await decideRun(q, programId, run);
+        const result = await decideRun(q, programId, run, (counts) => reserveNumbers(q, programId, counts));
         const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
         version = result.rule_set_version;
         decide = (item) => {
@@ -150,15 +150,26 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
 
 /** The one decision step: the run, under this program's approved rules, confirmed-fraud list and
  *  the ring network (FR-19). POST /v1/payout-runs and the MCP screen both come through here, so
- *  they can't disagree. */
-async function decideRun(q: Queryable, programId: string, run: PayoutRun): Promise<RuleRunResult> {
+ *  they can't disagree.
+ *
+ *  Ring and pair ids are a program's permanent numbering (issue #2): how many a run will produce
+ *  can only be known by scoring it, so this scores once to count them, reserves exactly that many
+ *  numbers (via `reserve` — advancing the program's counters for a real run, or only peeking for a
+ *  screen), then re-scores with the real starting offsets. Skipped when the offsets are already
+ *  `{1, 1}` (an unconfigured program, or its first-ever run): the first pass is already correct. */
+async function decideRun(q: Queryable, programId: string, run: PayoutRun, reserve: (counts: { rings: number; pairs: number }) => Promise<NumberOffsets>): Promise<RuleRunResult> {
   const { rules, ctx, version } = await loadRuleContext(q, programId);
   const networkMatch = await matchNetwork(
     q,
     run.items.map((i) => i.context.device_hash),
     run.items.map((i) => normalizeEmail(i.receiver).email),
   );
-  return evaluateRules(run, rules, { ...ctx, networkMatch }, version);
+  const fullCtx = { ...ctx, networkMatch };
+  const probe = evaluateRules(run, rules, fullCtx, version);
+  const pairs = new Set(probe.decisions.map((d) => d.hold_group_id).filter((id): id is string => /^P-\d+$/.test(id ?? ""))).size;
+  const { startRing, startPair } = await reserve({ rings: probe.rings.length, pairs });
+  if (startRing === 1 && startPair === 1) return probe;
+  return evaluateRules(run, rules, fullCtx, version, { startRing, startPair });
 }
 
 export interface ScreenResult {
@@ -172,7 +183,7 @@ export async function screenRun(db: Db, programId: string, body: RunRequest): Pr
   if (new Set(body.items.map((i) => i.sender_item_id)).size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
   const receivedAt = new Date().toISOString();
   const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
-  const result = await withProgram(db, programId, (q) => decideRun(q, programId, run));
+  const result = await withProgram(db, programId, (q) => decideRun(q, programId, run, () => peekNumbers(q, programId)));
   const count = (d: Decision) => result.decisions.filter((x) => x.decision === d).length;
   return {
     rule_set_version: result.rule_set_version,
