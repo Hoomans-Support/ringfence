@@ -9,7 +9,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type { PayPalClient } from "@ringfence/paypal";
 import { boot } from "./boot";
 import { startWorkerLoop } from "./loop";
-import { ApiError, ensureProgram, programForKey, type Db } from "./db";
+import { ApiError, bypassesRowLevelSecurity, describeNumbering, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
 import { recordEvent, scorePending, type SignupEvent } from "./events";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
@@ -282,7 +282,11 @@ export async function ensureProgramFromEnv(db: Db, env: NodeJS.ProcessEnv = proc
 
 async function main(): Promise<void> {
   const { db, paypal } = await boot();
-  if (!(await ensureProgramFromEnv(db))) console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
+  if (await ensureProgramFromEnv(db)) console.log(await describeNumbering(db, process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp"));
+  else console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
+  if (await bypassesRowLevelSecurity(db)) {
+    console.warn("database role bypasses row-level security: tenant isolation rests on each query's program filter alone");
+  }
   const app = buildApp({ db, paypal });
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
   // The worker's loop in this process, instead of a separate worker service (render.yaml).
