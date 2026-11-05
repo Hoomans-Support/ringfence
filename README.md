@@ -10,8 +10,6 @@ _Temporary project overview; fuller setup and demo instructions will be added as
 
 ## How this was built
 
-Built during the hackathon's submission period from a PRD (Ringfence v5, 3 Nov 2026) covering scope, requirements and demo data. Two engineers split the work: one on PayPal plumbing, the rule engine, and the Render deploy; the other, Claude-assisted, on the detection engine, demo data, the console, and the agents (investigator, claim checker, red-team agent).
-
 ### Review queue
 
 387 members were paid on time. 25 payouts are on hold — 23 of them one ring, 2 a roommate pair. Every held item says why.
