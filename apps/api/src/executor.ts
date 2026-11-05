@@ -163,7 +163,7 @@ async function cancelPayout(db: Db, paypal: PayPalClient, event: OutboxEvent, us
  * the next pass sends it. Always safe to retry: PayPal refuses a sender_batch_id it already has.
  */
 export async function requeueFailedSends(db: Db): Promise<number> {
-  const rows = await db.query("UPDATE outbox SET status = 'pending', attempts = 0, locked_until = NULL WHERE kind = 'create_batch' AND status = 'failed' RETURNING 1");
+  const rows = await db.query("UPDATE outbox SET status = 'pending', attempts = 0, locked_until = NULL, last_error = NULL WHERE kind = 'create_batch' AND status = 'failed' RETURNING 1");
   return rows.length;
 }
 
