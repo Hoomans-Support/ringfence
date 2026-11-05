@@ -1,0 +1,9 @@
+{
+  "name": "ringfence",
+  "version": "0.1.0",
+  "description": "Integrate and consume the APIMatic-generated Ringfence API SDK — bundled skills for C#/.NET, Python, TypeScript.",
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Ringfence"
+  }
+}

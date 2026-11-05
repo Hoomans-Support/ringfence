@@ -1,0 +1,784 @@
+openapi: 3.0.3
+info:
+  title: Ringfence API
+  version: 0.0.1
+  description: >
+    A drop-in for PayPal Payouts: accepts PayPal's own Payouts request body plus optional
+    per-payee context, decides every payee (PAY, HOLD or BLOCK), and sends the paid ones to
+    PayPal as one batch, exactly once. Every `/v1` route takes a program's API key as a bearer
+    token; a program's read-only MCP key may only call `GET` routes and `POST /v1/screen`.
+
+    This spec covers the REST surface only. `POST /mcp` (the MCP server for AI agents —
+    `screen_payees`, `explain_ring`) speaks the Model Context Protocol's own Streamable HTTP
+    transport, not plain REST/JSON, and isn't represented here.
+  license:
+    name: Hackathon prototype, not for production use
+servers:
+  - url: http://localhost:3000
+    description: Local (PGlite in memory, mock PayPal by default)
+  - url: https://{host}
+    description: A deployed instance (see README's "Deploying to Render")
+    variables:
+      host:
+        default: your-api-host.onrender.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: runs
+    description: Decide and send a payout run
+  - name: holds
+    description: Release a held payee, or confirm a ring as fraud
+  - name: rules
+    description: Propose, backtest, red-team and approve learned rules
+  - name: events
+    description: Sign-up and referral events reported ahead of payday (FR-21, stretch)
+  - name: webhooks
+    description: PayPal webhook delivery and its own verified-events log
+  - name: system
+    description: Liveness and health
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: health
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  /v1/payout-runs:
+    post:
+      tags: [runs]
+      operationId: submitPayoutRun
+      summary: Decide a run and send the paid payees to PayPal as one batch
+      description: >
+        Resending a run with the same `sender_batch_id` is a no-op: it returns what was decided
+        the first time without deciding or sending anything again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunRequest" }
+      responses:
+        "200":
+          description: This run's `sender_batch_id` was already recorded; nothing new happened.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "201":
+          description: Created and sent to PayPal within this request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "202":
+          description: Created, but sending it failed inline; the worker will retry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/payout-runs/import:
+    post:
+      tags: [runs]
+      operationId: importPayoutRun
+      summary: Record a run already paid straight through PayPal, so it's tracked and cancellable
+      description: Nothing is decided and nothing is sent; every item is recorded as already `sent`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportRunRequest" }
+      responses:
+        "200":
+          description: Already recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "201":
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/payout-runs/{id}:
+    get:
+      tags: [runs]
+      operationId: getPayoutRun
+      summary: Read a run's decisions and PayPal batch status
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/screen:
+    post:
+      tags: [runs]
+      operationId: screenPayees
+      summary: The decisions a run would get right now, with nothing stored or sent
+      description: >
+        The same decision function `POST /v1/payout-runs` uses, so an AI agent that screens a
+        list before paying it can't disagree with the real API. Available to the read-only MCP
+        key as well as the full key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/holds/release:
+    post:
+      tags: [holds]
+      operationId: releaseHolds
+      summary: Pay held payees in a batch of their own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseRequest" }
+      responses:
+        "200":
+          description: This release was already recorded; its batch is returned unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseResponse" }
+        "201":
+          description: Released and sent to PayPal within this request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseResponse" }
+        "202":
+          description: Released, but sending it failed inline; the worker will retry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/rings/{id}:
+    get:
+      tags: [holds]
+      operationId: explainRing
+      summary: A held ring's reasons and checked case file
+      parameters:
+        - $ref: "#/components/parameters/RingId"
+        - name: run_id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RingExplanation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/rings/{id}/confirm:
+    post:
+      tags: [holds]
+      operationId: confirmRing
+      summary: Block a ring, remember its devices and addresses, cancel its earlier unclaimed payouts
+      description: >
+        The ring's devices and payout addresses also join this deployment's ring network as
+        one-way keyed hashes (FR-19), so another program can hold — never block — a repeat on
+        first sight, without ever seeing this program's raw data.
+      parameters:
+        - $ref: "#/components/parameters/RingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConfirmRingRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfirmRingResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/rules:
+    get:
+      tags: [rules]
+      operationId: listRules
+      summary: List every proposed and approved learned rule
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoredRule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [rules]
+      operationId: proposeRule
+      summary: Propose a rule (backtested and red-teamed on the way in)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposeRuleRequest" }
+      responses:
+        "201":
+          description: Proposed. `flags` is non-empty when it needs a deliberate second look before approval.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoredRule" }
+        "400":
+          description: Fails the schema check (`validateRule`) — e.g. a PAY action, an unknown signal, or an empty condition list.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/rules/{id}/approve:
+    post:
+      tags: [rules]
+      operationId: approveRule
+      summary: Approve the latest proposed version of a rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: A rule id, e.g. `R-07`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveRuleRequest" }
+      responses:
+        "200":
+          description: Approved (or already was).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoredRule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Flagged and `acknowledge_flags` wasn't set.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/events:
+    post:
+      tags: [events]
+      operationId: recordEvent
+      summary: Report a sign-up or referral event ahead of any payout run (FR-21, stretch)
+      description: >
+        Merges into whatever this `account_id` already has rather than replacing it — a referral
+        touch can arrive before the account's payout email is known. IP prefixes are hashed
+        before storage, the same privacy guarantee a real run gets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupEvent" }
+      responses:
+        "202":
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Acknowledged" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/events/at-risk:
+    get:
+      tags: [events]
+      operationId: getAtRiskAccounts
+      summary: Score every pending (not yet paid) account with the same graph engine a real run uses
+      description: >
+        Only `disposable_email` and the graph's own link signals (shared device/address, alias
+        pattern, IP neighborhood) can fire pre-payday — timing-based risk flags need data that
+        isn't known until closer to payday.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtRiskResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/webhooks/paypal:
+    post:
+      tags: [webhooks]
+      operationId: receivePaypalWebhook
+      summary: PayPal webhook delivery, signature-verified before anything changes
+      security: []
+      description: No API key — PayPal's own signature on the request is the authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200":
+          description: Verified (applied, or a recognized redelivery).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookAck" }
+        "400":
+          description: Signature did not verify.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookRejected" }
+
+  /v1/webhooks/events:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookEvents
+      summary: The last 20 verified webhook events
+      description: Guarded by a separate admin bearer token (`ADMIN_TOKEN`), not a program's API key. Answers 404 if no admin token is configured.
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WebhookEventLogEntry" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A program's full API key, or its read-only MCP key for `GET` routes and `POST /v1/screen`.
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      description: The deployment's `ADMIN_TOKEN`, unrelated to any program's key.
+
+  parameters:
+    RunId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: A run's `sender_batch_id`
+    RingId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: A ring id (e.g. `R-01`), or any other hold group id (e.g. a learned rule's `R-07`, or a pair's `P-01`)
+
+  responses:
+    BadRequest:
+      description: Failed request validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflicts with the current state (e.g. nothing is on hold, or a `sender_batch_id` is already in use)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or unknown API key
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+
+    Acknowledged:
+      type: object
+      properties:
+        ok: { type: boolean }
+
+    HealthStatus:
+      type: object
+      properties:
+        ok: { type: boolean }
+        sandbox: { type: boolean }
+
+    WebhookAck:
+      type: object
+      properties:
+        ok: { type: boolean }
+        outcome: { type: string }
+
+    WebhookRejected:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [false] }
+        outcome: { type: string, enum: [unverified] }
+
+    WebhookEventLogEntry:
+      type: object
+      properties:
+        event_id: { type: string }
+        event_type: { type: string }
+        payout_batch_id: { type: string, nullable: true }
+        transaction_status: { type: string, nullable: true }
+        applied: { type: boolean }
+        received_at: { type: string, format: date-time }
+
+    Money:
+      type: object
+      required: [value, currency]
+      properties:
+        value: { type: string, pattern: '^\d{1,10}(\.\d{1,2})?$', example: "20.00" }
+        currency: { type: string, pattern: "^[A-Z]{3}$", example: USD }
+
+    PayoutItemContext:
+      type: object
+      description: Ringfence's addition to PayPal's own Payouts item; stripped before the batch goes to PayPal.
+      properties:
+        account_id: { type: string, maxLength: 128 }
+        signup_at: { type: string, format: date-time }
+        device_hash: { type: string, maxLength: 128 }
+        ip_prefix: { type: string, maxLength: 64, example: 10.4.2.0/24 }
+        referrer_id: { type: string, maxLength: 128 }
+        answer: { type: string, maxLength: 2000 }
+        onboarding_seconds:
+          type: number
+          minimum: 0
+          description: Seconds from signup to finishing onboarding. <=120 is the "speed" risk flag.
+        activity_after_onboarding:
+          type: integer
+          minimum: 0
+          description: Count of actions after onboarding finished. 0 is the "quiet" risk flag.
+
+    PayoutItemRequest:
+      type: object
+      required: [recipient_type, receiver, amount, sender_item_id]
+      properties:
+        recipient_type: { type: string, enum: [EMAIL] }
+        receiver: { type: string, maxLength: 127, format: email }
+        amount: { $ref: "#/components/schemas/Money" }
+        sender_item_id: { type: string, minLength: 1, maxLength: 63 }
+        context: { $ref: "#/components/schemas/PayoutItemContext" }
+
+    SenderBatchHeader:
+      type: object
+      required: [sender_batch_id]
+      properties:
+        sender_batch_id: { type: string, minLength: 1, maxLength: 100, pattern: '^[A-Za-z0-9_.:-]+$' }
+        email_subject: { type: string, maxLength: 255 }
+
+    RunRequest:
+      type: object
+      required: [sender_batch_header, items]
+      properties:
+        sender_batch_header: { $ref: "#/components/schemas/SenderBatchHeader" }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 15000
+          items: { $ref: "#/components/schemas/PayoutItemRequest" }
+
+    ImportedBatchId:
+      type: object
+      required: [payout_batch_id]
+      properties:
+        payout_batch_id: { type: string, minLength: 1, maxLength: 64 }
+
+    ImportRunRequest:
+      allOf:
+        - { $ref: "#/components/schemas/RunRequest" }
+        - { $ref: "#/components/schemas/ImportedBatchId" }
+
+    Decision:
+      type: string
+      enum: [PAY, HOLD, BLOCK]
+
+    ItemDecision:
+      type: object
+      properties:
+        sender_item_id: { type: string }
+        decision: { $ref: "#/components/schemas/Decision" }
+        state:
+          type: string
+          enum: [held, blocked, queued, sent, paid, unclaimed, returned, failed]
+        ring_id: { type: string, description: "Set only for communities of 3+" }
+        hold_group_id: { type: string, description: "Set for any held group, ring or pair" }
+        reasons: { type: array, items: { type: string } }
+        rules: { type: array, items: { type: string } }
+
+    RunSummary:
+      type: object
+      properties:
+        paid: { type: integer }
+        held: { type: integer }
+        blocked: { type: integer }
+        paid_usd: { type: number }
+        held_usd: { type: number }
+        blocked_usd: { type: number }
+
+    PaypalBatchStatus:
+      type: object
+      properties:
+        sender_batch_id: { type: string, nullable: true }
+        payout_batch_id: { type: string, nullable: true }
+        batch_status:
+          type: string
+          nullable: true
+          description: PayPal's own status once sent; QUEUED or NOT_SENT before that.
+        error: { type: string, description: "PayPal's last refusal (e.g. INSUFFICIENT_FUNDS) while unsent" }
+
+    RunResponse:
+      type: object
+      properties:
+        run_id: { type: string }
+        rule_set_version: { type: string }
+        summary: { $ref: "#/components/schemas/RunSummary" }
+        paypal: { $ref: "#/components/schemas/PaypalBatchStatus" }
+        decisions:
+          type: array
+          items: { $ref: "#/components/schemas/ItemDecision" }
+
+    ScreenSummary:
+      type: object
+      properties:
+        pay: { type: integer }
+        hold: { type: integer }
+        block: { type: integer }
+
+    ScreenResult:
+      type: object
+      properties:
+        rule_set_version: { type: string }
+        summary: { $ref: "#/components/schemas/ScreenSummary" }
+        decisions:
+          type: array
+          items: { $ref: "#/components/schemas/ItemDecision" }
+
+    ReleaseRequest:
+      type: object
+      required: [run_id]
+      description: Give `sender_item_ids`, `hold_group_id`, or both.
+      properties:
+        run_id: { type: string, minLength: 1 }
+        sender_item_ids: { type: array, maxItems: 15000, items: { type: string, maxLength: 63 } }
+        hold_group_id: { type: string, maxLength: 63 }
+        released_by: { type: string, maxLength: 255 }
+
+    ReleaseResponse:
+      type: object
+      properties:
+        sender_batch_id: { type: string }
+        released: { type: array, items: { type: string } }
+        created: { type: boolean }
+        payout_batch_id: { type: string, nullable: true }
+        batch_status: { type: string, nullable: true }
+
+    ConfirmRingRequest:
+      type: object
+      required: [run_id]
+      properties:
+        run_id: { type: string }
+        confirmed_by: { type: string, maxLength: 255 }
+
+    ConfirmRingResponse:
+      type: object
+      properties:
+        ring_id: { type: string }
+        blocked: { type: integer }
+        devices: { type: integer }
+        payout_addresses: { type: integer }
+        cancels_queued: { type: integer }
+        cancel_usd: { type: number }
+
+    RingMember:
+      type: object
+      properties:
+        sender_item_id: { type: string }
+        payee: { type: string, description: "Masked, never the real address" }
+        state: { type: string }
+
+    Claim:
+      type: object
+      properties:
+        text: { type: string }
+        evidence: { type: object }
+
+    CaseFile:
+      type: object
+      properties:
+        claims_checked: { type: string, example: "14 of 14" }
+        claims:
+          type: array
+          items: { $ref: "#/components/schemas/Claim" }
+
+    RingExplanation:
+      type: object
+      properties:
+        ring_id: { type: string }
+        run_id: { type: string }
+        size: { type: integer }
+        reasons: { type: array, items: { type: string } }
+        rules: { type: array, items: { type: string } }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/RingMember" }
+        case_file: { $ref: "#/components/schemas/CaseFile" }
+
+    RuleCondition:
+      type: object
+      required: [signal]
+      properties:
+        signal:
+          type: string
+          enum: [signup_burst, onboarding_seconds, activity_after_onboarding, disposable_email, graph_community, known_fraud]
+          description: >
+            `network_match` also exists but is a fixed starter signal (S-03) only, never proposable
+            — a proposed rule naming it fails the schema check as an unknown signal.
+        same: { type: string, enum: [referrer] }
+        window_min: { type: number }
+        min_accounts: { type: number }
+        max: { type: number }
+        min: { type: number }
+
+    RuleWhen:
+      type: object
+      required: [all]
+      properties:
+        all: { type: array, minItems: 1, items: { $ref: "#/components/schemas/RuleCondition" } }
+
+    Rule:
+      type: object
+      required: [id, action, when]
+      properties:
+        id: { type: string, pattern: '^[A-Z]-\d{2,}$', example: R-07 }
+        action: { type: string, enum: [HOLD, BLOCK] }
+        when: { $ref: "#/components/schemas/RuleWhen" }
+        source: { type: string }
+
+    ProposeRuleRequest:
+      type: object
+      required: [rule]
+      properties:
+        rule: { $ref: "#/components/schemas/Rule" }
+        source: { type: string, maxLength: 255 }
+
+    ApproveRuleRequest:
+      type: object
+      required: [approved_by]
+      properties:
+        approved_by: { type: string, minLength: 1, maxLength: 255 }
+        acknowledge_flags:
+          type: boolean
+          description: Required (true) to approve a rule that holds more than 5% of any past run.
+
+    BacktestResult:
+      type: object
+      properties:
+        weeks: { type: integer }
+        caught: { type: integer }
+        usd: { type: number }
+        false_holds: { type: integer }
+
+    RedTeamResult:
+      type: object
+      description: 200 disguised copies of the ring this rule came from, 50 of them held out.
+      properties:
+        variants: { type: integer }
+        caught: { type: integer }
+        held_out: { type: integer }
+        held_out_caught: { type: integer }
+        misses: { type: array, items: { type: string } }
+
+    StoredRule:
+      type: object
+      properties:
+        rule_id: { type: string }
+        version: { type: integer }
+        body: { $ref: "#/components/schemas/Rule" }
+        source: { type: string, nullable: true }
+        status: { type: string, enum: [proposed, approved] }
+        backtest: { type: object, nullable: true, allOf: [{ $ref: "#/components/schemas/BacktestResult" }] }
+        red_team: { type: object, nullable: true, allOf: [{ $ref: "#/components/schemas/RedTeamResult" }] }
+        flags:
+          type: array
+          items: { type: string }
+          description: 'e.g. "holds_over_5_percent" — needs `acknowledge_flags` to approve.'
+        approved_by: { type: string, nullable: true }
+        approved_at: { type: string, format: date-time, nullable: true }
+
+    SignupEvent:
+      type: object
+      required: [account_id]
+      properties:
+        account_id: { type: string, minLength: 1, maxLength: 128 }
+        receiver: { type: string, maxLength: 127, format: email }
+        signup_at: { type: string, format: date-time }
+        device_hash: { type: string, maxLength: 128 }
+        ip_prefix: { type: string, maxLength: 64 }
+        referrer_id: { type: string, maxLength: 128 }
+        answer: { type: string, maxLength: 2000 }
+        onboarding_seconds: { type: number, minimum: 0 }
+
+    AtRiskRing:
+      type: object
+      properties:
+        ring_id: { type: string }
+        member_sender_item_ids: { type: array, items: { type: string } }
+        size: { type: integer }
+        reasons: { type: array, items: { type: string } }
+        louvain_clusters: { type: integer }
+
+    HeldAccount:
+      type: object
+      properties:
+        account_id: { type: string }
+        ring_id: { type: string }
+        hold_group_id: { type: string }
+        reasons: { type: array, items: { type: string } }
+
+    AtRiskResult:
+      type: object
+      properties:
+        checked: { type: integer }
+        rings:
+          type: array
+          items: { $ref: "#/components/schemas/AtRiskRing" }
+        held:
+          type: array
+          items: { $ref: "#/components/schemas/HeldAccount" }

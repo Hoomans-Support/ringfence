@@ -12,5 +12,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["packages/**/*.ts", "scripts/**/*.ts", "apps/api/**/*.ts"]
+  "include": ["packages/**/*.ts", "scripts/**/*.ts", "apps/api/**/*.ts"],
+  "exclude": ["packages/sdk"]
 }
