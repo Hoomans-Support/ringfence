@@ -6,8 +6,6 @@ Ringfence is a prototype built for the **2026 PayPal AI Hackathon**. It helps a 
 
 The current demo uses seeded, simulated payout data. The rule engine and its `/v1/rules` propose/approve endpoints are real, tested, and live; Week 2's console walk-through presents the learned rule as fixture data for the demo narrative rather than calling the API live.
 
-_Temporary project overview; fuller setup and demo instructions will be added as the build is finalized._
-
 ## How this was built
 
 ### Review queue
