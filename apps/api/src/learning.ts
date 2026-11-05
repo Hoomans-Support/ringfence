@@ -1,6 +1,12 @@
 /**
  * Learned rules (FR-10, FR-11): the agent proposes, code checks, a person approves.
  *
+ * A learned rule's number is Ringfence's, never the proposer's: a new proposal names the ring and
+ * run it was learned from and gets the program's next rule number (whatever id the investigator
+ * suggested is ignored), so a later run's ring can never land on an earlier, unrelated rule. The
+ * only way to name an existing rule is to revise it, which adds a version, as when the red team
+ * forces a fix.
+ *
  * A proposed rule must pass the schema check, and is then backtested over this program's own past
  * runs and attacked by the red team before anyone can approve it — both scores are stored with it,
  * so the rule page can show where it came from and how it held up. A rule that would hold more
@@ -63,11 +69,16 @@ async function labeledPastRuns(q: Queryable, programId: string, ctx: RuleContext
   return labeled;
 }
 
+export interface LearnedFrom {
+  ring_id: string;
+  run_id: string;
+}
+
 export interface StoredRule {
   rule_id: string;
   version: number;
   body: Rule;
-  source: string | null;
+  learned_from: LearnedFrom | null;
   status: "proposed" | "approved";
   backtest: ReturnType<typeof backtest>;
   red_team: ReturnType<typeof attackRule>;
@@ -76,13 +87,44 @@ export interface StoredRule {
   approved_at: string | null;
 }
 
-const RULE_COLUMNS = "rule_id, version, body, source, status, backtest, red_team, flags, approved_by, approved_at";
+const RULE_COLUMNS = `rule_id, version, body, status, backtest, red_team, flags, approved_by, approved_at,
+  CASE WHEN learned_from_ring IS NULL THEN NULL ELSE jsonb_build_object('ring_id', learned_from_ring, 'run_id', learned_from_run) END AS learned_from`;
 
-export async function proposeRule(db: Db, programId: string, rule: Rule, source?: string): Promise<StoredRule> {
-  const problems = validateRule(rule);
-  if (problems.length > 0) throw new ApiError(400, `rule fails the schema check: ${problems.join("; ")}`);
+export interface Proposal {
+  rule: Omit<Rule, "id"> & { id?: string };
+  /** A new learned rule: the ring it was learned from, in the run that held it. */
+  learned_from?: LearnedFrom;
+  /** A new version of this existing rule instead of a new rule. */
+  revises?: string;
+}
+
+export async function proposeRule(db: Db, programId: string, proposal: Proposal): Promise<StoredRule> {
+  if (!proposal.learned_from && !proposal.revises) throw new ApiError(400, "a proposal needs learned_from (a new rule) or revises (a new version of a rule)");
 
   return withProgram(db, programId, async (q) => {
+    let ruleId: string;
+    let learnedFrom = proposal.learned_from;
+    if (proposal.revises) {
+      const [latest] = await q.query<StoredRule>(
+        `SELECT ${RULE_COLUMNS} FROM rules WHERE program_id = $1 AND rule_id = $2 ORDER BY version DESC LIMIT 1`,
+        [programId, proposal.revises],
+      );
+      if (!latest) throw new ApiError(404, `no rule ${proposal.revises} to revise`);
+      ruleId = proposal.revises;
+      learnedFrom ??= latest.learned_from ?? undefined;
+    } else {
+      const [number] = await q.query<{ n: number }>("UPDATE programs SET next_rule_number = next_rule_number + 1 WHERE id = $1 RETURNING next_rule_number - 1 AS n", [programId]);
+      ruleId = `R-${String(number?.n ?? 1).padStart(2, "0")}`;
+    }
+    if (learnedFrom) {
+      const [ring] = await q.query("SELECT 1 FROM items WHERE program_id = $1 AND run_id = $2 AND ring_id = $3 LIMIT 1", [programId, learnedFrom.run_id, learnedFrom.ring_id]);
+      if (!ring) throw new ApiError(404, `no ring ${learnedFrom.ring_id} in run ${learnedFrom.run_id}`);
+    }
+
+    const rule: Rule = { ...proposal.rule, id: ruleId, source: learnedFrom ? `ring ${learnedFrom.ring_id} in run ${learnedFrom.run_id}` : proposal.rule.source };
+    const problems = validateRule(rule);
+    if (problems.length > 0) throw new ApiError(400, `rule fails the schema check: ${problems.join("; ")}`);
+
     const { ctx } = await loadRuleContext(q, programId);
     const past = await labeledPastRuns(q, programId, ctx);
     const scores = backtest(rule, past, ctx);
@@ -99,11 +141,22 @@ export async function proposeRule(db: Db, programId: string, rule: Rule, source?
       [programId, rule.id],
     );
     const [stored] = await q.query<StoredRule>(
-      `INSERT INTO rules (program_id, rule_id, version, body, source, backtest, red_team, flags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${RULE_COLUMNS}`,
-      [programId, rule.id, next, JSON.stringify(rule), source ?? rule.source ?? null, JSON.stringify(scores), JSON.stringify(redTeam), JSON.stringify(flags)],
+      `INSERT INTO rules (program_id, rule_id, version, body, source, learned_from_ring, learned_from_run, backtest, red_team, flags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${RULE_COLUMNS}`,
+      [
+        programId,
+        rule.id,
+        next,
+        JSON.stringify(rule),
+        rule.source ?? null,
+        learnedFrom?.ring_id ?? null,
+        learnedFrom?.run_id ?? null,
+        JSON.stringify(scores),
+        JSON.stringify(redTeam),
+        JSON.stringify(flags),
+      ],
     );
-    await audit(q, programId, "api", "rule_proposed", { rule_id: rule.id, version: next, backtest: scores, red_team_caught: redTeam.caught, flags });
+    await audit(q, programId, "api", "rule_proposed", { rule_id: rule.id, version: next, learned_from: learnedFrom ?? null, backtest: scores, red_team_caught: redTeam.caught, flags });
     return stored as StoredRule;
   });
 }

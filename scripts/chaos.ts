@@ -63,10 +63,10 @@ const STEPS: Record<string, (db: Db, paypal: ReturnType<typeof createRealClient>
     const confirmed = await confirmRing(db, PROGRAM, "R-01", { run_id: "run_2026w45", confirmed_by: "rina@budgetapp.test" });
     return `ring R-01: ${confirmed.blocked} newly blocked, ${confirmed.cancels_queued} cancels queued; ${await drainOutbox(db, paypal)} outbox event(s) done`;
   },
-  async "learn-r07"(db) {
-    const proposed = await proposeRule(db, PROGRAM, R07, "ring R-12, confirmed 2026-11-02");
-    await approveRule(db, PROGRAM, "R-07", "rina@budgetapp.test", true);
-    return `R-07 v${proposed.version} approved (backtest ${proposed.backtest.caught} caught, red team ${proposed.red_team.caught}/200)`;
+  async "learn-rule"(db) {
+    const proposed = await proposeRule(db, PROGRAM, { rule: R07, learned_from: { ring_id: "R-01", run_id: "run_2026w45" } });
+    await approveRule(db, PROGRAM, proposed.rule_id, "rina@budgetapp.test", true);
+    return `${proposed.rule_id} v${proposed.version} approved, learned from ring R-01 (backtest ${proposed.backtest.caught} caught, red team ${proposed.red_team.caught}/200)`;
   },
   async "submit-week2"(db, paypal) {
     const { created } = await submitRun(db, PROGRAM, fixture("week2"));
@@ -141,7 +141,7 @@ async function week(db: Db, mock: MockPayPal, paypalUrl: string, url: URL): Prom
     ["release-roommates", "after_claim"],
     ["poll", undefined],
     ["confirm-ring", "after_cancel"],
-    ["learn-r07", undefined],
+    ["learn-rule", undefined],
     ["submit-week2", "after_paypal"],
     ["webhooks", undefined],
     ["poll", undefined],

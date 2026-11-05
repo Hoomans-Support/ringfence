@@ -11,9 +11,8 @@ import { boot } from "./boot";
 import { startWorkerLoop } from "./loop";
 import { ApiError, ensureProgram, programForKey, type Db } from "./db";
 import { drainOutbox } from "./executor";
-import type { Rule } from "@ringfence/engine";
 import { confirmRing, releaseHolds, type ReleaseRequest } from "./holds";
-import { approveRule, listRules, proposeRule } from "./learning";
+import { approveRule, listRules, proposeRule, type Proposal } from "./learning";
 import { explainRing, registerMcp } from "./mcp";
 import { getRun, importPastRun, screenRun, submitRun, type RunRequest } from "./runs";
 import { handleWebhook } from "./sync";
@@ -82,6 +81,22 @@ const importBody = {
   ...runBody,
   required: [...runBody.required, "payout_batch_id"],
   properties: { ...runBody.properties, payout_batch_id: { type: "string", minLength: 1, maxLength: 64 } },
+} as const;
+
+// A rule's id is Ringfence's to give: a proposal says where a new rule was learned from, or which
+// existing rule it revises (learning.ts).
+const proposalBody = {
+  type: "object",
+  required: ["rule"],
+  properties: {
+    rule: { type: "object" },
+    learned_from: {
+      type: "object",
+      required: ["ring_id", "run_id"],
+      properties: { ring_id: { type: "string", pattern: "^R-[0-9]{2,}$" }, run_id: { type: "string", minLength: 1, maxLength: 100 } },
+    },
+    revises: { type: "string", pattern: "^R-[0-9]{2,}$" },
+  },
 } as const;
 
 const releaseBody = {
@@ -190,11 +205,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
 
     v1.get("/rules", async (req) => listRules(db, req.programId));
 
-    v1.post<{ Body: { rule: Rule; source?: string } }>(
-      "/rules",
-      { schema: { body: { type: "object", required: ["rule"], properties: { rule: { type: "object" }, source: { type: "string", maxLength: 255 } } } } },
-      async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body.rule, req.body.source)),
-    );
+    v1.post<{ Body: Proposal }>("/rules", { schema: { body: proposalBody } }, async (req, reply) => reply.code(201).send(await proposeRule(db, req.programId, req.body)));
 
     v1.post<{ Params: { id: string }; Body: { approved_by: string; acknowledge_flags?: boolean } }>(
       "/rules/:id/approve",

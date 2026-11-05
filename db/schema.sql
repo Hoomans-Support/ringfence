@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS programs (
 -- the program's last one (runs.ts, decideRun).
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_ring_number integer NOT NULL DEFAULT 1;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_pair_number integer NOT NULL DEFAULT 1;
+-- Learned rules have their own numbering, assigned by Ringfence, never borrowed from a ring.
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_rule_number integer NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS runs (
   program_id       text NOT NULL REFERENCES programs (id),
@@ -102,6 +104,9 @@ CREATE TABLE IF NOT EXISTS rules (
   created_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (program_id, rule_id, version)
 );
+-- The ring a learned rule was learned from, and the run that ring was held in.
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS learned_from_ring text;
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS learned_from_run text;
 
 -- Devices and normalized payout addresses from rings this program confirmed (starter rule S-02).
 CREATE TABLE IF NOT EXISTS known_fraud (
@@ -150,8 +155,8 @@ BEGIN
   END LOOP;
 END $$;
 
--- Never reuse a number a program already gave out (rings and pairs recorded before the counters
--- existed, which restarted at 1 every run). Items are tenant-scoped, so each program is read under
+-- Never reuse a number a program already gave out (rings, pairs and rules recorded before the
+-- counters existed: rings and pairs restarted at 1 every run, rules took their ring's number). Items are tenant-scoped, so each program is read under
 -- its own app.program_id. A no-op once the counters are ahead, so safe on every boot.
 DO $$
 DECLARE p record;
@@ -160,7 +165,8 @@ BEGIN
     PERFORM set_config('app.program_id', p.id, true);
     UPDATE programs SET
       next_ring_number = GREATEST(next_ring_number, 1 + COALESCE((SELECT max(substring(ring_id FROM 3)::int) FROM items WHERE program_id = p.id AND ring_id ~ '^R-[0-9]+$'), 0)),
-      next_pair_number = GREATEST(next_pair_number, 1 + COALESCE((SELECT max(substring(hold_group_id FROM 3)::int) FROM items WHERE program_id = p.id AND hold_group_id ~ '^P-[0-9]+$'), 0))
+      next_pair_number = GREATEST(next_pair_number, 1 + COALESCE((SELECT max(substring(hold_group_id FROM 3)::int) FROM items WHERE program_id = p.id AND hold_group_id ~ '^P-[0-9]+$'), 0)),
+      next_rule_number = GREATEST(next_rule_number, 1 + COALESCE((SELECT max(substring(rule_id FROM 3)::int) FROM rules WHERE program_id = p.id AND rule_id ~ '^R-[0-9]+$'), 0))
     WHERE id = p.id;
   END LOOP;
   PERFORM set_config('app.program_id', '', true);

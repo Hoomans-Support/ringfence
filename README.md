@@ -58,7 +58,7 @@ The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial pack
 | `POST /v1/payout-runs/import` | Record a run already paid straight through PayPal, so it's tracked and cancellable |
 | `POST /v1/holds/release` | Pay held payees in a batch of their own |
 | `POST /v1/rings/:id/confirm` | Block a ring, remember its devices and addresses, cancel its earlier unclaimed payouts |
-| `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule (backtested and red-teamed on the way in), approve it |
+| `GET /v1/rules`, `POST /v1/rules`, `POST /v1/rules/:id/approve` | Propose a rule learned from a held ring (`learned_from: { ring_id, run_id }`) or a new version of one (`revises`); Ringfence gives it its number and backtests and red-teams it on the way in; approve it |
 | `POST /v1/screen`, `GET /v1/rings/:id?run_id=` | The decisions a run would get, with nothing stored or sent; a held ring's checked case file |
 | `POST /v1/webhooks/paypal` | PayPal webhooks, signature-verified before they change anything |
 | `POST /mcp` | The MCP server for AI agents: `screen_payees` and `explain_ring`, both read-only |
