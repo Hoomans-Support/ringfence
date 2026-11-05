@@ -44,6 +44,9 @@ export interface RuleDecision extends ItemDecision {
 export interface RuleContext {
   /** Devices and normalized payout addresses from rings confirmed in this program (S-02). */
   knownFraud?: { devices: Iterable<string>; payoutAddresses: Iterable<string> };
+  /** Where this run's ring and pair numbering starts (see ScoreRunContext). */
+  firstRingNumber?: number;
+  firstPairNumber?: number;
 }
 
 export interface RuleRunResult {
@@ -166,7 +169,7 @@ function matchRule(rule: Rule, run: PayoutRun, graphHeld: Set<string>, ctx: Rule
  * traced to the exact rules it ran under.
  */
 export function evaluateRules(run: PayoutRun, learnedRules: Rule[] = [], ctx: RuleContext = {}, ruleSetVersion = STARTER_RULE_SET_VERSION): RuleRunResult {
-  const scored = scoreRun(run);
+  const scored = scoreRun(run, { firstRingNumber: ctx.firstRingNumber, firstPairNumber: ctx.firstPairNumber });
   const baseline = new Map(scored.decisions.map((d) => [d.sender_item_id, d] as const));
   const graphHeld = new Set(scored.decisions.filter((d) => d.decision !== "PAY").map((d) => d.sender_item_id));
 

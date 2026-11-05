@@ -69,12 +69,20 @@ export function withProgram<T>(db: Db, programId: string, fn: (q: Queryable) => 
 
 export const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
-/** Creates the program if it doesn't exist and (re)sets its keys. */
-export async function ensureProgram(db: Db, id: string, name: string, apiKey: string, mcpKey?: string): Promise<void> {
+/** Creates the program if it doesn't exist and (re)sets its keys. `firstRingNumber` applies only
+ *  when the program is created: an existing program's numbering never moves back. */
+export async function ensureProgram(
+  db: Db,
+  id: string,
+  name: string,
+  apiKey: string,
+  mcpKey?: string,
+  numbering: { firstRingNumber?: number } = {},
+): Promise<void> {
   await db.query(
-    `INSERT INTO programs (id, name, api_key_hash, mcp_key_hash) VALUES ($1, $2, $3, $4)
+    `INSERT INTO programs (id, name, api_key_hash, mcp_key_hash, next_ring_number) VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, api_key_hash = EXCLUDED.api_key_hash, mcp_key_hash = EXCLUDED.mcp_key_hash`,
-    [id, name, sha256(apiKey), mcpKey ? sha256(mcpKey) : null],
+    [id, name, sha256(apiKey), mcpKey ? sha256(mcpKey) : null, numbering.firstRingNumber ?? 1],
   );
 }
 

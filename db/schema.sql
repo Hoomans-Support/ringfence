@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS programs (
   mcp_key_hash text UNIQUE,           -- sha256 of the read-only key AI agents use over MCP
   created_at   timestamptz NOT NULL DEFAULT now()
 );
+-- A program's rings and pairs keep their numbers for good: each run's first ring is numbered after
+-- the program's last one (runs.ts, decideRun).
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_ring_number integer NOT NULL DEFAULT 1;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS next_pair_number integer NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS runs (
   program_id       text NOT NULL REFERENCES programs (id),
@@ -144,6 +148,22 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS tenant ON %I', t);
     EXECUTE format('CREATE POLICY tenant ON %I USING (program_id = current_setting(''app.program_id'', true)) WITH CHECK (program_id = current_setting(''app.program_id'', true))', t);
   END LOOP;
+END $$;
+
+-- Never reuse a number a program already gave out (rings and pairs recorded before the counters
+-- existed, which restarted at 1 every run). Items are tenant-scoped, so each program is read under
+-- its own app.program_id. A no-op once the counters are ahead, so safe on every boot.
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN SELECT id FROM programs LOOP
+    PERFORM set_config('app.program_id', p.id, true);
+    UPDATE programs SET
+      next_ring_number = GREATEST(next_ring_number, 1 + COALESCE((SELECT max(substring(ring_id FROM 3)::int) FROM items WHERE program_id = p.id AND ring_id ~ '^R-[0-9]+$'), 0)),
+      next_pair_number = GREATEST(next_pair_number, 1 + COALESCE((SELECT max(substring(hold_group_id FROM 3)::int) FROM items WHERE program_id = p.id AND hold_group_id ~ '^P-[0-9]+$'), 0))
+    WHERE id = p.id;
+  END LOOP;
+  PERFORM set_config('app.program_id', '', true);
 END $$;
 
 COMMIT;

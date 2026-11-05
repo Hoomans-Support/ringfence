@@ -86,7 +86,7 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
       let version = "imported";
       let decide = (_item: PayoutItem): ItemRow => ({ decision: "PAY", ring_id: null, hold_group_id: null, reasons: [], rules: ["import"], state: "sent", batch_id: runId });
       if (!importedBatchId) {
-        const result = await decideRun(q, programId, run);
+        const result = await decideRun(q, programId, run, { reserve: true });
         const byId = new Map(result.decisions.map((d) => [d.sender_item_id, d] as const));
         version = result.rule_set_version;
         decide = (item) => {
@@ -145,11 +145,29 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
   }
 }
 
-/** The one decision step: the run, under this program's approved rules and confirmed-fraud list.
- *  POST /v1/payout-runs and the MCP screen both come through here, so they can't disagree. */
-async function decideRun(q: Queryable, programId: string, run: PayoutRun): Promise<RuleRunResult> {
+/**
+ * The one decision step: the run, under this program's approved rules and confirmed-fraud list,
+ * with its rings and pairs numbered on from the program's last ones. POST /v1/payout-runs and the
+ * screens both come through here, so they can't disagree. `reserve` (a run being recorded) locks the
+ * program's next numbers and moves them past this run's rings and pairs, in the caller's transaction;
+ * a screen only reads them, so it shows the numbers the next run would get without using them up.
+ */
+async function decideRun(q: Queryable, programId: string, run: PayoutRun, opts: { reserve?: boolean } = {}): Promise<RuleRunResult> {
   const { rules, ctx, version } = await loadRuleContext(q, programId);
-  return evaluateRules(run, rules, ctx, version);
+  const [next] = await q.query<{ next_ring_number: number; next_pair_number: number }>(
+    `SELECT next_ring_number, next_pair_number FROM programs WHERE id = $1${opts.reserve ? " FOR UPDATE" : ""}`,
+    [programId],
+  );
+  const result = evaluateRules(run, rules, { ...ctx, firstRingNumber: next?.next_ring_number, firstPairNumber: next?.next_pair_number }, version);
+  if (opts.reserve) {
+    const pairs = new Set(result.decisions.filter((d) => !d.ring_id && d.hold_group_id?.startsWith("P-")).map((d) => d.hold_group_id)).size;
+    await q.query("UPDATE programs SET next_ring_number = next_ring_number + $2, next_pair_number = next_pair_number + $3 WHERE id = $1", [
+      programId,
+      result.rings.length,
+      pairs,
+    ]);
+  }
+  return result;
 }
 
 export interface ScreenResult {

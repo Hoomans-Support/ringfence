@@ -68,4 +68,8 @@ export interface ScoreRunResult {
  */
 export interface ScoreRunContext {
   priorRings?: unknown;
+  /** The number this run's first ring and first pair get. A program's rings and pairs keep their
+   *  numbers for good, so its runs count on from where the last one stopped. Default 1. */
+  firstRingNumber?: number;
+  firstPairNumber?: number;
 }
