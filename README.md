@@ -4,7 +4,7 @@
 
 Ringfence is a prototype built for the **2026 PayPal AI Hackathon**. It helps a payout team spot coordinated groups of fraudulent payees, review the evidence, and keep legitimate recipients moving.
 
-The current demo uses seeded, simulated payout data. Week 2's learned-rule holds are illustrative fixture results while the backend evaluator is being integrated.
+The current demo uses seeded, simulated payout data. The rule engine and its `/v1/rules` propose/approve endpoints are real, tested, and live; Week 2's console walk-through presents the learned rule as fixture data for the demo narrative rather than calling the API live.
 
 _Temporary project overview; fuller setup and demo instructions will be added as the build is finalized._
 
@@ -40,7 +40,7 @@ Six widgets built on the AG Studio dashboard engine: the ring graph, money kept 
 
 ![Control tower: ring graph, $460 kept vs. $0 leaked, an 8% false-hold rate, and 24% rule robustness](docs/screenshots/control-tower.png)
 
-Week 2 shows what a learned rule would hold — labeled simulated, since the real rule evaluator is A's and not yet connected.
+Week 2 shows what a learned rule would hold — labeled simulated by design: the rule engine and its `/v1/rules` approval flow are live and tested, but this walk-through presents Week 2 as fixture data rather than querying the API live.
 
 Ring Watch polls the live API every eight seconds for the ring's current member states. To see it update, open the same run's ring in another tab and confirm or release the hold. Set `RINGFENCE_API_URL`, the read-only `RINGFENCE_MCP_KEY`, and the server-side `RINGFENCE_RING_WATCH_THRESHOLD_USD` on the console host.
 
