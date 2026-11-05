@@ -77,7 +77,7 @@ export interface ProposedRule {
   when: { all: RuleCondition[] };
   source: string;
   baseline?: RuleBaseline;
-  /** Filled in later: A's backtester (FR-10) and our own red team (FR-13, task 7). */
+  /** Filled in later: A's backtester (FR-10) and our own red team (FR-13). */
   backtest?: { weeks: number; caught: number; usd: number; false_holds: number };
   red_team?: {
     variants: number;
