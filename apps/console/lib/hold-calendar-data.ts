@@ -38,7 +38,8 @@ export function buildHoldCalendarData(week: DemoWeek): { resources: CalendarReso
     ? decisions.map((d) => ({ ...d, decision: "PAY" }))
     : week === 2
       ? decisions.map((d) => learnedRingItems.has(d.sender_item_id)
-        ? { ...d, decision: "HOLD", ring_id: "R-07", hold_group_id: "R-07", reasons: ["R-07 learned rule"] }
+        // No shared graph edges, so no ring_id (issue #4): this is rule R-07's own hold group, never a ring's.
+        ? { ...d, decision: "HOLD", hold_group_id: "rule:R-07", reasons: ["R-07 learned rule"] }
         : d)
       : decisions;
 
@@ -59,9 +60,7 @@ export function buildHoldCalendarData(week: DemoWeek): { resources: CalendarReso
   for (const d of held) {
     const item = itemById.get(d.sender_item_id);
     if (!item) continue;
-    const group = d.ring_id
-      ? (week === 2 ? "R-07 (learned)" : (ringLabelById.get(d.ring_id) ?? d.ring_id))
-      : (d.hold_group_id ?? "—");
+    const group = d.ring_id ? (ringLabelById.get(d.ring_id) ?? d.ring_id) : (d.hold_group_id ?? "—");
     const signupMs = new Date(item.context.signup_at).getTime();
     const list = signupsByGroup.get(group);
     if (list) list.push(signupMs);

@@ -1,13 +1,15 @@
 "use client";
 
 // The review queue's grid. AG Grid Community has no row-grouping (that's Enterprise), so "grouped
-// by ring" here means: sorted by group, a Geist Mono "Ring / pair" column carrying the label, and
-// row shading that alternates per group so same-group rows read as one block at a glance. True
-// collapsible AG Grid row groups are a possible later polish item (see design.md's open
-// questions), not required for this task's "shows 25 held, 23 under ring R-12."
+// by hold group" here means: sorted by group, a Geist Mono "Hold group" column carrying the label
+// (a ring, a pair, or the payouts one rule held), and row shading that alternates per group so
+// same-group rows read as one block at a glance. True collapsible AG Grid row groups are a possible
+// later polish item (see design.md's open questions), not required for this task's "shows 25 held,
+// 23 under ring R-12."
 
 import { useMemo } from "react";
 import {
+  CellStyleModule,
   ClientSideRowModelModule,
   ColumnAutoSizeModule,
   enableDevValidations,
@@ -23,7 +25,7 @@ if (process.env.NODE_ENV !== "production") {
   enableDevValidations();
 }
 
-const modules = [ClientSideRowModelModule, TextFilterModule, QuickFilterModule, ColumnAutoSizeModule];
+const modules = [ClientSideRowModelModule, TextFilterModule, QuickFilterModule, ColumnAutoSizeModule, CellStyleModule];
 
 // Ringfence tokens (design.md): ink for structure, coral only for the Held status itself.
 const theme = themeQuartz.withParams({
@@ -41,7 +43,7 @@ const theme = themeQuartz.withParams({
 
 export interface ReviewRow {
   group: string;
-  kind: "ring" | "pair";
+  kind: "ring" | "pair" | "rule";
   senderItemId: string;
   receiver: string;
   amount: number;
@@ -60,7 +62,7 @@ const defaultColDef: ColDef<ReviewRow> = { filter: true, resizable: true };
 const autoSizeStrategy = { type: "fitCellContents" } as const;
 
 function groupCellClass({ data }: { data?: ReviewRow }) {
-  return data?.kind === "ring" ? "font-mono font-medium" : "font-mono text-rf-slate";
+  return data?.kind === "pair" ? "font-mono text-rf-slate" : "font-mono font-medium";
 }
 
 export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
@@ -68,7 +70,7 @@ export function ReviewGrid({ rows }: { rows: ReviewRow[] }) {
     () => [
       {
         field: "group",
-        headerName: "Ring / pair",
+        headerName: "Hold group",
         cellClass: groupCellClass,
         comparator: (a: string, b: string) => a.localeCompare(b),
       },

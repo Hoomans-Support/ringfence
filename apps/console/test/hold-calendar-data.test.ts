@@ -40,9 +40,9 @@ describe("buildHoldCalendarData", () => {
     expect(resourceIds).toEqual(eventResourceIds);
   });
 
-  it("groups week 2's fixture-presented learned-rule holds under R-07 (learned)", () => {
+  it("groups week 2's fixture-presented learned-rule holds under rule:R-07, never a ring", () => {
     const { resources, events } = buildHoldCalendarData(2);
-    expect(resources).toEqual([{ id: "R-07 (learned)", name: "R-07 (learned)" }]);
+    expect(resources).toEqual([{ id: "rule:R-07", name: "rule:R-07" }]);
     expect(events[0]?.name).toBe("18 accounts");
   });
 });

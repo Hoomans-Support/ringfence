@@ -27,6 +27,8 @@ function useDisplayedOnMount(widgetApi: AgWidgetApi) {
 // --- Options: what each widget receives, built fresh per render from the control tower's props ---
 
 export interface RingGraphOptions {
+  /** "rule": a learned rule's own hold group, with no shared graph edges — never called a ring (issue #4). */
+  kind: "ring" | "rule";
   ringLabel: string;
   memberCount: number;
   nodeIds: string[];
@@ -35,6 +37,8 @@ export interface RingGraphOptions {
 }
 
 export interface MoneyOptions {
+  /** "rule": held by a learned rule, not a linked ring — never called a ring (issue #4). */
+  kind: "ring" | "rule";
   keptUsd: number;
   leakedUsd: number;
 }
@@ -93,6 +97,7 @@ function useMeasuredSize<T extends HTMLElement>(): [React.RefObject<T | null>, {
 function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
   useDisplayedOnMount(widgetApi);
   const o = config.options as RingGraphOptions;
+  const isRule = o.kind === "rule";
   const operatorCount = o.operatorIds.size;
   const [boxRef, size] = useMeasuredSize<HTMLDivElement>();
   const layout = useMemo(() => (size ? computeLayout(o.nodeIds, o.links, size) : null), [o.nodeIds, o.links, size]);
@@ -100,9 +105,9 @@ function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
   return (
     <div className="flex h-full flex-col gap-2 p-5">
       <div>
-        <WidgetHeading>Ring graph</WidgetHeading>
+        <WidgetHeading>{isRule ? "Hold group" : "Ring graph"}</WidgetHeading>
         <p className="text-sm text-rf-slate">
-          Ring <code className="font-mono text-rf-ink">{o.ringLabel}</code> · {o.memberCount} accounts linked
+          {isRule ? "Rule" : "Ring"} <code className="font-mono text-rf-ink">{o.ringLabel}</code> · {o.memberCount} accounts {isRule ? "held" : "linked"}
         </p>
         {operatorCount > 0 && (
           <p className="mt-1 text-sm text-rf-slate">
@@ -113,7 +118,7 @@ function RingGraphWidget({ config, widgetApi }: AgWidgetParams) {
         <div className="mt-2 flex gap-3 text-[12px] text-rf-slate">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 shrink-0 rounded-full bg-rf-ink" aria-hidden="true" />
-            Ring member
+            {isRule ? "Held" : "Ring member"}
           </span>
           {operatorCount > 0 && (
             <span className="flex items-center gap-1.5">
@@ -144,20 +149,21 @@ function MoneyWidget({ config, widgetApi }: AgWidgetParams) {
   // hand from the two numbers this widget already receives, not a new sim concept. The PRD's own
   // fire drill (FR-23, A-gated) is the real without/with baseline across many runs; this is just
   // this one run's own two numbers, given context against each other.
+  const isRule = o.kind === "rule";
   const baselineUsd = o.keptUsd + o.leakedUsd;
   const caughtPct = baselineUsd > 0 ? Math.round((o.keptUsd / baselineUsd) * 100) : 100;
   return (
     <div className="flex h-full flex-col gap-2 p-5">
       <WidgetHeading>Money kept vs. leaked</WidgetHeading>
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from the ring</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Kept from {isRule ? "the rule" : "the ring"}</p>
         <p className="font-mono text-[40px] font-semibold tracking-[-0.02em] leading-[1.1] text-rf-ink">{money(o.keptUsd)}</p>
         <p className="text-[13px] leading-[1.3] text-rf-slate">
           Without Ringfence: {money(baselineUsd)} would've leaked ({caughtPct}% caught).
         </p>
       </div>
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Leaked to the ring</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide leading-[1.3] text-rf-slate">Leaked to {isRule ? "the rule" : "the ring"}</p>
         <p className={`font-mono text-[20px] font-semibold tracking-[-0.02em] leading-[1.2] ${o.leakedUsd > 0 ? "text-rf-spark-text" : "text-rf-slate"}`}>
           {money(o.leakedUsd)}
         </p>

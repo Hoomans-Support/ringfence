@@ -24,7 +24,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     ? scored.decisions.map((decision) => ({ ...decision, decision: "PAY" }))
     : week === 2
       ? scored.decisions.map((decision) => learnedRingItems.has(decision.sender_item_id)
-        ? { ...decision, decision: "HOLD", ring_id: "R-07", hold_group_id: "R-07", reasons: ["R-07 learned rule"] }
+        // No shared graph edges, so no ring_id (issue #4): this is rule R-07's own hold group, never a ring's.
+        ? { ...decision, decision: "HOLD", hold_group_id: "rule:R-07", reasons: ["R-07 learned rule"] }
         : decision)
       : scored.decisions;
   const rings = scored.rings;
@@ -52,12 +53,10 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     .map((d): ReviewRow | undefined => {
       const item = itemById.get(d.sender_item_id);
       if (!item) return undefined;
-      const group = d.ring_id
-        ? (week === 2 ? "R-07 (learned)" : (ringLabelById.get(d.ring_id) ?? d.ring_id))
-        : (d.hold_group_id ?? "—");
+      const group = d.ring_id ? (ringLabelById.get(d.ring_id) ?? d.ring_id) : (d.hold_group_id ?? "—");
       return {
         group,
-        kind: d.ring_id ? "ring" : "pair",
+        kind: d.ring_id ? "ring" : d.hold_group_id?.startsWith("rule:") ? "rule" : "pair",
         senderItemId: d.sender_item_id,
         receiver: item.receiver,
         amount: Number(item.amount.value),
@@ -77,8 +76,10 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     const label = ringLabelById.get(r.ring_id) ?? r.ring_id;
     ringGroups.set(label, { size: r.size, ringId: r.ring_id });
   }
+  // Held only by a learned rule, with no shared graph edges: its own hold group, never a ring's (issue #4).
+  const ruleGroups = new Map<string, { size: number; ruleId: string }>();
   if (week === 2 && held.length > 0) {
-    ringGroups.set("R-07 (learned)", { size: learnedRingItems.size, ringId: "R-07" });
+    ruleGroups.set("rule:R-07", { size: learnedRingItems.size, ruleId: "R-07" });
   }
   const pairGroups = new Set(rows.filter((r) => r.kind === "pair").map((r) => r.group));
 
@@ -145,6 +146,14 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         {[...pairGroups].map((label) => (
           <span key={label} className="text-rf-slate">
             — 2 as a pair (<code className="font-mono text-rf-ink">{label}</code>)
+          </span>
+        ))}
+        {[...ruleGroups].map(([label, { size, ruleId }]) => (
+          <span key={label} className="text-rf-slate">
+            — {size} held by rule{" "}
+            <Link href={`/review/${ruleId}?week=2`} className="font-mono text-rf-ink underline-offset-2 hover:underline">
+              {ruleId}
+            </Link>
           </span>
         ))}
       </p>

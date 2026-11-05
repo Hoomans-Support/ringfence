@@ -74,7 +74,7 @@ export default async function RingDetailPage({ params, searchParams }: { params:
           ← Review queue
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-[32px] font-semibold tracking-[-0.03em]">
-          <TraceIcon className="size-7 shrink-0" aria-hidden /> Ring <code className="font-mono">{narrativeLabel}</code>
+          <TraceIcon className="size-7 shrink-0" aria-hidden /> {week === 2 ? "Rule" : "Ring"} <code className="font-mono">{narrativeLabel}</code>
         </h1>
         <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
           {week === 2

@@ -22,7 +22,8 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
     ? scored.decisions.map((decision) => ({ ...decision, decision: "PAY" }))
     : week === 2
       ? scored.decisions.map((decision) => learnedRingItems.has(decision.sender_item_id)
-        ? { ...decision, decision: "HOLD", ring_id: "R-07", hold_group_id: "R-07", reasons: ["R-07 learned rule"] }
+        // No shared graph edges, so no ring_id (issue #4): this is rule R-07's own hold group, never a ring's.
+        ? { ...decision, decision: "HOLD", hold_group_id: "rule:R-07", reasons: ["R-07 learned rule"] }
         : decision)
       : scored.decisions;
 
@@ -68,9 +69,10 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
     ? (() => {
         const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
         const ringLabel = truth.find((t) => nodeIds.includes(t.account_id) && t.ring_label)?.ring_label ?? ring.ring_id;
-        return { ringLabel, memberCount: ring.size, nodeIds, links, operatorIds: week === 2 ? new Set<string>() : operatorIds };
+        // Week 2's group has no shared graph edges: it's rule R-07's own hold group, never a ring's (issue #4).
+        return { kind: week === 2 ? "rule" : "ring", ringLabel, memberCount: ring.size, nodeIds, links, operatorIds: week === 2 ? new Set<string>() : operatorIds };
       })()
-    : { ringLabel: "No active ring", memberCount: 0, nodeIds: [], links: [], operatorIds: new Set<string>() };
+    : { kind: "ring", ringLabel: "No active ring", memberCount: 0, nodeIds: [], links: [], operatorIds: new Set<string>() };
 
   const ruleRobustness: ControlTowerData["ruleRobustness"] = week === 1 && ring
     ? (() => {
@@ -152,7 +154,7 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           key={week}
           licenseKey={process.env.AG_STUDIO}
           ringGraph={ringGraph}
-          money={{ keptUsd, leakedUsd }}
+          money={{ kind: week === 2 ? "rule" : "ring", keptUsd, leakedUsd }}
           falseHold={{ heldCount, falseHoldCount }}
           ruleRobustness={ruleRobustness}
         />
