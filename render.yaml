@@ -53,6 +53,13 @@ services:
         sync: false
       - key: RINGFENCE_PROGRAM_ID
         value: budgetapp
+      # The demo program's numbering starts where the PRD's story does: its week 1 ring is R-12 and
+      # the rule learned from it R-07 (DEMO_NUMBERING in apps/api/src/db.ts). A floor: it never moves a
+      # program's numbering back. Remove both for a real program, which starts at 1.
+      - key: RINGFENCE_FIRST_RING_NUMBER
+        value: "12"
+      - key: RINGFENCE_FIRST_RULE_NUMBER
+        value: "7"
       - key: RINGFENCE_INLINE_WORKER # the outbox and polling loop, in this process
         value: "true"
       - key: RINGFENCE_API_KEY

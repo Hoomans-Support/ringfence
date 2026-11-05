@@ -244,19 +244,22 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   return app;
 }
 
+/** The program this deployment serves, from its environment. Optional starting numbers
+ *  (RINGFENCE_FIRST_RING_NUMBER, RINGFENCE_FIRST_RULE_NUMBER) are how the hosted demo's numbering
+ *  starts where the PRD's story does; a real program leaves them unset and starts at 1. */
+export async function ensureProgramFromEnv(db: Db, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  if (!env.RINGFENCE_API_KEY) return false;
+  const start = (value: string | undefined) => (value && /^[1-9][0-9]*$/.test(value) ? Number(value) : undefined);
+  await ensureProgram(db, env.RINGFENCE_PROGRAM_ID ?? "budgetapp", env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app", env.RINGFENCE_API_KEY, env.RINGFENCE_MCP_KEY, {
+    firstRingNumber: start(env.RINGFENCE_FIRST_RING_NUMBER),
+    firstRuleNumber: start(env.RINGFENCE_FIRST_RULE_NUMBER),
+  });
+  return true;
+}
+
 async function main(): Promise<void> {
   const { db, paypal } = await boot();
-  if (process.env.RINGFENCE_API_KEY) {
-    await ensureProgram(
-      db,
-      process.env.RINGFENCE_PROGRAM_ID ?? "budgetapp",
-      process.env.RINGFENCE_PROGRAM_NAME ?? "Budgeting app",
-      process.env.RINGFENCE_API_KEY,
-      process.env.RINGFENCE_MCP_KEY,
-    );
-  } else {
-    console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
-  }
+  if (!(await ensureProgramFromEnv(db))) console.warn("RINGFENCE_API_KEY is not set: no program can authenticate");
   const app = buildApp({ db, paypal });
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
   // The worker's loop in this process, instead of a separate worker service (render.yaml).

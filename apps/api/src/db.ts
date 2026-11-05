@@ -69,8 +69,13 @@ export function withProgram<T>(db: Db, programId: string, fn: (q: Queryable) => 
 
 export const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
-/** Creates the program if it doesn't exist and (re)sets its keys. The starting numbers apply only
- *  when the program is created: an existing program's numbering never moves back. */
+/** The demo budgeting app's starting numbers, so the live system tells the PRD's story without an
+ *  answer key: its week 1 ring is R-12, and the rule learned from it R-07. render.yaml sets the same
+ *  for the hosted app through RINGFENCE_FIRST_RING_NUMBER / RINGFENCE_FIRST_RULE_NUMBER. */
+export const DEMO_NUMBERING = { firstRingNumber: 12, firstRuleNumber: 7 } as const;
+
+/** Creates the program if it doesn't exist and (re)sets its keys. Starting numbers are a floor:
+ *  they can move an existing program's numbering forward (never reusing a number), never back. */
 export async function ensureProgram(
   db: Db,
   id: string,
@@ -81,7 +86,9 @@ export async function ensureProgram(
 ): Promise<void> {
   await db.query(
     `INSERT INTO programs (id, name, api_key_hash, mcp_key_hash, next_ring_number, next_rule_number) VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, api_key_hash = EXCLUDED.api_key_hash, mcp_key_hash = EXCLUDED.mcp_key_hash`,
+     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, api_key_hash = EXCLUDED.api_key_hash, mcp_key_hash = EXCLUDED.mcp_key_hash,
+       next_ring_number = GREATEST(programs.next_ring_number, EXCLUDED.next_ring_number),
+       next_rule_number = GREATEST(programs.next_rule_number, EXCLUDED.next_rule_number)`,
     [id, name, sha256(apiKey), mcpKey ? sha256(mcpKey) : null, numbering.firstRingNumber ?? 1, numbering.firstRuleNumber ?? 1],
   );
 }
