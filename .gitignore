@@ -8,3 +8,5 @@ next-env.d.ts
 *.tsbuildinfo
 .data/
 reminder.md
+final-prd.docx
+apimatic-guide.pdf

@@ -44,6 +44,16 @@ Week 2 shows what a learned rule would hold — labeled simulated, since the rea
 
 ![Week 2's review queue, 18 payouts held under the learned rule R-07, labeled as fixture presentation](docs/screenshots/review-queue-week2.png)
 
+## How we used each sponsor's tool
+
+Every sponsor component keeps the ink/mist/coral theme (design.md), not its stock look.
+
+**AG Grid + AG Studio** — `apps/console/app/review/data-grid.tsx` groups the review queue by ring/pair, so one decision clears 23 payees at once (review-queue screenshot above). `apps/console/app/control-tower/control-tower.tsx` and `apps/console/app/control-tower/studio/widgets.tsx` are AG Studio's four custom widgets — ring graph, money kept vs. leaked, a false-hold meter and rule robustness, all driven by the same run (control-tower screenshot above).
+
+**Bryntum Scheduler** — `apps/console/app/review/[ringId]/ring-timeline.tsx` is the ring timeline: one row per account, sign-up to payout, so a 23-account ring's 15-minute burst is visible at a glance (ring-detail screenshot above). `apps/console/app/review/calendar/hold-calendar.tsx` is the hold calendar: one row per held group, with 7-day hold limits and 30-day cancel countdowns.
+
+**Render** — `render.yaml` is the one Blueprint: the API (with the worker's outbox-and-polling loop running inline, `apps/api/src/loop.ts`), the hourly cron (`apps/api/src/cron.ts`) and Postgres. Hosting only, not a UI feature — but genuinely deployed and exercised, not just configured: [docs/smoke-test-results.md](docs/smoke-test-results.md) records a real PayPal webhook arriving at and verified by the deployed instance, which only works against a real public URL.
+
 ## Local Bryntum setup
 
 The ring timeline uses Bryntum Scheduler 7.3.8. Obtain the authorized trial package from Bryntum and extract it so `scheduler.module.js` and the theme CSS are in `.vendor/bryntum-scheduler-trial/build/`. It's not an npm dependency: both files are served at runtime by `/api/vendor/bryntum` and `/api/vendor/bryntum/theme`, so `npm install` and `npm run build` work without it. You only need it in place before `npm run dev`/`start`, to see the real timeline instead of a 503. `.vendor/` is gitignored; do not commit the trial files.

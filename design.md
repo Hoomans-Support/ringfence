@@ -14,7 +14,7 @@ It should **not** feel like the PayPal developer dashboard: no dense left sideba
 
 - **Name partners in plain text.** Write "Built on PayPal Payouts" in our own type. Never use PayPal's logo, wordmark, colours or button styles.
 - **Stay off payments blue.** No navy-and-sky-blue pairings, no blue primary buttons, anywhere — not just to avoid PayPal's mark, but because ink and coral are what keep Ringfence visually distinct from every payments brand. (The old navy/blue direction in this file is retired for this reason, not only the trademark one.)
-- **Sponsor tools wear our skin.** AG Studio, APIMatic and Bryntum components get the Ringfence theme (tokens below), not their stock look. Credit each sponsor by name in the video and docs — this applies directly to tasks 4, 9 and 10.
+- **Sponsor tools wear our skin.** AG Studio and Bryntum components get the Ringfence theme (tokens below), not their stock look. Credit each sponsor by name in the video and docs — this applies directly to the AG Studio and Bryntum work. (APIMatic dropped 2026-11-05: its Context Plugin doesn't cover Payouts, the one PayPal product this build uses — see reminder.md. No APIMatic UI exists to reskin.)
 - Mention PayPal in text only (e.g. "runs on the PayPal sandbox"). No PayPal logo or other third-party marks on screen in the video.
 
 ## Feel in four words
@@ -81,7 +81,7 @@ Dark mode is **not specified in the brand guide** (it only documents the logo's 
 
 ## Graphic language: the constellation
 
-This is the spec for task 5's live ring graph. "It's a map, not a galaxy" — three node sizes, one line weight, nothing decorative, drawn from real data whenever possible.
+This is the spec for the console's live ring graph. "It's a map, not a galaxy" — three node sizes, one line weight, nothing decorative, drawn from real data whenever possible.
 
 | Element | Spec |
 | --- | --- |
@@ -155,13 +155,13 @@ Short and purposeful: 150–200ms ease-out for chips, cards and dialogs. A held 
 - Use only sandbox data with clearly fake names.
 - No PayPal logo or other third-party marks on screen. Plain text for the PayPal name.
 - Lead the first moments with the one-line promise, not a login screen.
-- `asset/Ringfence-Demo-Storyboard_1.pdf` (12 pages, image-only) is a separate pre-production storyboard for the video itself, in a distinct warm/illustrated style (cream backgrounds, simple character doodles) — that's the video's intro-beat treatment, not the product's own UI brand. Out of scope for the console/API work in tasks 4–10; relevant once someone starts on the video.
+- `asset/Ringfence-Demo-Storyboard_1.pdf` (12 pages, image-only) is a separate pre-production storyboard for the video itself, in a distinct warm/illustrated style (cream backgrounds, simple character doodles) — that's the video's intro-beat treatment, not the product's own UI brand. Out of scope for the console/API work; relevant once someone starts on the video.
 
 ## Open questions
 
 - ~~**Icons aren't extracted as files yet**~~ — done, see Icons above.
 - ~~**Tagline mismatch**~~ — done, see Taglines above.
 - ~~**Dark mode isn't in the brand guide.**~~ — done, see Colour above.
-- **Sponsor-tool reskinning** (AG Studio, APIMatic, Bryntum → ink/mist/coral instead of their stock themes) is required by the brand guide's partner rules, not optional polish — build it into tasks 4, 9 and 10 from the start rather than reskinning at the end. (AG Studio, AG Grid and Bryntum are done — tokens confirmed in `apps/console/app/globals.css`, `review/data-grid.tsx` and `control-tower/control-tower.tsx`. APIMatic reskinning status not checked as part of this pass.)
-- **Task numbering is inconsistent across the repo's own docs**, found 2026-11-04: this file (above, and the brand guide quote at the top) lists "AG Studio, APIMatic, Bryntum" against "tasks 4, 9 and 10" — read 1:1 that makes APIMatic task 10 — but `apps/console/.env.example` labels task 9 as AG Studio (the control-tower widgets). The authoritative numbered list is only in `final-prd.docx`, which isn't in this repo, so neither reading is confirmed. Check against the PRD before planning APIMatic work around a specific task number.
+- ~~**Sponsor-tool reskinning**~~ — done. AG Studio, AG Grid and Bryntum are reskinned, tokens confirmed in `apps/console/app/globals.css`, `review/data-grid.tsx` and `control-tower/control-tower.tsx`. APIMatic dropped (see Trademark and partner rules above) — no APIMatic UI exists, so there's nothing left to reskin.
+- ~~**Task numbering is inconsistent across the repo's own docs**~~ — resolved 2026-11-05: `final-prd.docx` (now in the repo working tree) organizes work by owner and by date gate, not by a numbered task list at all, so the "tasks 4/9/10" numbering this file and `apps/console/.env.example` used was never PRD-backed. Dropped the numbers everywhere; sponsor tools are now referenced by name only.
 - **True collapsible AG Grid row groups** (`apps/console/app/review/data-grid.tsx`) are a possible later polish item — AG Grid Community has no row-grouping (that's Enterprise), so the review queue fakes it today via sort order, a "Ring / pair" column and odd/even row striping. Not required for "shows 25 held, 23 under ring R-12."
