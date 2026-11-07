@@ -10,6 +10,17 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 export type Verdict = "fraud" | "real";
 export type IconKey = "person" | "device" | "clock" | "active" | "shield" | "target";
 
+export interface DemoMember {
+  itemId: string;
+  accountId: string;
+  signupAt: string;
+  device: string;
+  /** The designer's example device name ("Android phone"), when one exists for this device. */
+  deviceName?: string;
+  receiver: string;
+  usd: number;
+}
+
 export interface DemoCase {
   /** Stable within a run: "R-12", "P-01", "rule:R-01", "network:R-12", "second:w44"... */
   id: string;
@@ -30,6 +41,11 @@ export interface DemoCase {
   /** What Fraud can still claw back from a payout already sent (second looks). */
   recoverableUsd: number;
   hint: string;
+  /** The Decisions page's detail: a fuller title, Ringfence's read in a sentence, what each answer does. */
+  headline: string;
+  summary: string;
+  askHint: string;
+  members: DemoMember[];
 }
 
 export interface DemoRule {
@@ -56,6 +72,8 @@ export interface DemoWeekIndex {
 type Store = {
   dec: Record<string, Verdict>;
   rules: Record<string, "on" | "off">;
+  /** Single accounts released out of a paused group, keyed `${runId}:${caseId}:${itemId}`. */
+  rel: Record<string, boolean>;
 };
 
 const DemoContext = createContext<{
@@ -63,6 +81,7 @@ const DemoContext = createContext<{
   index: Record<string, DemoWeekIndex>;
   decide: (runId: string, c: Pick<DemoCase, "id" | "name" | "title">, verdict: Verdict | undefined, links?: { decided: string; rule?: string }) => void;
   setRule: (rule: DemoRule, value: "on" | "off" | undefined, link?: string) => void;
+  toggleRelease: (key: string) => void;
 } | null>(null);
 
 export const decisionKey = (runId: string, caseId: string) => `${runId}:${caseId}`;
@@ -85,7 +104,7 @@ export function pendingRules(week: DemoWeekIndex, store: Store): DemoRule[] {
 }
 
 export function DemoProvider({ index, children }: { index: Record<string, DemoWeekIndex>; children: ReactNode }) {
-  const [store, setStore] = useState<Store>({ dec: {}, rules: {} });
+  const [store, setStore] = useState<Store>({ dec: {}, rules: {}, rel: {} });
   const [toast, setToast] = useState<{ text: string; href?: string; linkLabel?: string; undo: () => void }>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -126,7 +145,9 @@ export function DemoProvider({ index, children }: { index: Record<string, DemoWe
     show({ text: value === "on" ? `${rule.name} is on from the next run.` : `${rule.name} kept off.`, href: link, linkLabel: "View rule", undo: () => write(undefined) });
   }, [show]);
 
-  const value = useMemo(() => ({ store, index, decide, setRule }), [store, index, decide, setRule]);
+  const toggleRelease = useCallback((key: string) => setStore((s) => ({ ...s, rel: { ...s.rel, [key]: !s.rel[key] } })), []);
+
+  const value = useMemo(() => ({ store, index, decide, setRule, toggleRelease }), [store, index, decide, setRule, toggleRelease]);
   return (
     <DemoContext value={value}>
       {children}

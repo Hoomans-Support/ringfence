@@ -14,7 +14,7 @@ body {
 /*
  * Ringfence design tokens, from asset/Ringfence-Brand-Guidelines.html (V1, Nov 2026) — see
  * design.md. Single source of truth for this shell (through the Tailwind colours below, e.g.
- * bg-rf-spark), for AG Grid (app/review/data-grid.tsx) and later AG Studio. Deliberately no blue:
+ * bg-rf-spark), for AG Grid (app/review/accounts-grid.tsx) and AG Studio. Deliberately no blue:
  * the brand guide rules it out ("stay off payments blue").
  */
 :root {
@@ -26,6 +26,7 @@ body {
   --rf-slate: #5e5e66; /* secondary text, 6.2:1 on white */
   --rf-star-grey: #b5b5b0; /* idle/unlinked dots only — never text */
   --rf-hairline: #e4e4e0;
+  --rf-spark-wash: #ffe9e3; /* the designer's paused-status pill, behind --rf-spark-text */
 }
 
 /*
@@ -47,6 +48,7 @@ body {
   --rf-slate: #a3a3aa;
   --rf-star-grey: #55555c;
   --rf-hairline: #333338;
+  --rf-spark-wash: #3a1f19;
 }
 
 /* Keep the Scheduler legible in the Ringfence ink / coral / mist palette. */
@@ -73,18 +75,6 @@ body {
   color: var(--rf-ink);
 }
 
-.rf-grid-empty {
-  display: grid;
-  gap: 0.35rem;
-  padding: 1.5rem;
-  color: var(--rf-slate);
-  text-align: center;
-}
-
-.rf-grid-empty strong {
-  color: var(--rf-ink);
-}
-
 @theme inline {
   --color-rf-ink: var(--rf-ink);
   --color-rf-spark: var(--rf-spark);
@@ -94,4 +84,5 @@ body {
   --color-rf-slate: var(--rf-slate);
   --color-rf-star-grey: var(--rf-star-grey);
   --color-rf-hairline: var(--rf-hairline);
+  --color-rf-spark-wash: var(--rf-spark-wash);
 }

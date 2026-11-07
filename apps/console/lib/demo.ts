@@ -4,7 +4,7 @@
 // network-match overrides), only reshaped. Fixtures never change, so each week is built once.
 import { applyRule } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type PayoutItem } from "@ringfence/engine";
-import type { DemoCase, DemoRule, DemoWeekIndex, IconKey, Verdict } from "@/app/demo-store";
+import type { DemoCase, DemoMember, DemoRule, DemoWeekIndex, IconKey, Verdict } from "@/app/demo-store";
 import { loadWeekDemoMetadata, loadWeekRun, loadWeekTruth, type DemoWeek } from "./fixtures";
 import { buildR12Learning } from "./learned-rule";
 
@@ -40,6 +40,42 @@ function verdictOf(items: PayoutItem[]): Verdict {
   const quiet = items.filter((it) => it.context.activity_after_onboarding === 0).length;
   return quiet * 2 >= items.length ? "fraud" : "real";
 }
+
+// The designer's example names for the fixture's devices; the real fingerprint id is always shown too.
+const DEVICE_NAMES: Record<string, string> = {
+  d_ring_falcon: "Android phone",
+  d_ring_heron: "Android phone",
+  d_ring_osprey: "iPhone",
+  d_roommates_laptop: "Laptop",
+};
+
+/** A case's accounts in account order (u_1, u_2, ...), as the designer lists them. */
+const membersOf = (items: PayoutItem[]) => items.map(memberOf).sort((a, b) => a.accountId.localeCompare(b.accountId, "en", { numeric: true }));
+
+const memberOf = (it: PayoutItem): DemoMember => ({
+  itemId: it.sender_item_id, accountId: it.context.account_id, signupAt: it.context.signup_at,
+  device: it.context.device_hash, deviceName: DEVICE_NAMES[it.context.device_hash], receiver: it.receiver, usd: Number(it.amount.value),
+});
+
+const spanMinutes = (items: PayoutItem[]) => {
+  const times = items.map((it) => Date.parse(it.context.signup_at));
+  return Math.round((Math.max(...times) - Math.min(...times)) / 60_000);
+};
+const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+
+/** What ties a group together, in words: "one referrer, 3 shared devices and one network". */
+function linksOf(items: PayoutItem[]): string[] {
+  const links: string[] = [];
+  const byDevice = new Map<string, number>();
+  for (const it of items) byDevice.set(it.context.device_hash, (byDevice.get(it.context.device_hash) ?? 0) + 1);
+  const shared = [...byDevice.values()].filter((count) => count > 1).length;
+  if (new Set(items.map((it) => it.context.referrer_id)).size === 1 && items.length > 2) links.push("one referrer");
+  if (shared > 0) links.push(shared === 1 ? "one shared device" : `${shared} shared devices`);
+  if (new Set(items.map((it) => it.context.ip_prefix)).size === 1 && items.length > 2) links.push("one network");
+  return links;
+}
+
+const GROUP_ASK = "Fraud keeps these payouts unpaid and pauses this group's devices and payout emails on sight in future runs. Not fraud pays them in a batch of their own.";
 
 /** The facts chips under a case's title, from what its accounts actually share. */
 function factsOf(items: PayoutItem[]): DemoCase["facts"] {
@@ -110,17 +146,28 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
     if (number) nextNumber = Math.max(nextNumber, number + 1);
     if (key.startsWith("P-") && nextNumber) number = nextNumber++;
     const name = number ? `Group ${number}` : undefined;
-    const base = { kind: "group" as const, size: n, usd: total, dueAt, recoverableUsd: 0, verdict, hint: `Not fraud pays it · Fraud keeps ${usd(total)} unpaid` };
+    const links = linksOf(members);
+    const base = {
+      kind: "group" as const, size: n, usd: total, dueAt, recoverableUsd: 0, verdict, hint: `Not fraud pays it · Fraud keeps ${usd(total)} unpaid`,
+      askHint: GROUP_ASK, members: membersOf(members),
+    };
     if (key.startsWith("rule:")) {
-      return { ...base, id: key, name: "Referral bursts group", label: "HELD BY A LEARNED RULE", title: `${n} accounts caught by Referral bursts`, facts: factsOf(members) };
+      return { ...base, id: key, name: "Referral bursts group", label: "HELD BY A LEARNED RULE", title: `${n} accounts caught by Referral bursts`, facts: factsOf(members),
+        headline: `${n} accounts caught by Referral bursts`,
+        summary: `They share no device or payout email, so no ring links them. The learned rule caught how they signed up: ${list(factsOf(members).map((f) => f.text.toLowerCase()))}.` };
     }
     if (key.startsWith("network:")) {
       // Already confirmed as fraud at another program, so that's Ringfence's read here too.
       return { ...base, verdict: "fraud" as const, id: key, name: "Group 12 matches", label: "MATCHES GROUP 12", title: `${n} accounts using Group 12's devices`,
-        facts: [{ icon: "shield" as const, text: "Seen at BudgetApp" }, ...factsOf(members)].slice(0, 3) };
+        facts: [{ icon: "shield" as const, text: "Seen at BudgetApp" }, ...factsOf(members)].slice(0, 3),
+        headline: `${n} accounts using a device from BudgetApp's Group 12`,
+        summary: `Ringfence's read: likely fraud. Group 12 was confirmed as fraud at BudgetApp, and these ${n} survey-app accounts signed in from one of its devices.` };
     }
     const title = verdict === "fraud" ? `${n} accounts, one person` : `${n} accounts, ${n} people`;
-    return { ...base, id: key, name, label: name?.toUpperCase() ?? key, title, facts: factsOf(members) };
+    const summary = verdict === "fraud"
+      ? `Ringfence's read: looks like one person. All ${n} signed up within ${spanMinutes(members)} minutes.`
+      : `Ringfence's read: likely real people. ${links.length ? `${list(links).replace(/^one/, "One")} ${links.length === 1 ? "is" : "are"} their only link, and` : "Nothing else links them, and"} ${n === 2 ? "both" : "all"} kept using the app after sign-up.`;
+    return { ...base, id: key, name, label: name?.toUpperCase() ?? key, title, facts: factsOf(members), headline: `${n} accounts linked by ${list(links) || "shared signals"}`, summary };
   });
 
   // Paid, but worth a second look: they share a link with a paused group, or only a referrer.
@@ -139,7 +186,12 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
       // The fixtures carry no claim status; this split is the designer's example.
       moneyNote: "$80 still recoverable", recoverableUsd: 80,
       hint: "Not fraud stops flags · Fraud recovers $80 and pauses them",
+      headline: `${linked.length} accounts linked to Group 12`,
+      summary: `Paid ${usd(total)} in the ${runName(earlier.sender_batch_header.sender_batch_id)} run. Ringfence didn't link them then: they signed up a week before Group 12, on the same ${devices.size} devices and with the same referrer.`,
+      askHint: "Fraud: we cancel the payouts nobody has collected yet ($80 back to your balance), pause these accounts, devices and payout emails on sight in future runs, and save the miss for the next rule version. Not fraud: Ringfence stops flagging them for this.",
+      members: membersOf(linked),
     });
+    group12.summary += ` ${linked.length} earlier accounts on the same devices were paid ${usd(total)} in the ${runName(earlier.sender_batch_header.sender_batch_id)} run (see the second look).`;
     // The coworkers: one referrer and nothing else, which the engine rightly paid. Picked by their
     // fixture label, as the week 2 review picks its misses: every honest referrer brings dozens of
     // accounts, so "shares a referrer" alone can't tell this group apart.
@@ -150,6 +202,10 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
         title: `${coworkers.length} accounts, one referrer`, verdict: verdictOf(coworkers), size: coworkers.length, usd: amount(coworkers),
         facts: factsOf(coworkers), moneyNote: "Paid · all collected", recoverableUsd: 0,
         hint: "Not fraud stops flags like this · Fraud pauses future payouts",
+        headline: `${coworkers.length} accounts linked by one referrer`,
+        summary: "Ringfence's read: likely real people. One referrer is their only link, so we paid them.",
+        askHint: "Not fraud: Ringfence stops flagging a shared referrer on its own, so fewer false alarms. Fraud: the money is already collected, so this only stops their future payouts.",
+        members: membersOf(coworkers),
       });
     }
   }
@@ -162,6 +218,10 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
         title: `${slipped.length} accounts linked to Group 12`, verdict: verdictOf(slipped), size: slipped.length, usd: amount(slipped),
         facts: factsOf(slipped), moneyNote: "Paid this run", recoverableUsd: 0,
         hint: "Not fraud stops flags like this · Fraud pauses future payouts",
+        headline: `${slipped.length} accounts linked to Group 12`,
+        summary: `Paid ${usd(amount(slipped))} in the ${runLabel} run. These are Group 12's returning accounts the learned rule missed: each used its own device, so nothing linked them.`,
+        askHint: "Fraud: the money is already sent, so this pauses their future payouts and saves the miss for the next rule version. Not fraud: Ringfence stops flagging them for this.",
+        members: membersOf(slipped),
       });
     }
   }

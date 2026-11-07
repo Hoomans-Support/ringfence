@@ -1,4 +1,4 @@
-// AG Studio theme for the control tower, mirroring apps/console/app/review/data-grid.tsx's
+// AG Studio theme for the control tower, mirroring apps/console/app/review/accounts-grid.tsx's
 // themeQuartz.withParams({...}) pattern (and the AG Grid PayPal starter's own studio/theme.ts,
 // .vendor/ag-grid-starter/app/dashboard/studio/theme.ts) but pointed at Ringfence's own tokens
 // (ink/spark/mist from design.md), not the starter's PayPal navy/blue.
