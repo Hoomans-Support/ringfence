@@ -1,6 +1,7 @@
-# One Blueprint for Ringfence's payout side (PRD, Render: "hosting only"): the API with the background
-# worker's loop inside it, the hourly cron job and Postgres. Sandbox only: the PayPal client refuses
-# any other host.
+# One Blueprint for all of Ringfence (PRD, Render: "hosting only"): the API with the background
+# worker's loop inside it, the hourly cron job, Postgres, and the investigator console. Sandbox only:
+# the PayPal client refuses any other host. Every service deploys from the `ringfence` branch (`main`
+# is gone); the Blueprint itself must sync from the same branch.
 #
 # Plans, chosen for cost: the API is on Render's free plan. It sleeps after 15 idle minutes and takes
 # about a minute to wake on the next request; PayPal retries a webhook that times out, and the hourly
@@ -36,6 +37,7 @@ services:
     name: paypal-hackathon-service # the first deploy's name: keeps its URL and the webhook registered with PayPal
     runtime: node
     plan: free
+    branch: ringfence
     buildCommand: npm ci --include=dev
     startCommand: npx tsx apps/api/src/server.ts
     healthCheckPath: /health
@@ -87,6 +89,7 @@ services:
     name: ringfence-reconcile
     runtime: node
     plan: 0.5c-512mb
+    branch: ringfence
     schedule: "0 * * * *" # hourly: reconcile with PayPal, then sweep unclaimed fraud payouts into cancels
     buildCommand: npm ci --include=dev
     startCommand: npx tsx apps/api/src/cron.ts
@@ -99,6 +102,32 @@ services:
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
+        sync: false
+
+  # The investigator console (apps/console). Its demo weeks are fixture-driven; two pieces call the API
+  # above with keys read from that service, never typed twice: Ring Watch (read-only MCP key) and the
+  # survey app's live screening (the survey program's key). Free plan, so it sleeps like the API.
+  - type: web
+    name: ringfence-console
+    runtime: node
+    plan: free
+    branch: ringfence
+    buildCommand: npm ci --include=dev && npm run build -w @ringfence/console
+    startCommand: npm start -w @ringfence/console
+    buildFilter:
+      paths: ["apps/console/**", "packages/**", "scripts/demo-generator/**", "fixtures/**", "package.json", "package-lock.json"]
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: RINGFENCE_API_URL
+        value: https://paypal-hackathon-service.onrender.com
+      - key: RINGFENCE_MCP_KEY
+        fromService: { type: web, name: paypal-hackathon-service, envVarKey: RINGFENCE_MCP_KEY }
+      - key: RINGFENCE_SURVEY_API_KEY
+        fromService: { type: web, name: paypal-hackathon-service, envVarKey: RINGFENCE_SURVEY_API_KEY }
+      - key: AG_STUDIO # AG Studio licence key for the control tower's widgets
+        sync: false
+      - key: GEMINI_API_KEY # optional: the case file falls back to its scripted sentences without it
         sync: false
 
 databases:

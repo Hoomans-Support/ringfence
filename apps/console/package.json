@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@7.3.8",
     "@ringfence/agents": "*",
     "@ringfence/demo-generator": "*",
     "@ringfence/engine": "*",
