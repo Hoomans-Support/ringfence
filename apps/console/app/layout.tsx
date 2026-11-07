@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { demoIndex } from "@/lib/demo";
+import { DemoProvider } from "./demo-store";
 import { TopBar } from "./top-bar";
 import "./globals.css";
 
@@ -32,10 +34,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="stylesheet" href="/api/vendor/bryntum/theme" />
       </head>
       <body className="min-h-full flex flex-col">
-        <Suspense fallback={<div className="h-[73px] border-b border-rf-hairline" />}>
-          <TopBar />
-        </Suspense>
-        {children}
+        <DemoProvider index={demoIndex()}>
+          <Suspense fallback={<div className="h-18.25 border-b border-rf-hairline" />}>
+            <TopBar />
+          </Suspense>
+          {children}
+        </DemoProvider>
       </body>
     </html>
   );

@@ -1,19 +1,13 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { connection } from "next/server";
+import { buildDemo } from "@/lib/demo";
+import { parseDemoWeek } from "@/lib/fixtures";
+import { Overview } from "./overview";
 
-export default function Home() {
-  return (
-    <main className="mx-auto w-full max-w-2xl p-16">
-      <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Ringfence</h1>
-      <p className="mt-2 text-[17px] leading-[1.55] text-rf-slate">
-        Pay the real ones. Hold the ring. Running on fixture data — see{" "}
-        <code className="font-mono">fixtures/week1.json</code>.
-      </p>
-      <Link
-        href="/review"
-        className="mt-6 inline-block rounded-full bg-rf-ink px-5 py-2.5 text-sm font-semibold text-rf-white"
-      >
-        Open the review queue →
-      </Link>
-    </main>
-  );
+export const metadata: Metadata = { title: "Overview" };
+
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ week?: string; adjusted?: string }> }) {
+  await connection();
+  const { week, adjusted } = await searchParams;
+  return <Overview data={buildDemo(parseDemoWeek(week), adjusted === "1")} />;
 }

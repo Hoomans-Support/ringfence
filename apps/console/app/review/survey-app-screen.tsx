@@ -28,7 +28,7 @@ export function SurveyAppScreen() {
   const held = result?.decisions.filter((decision) => decision.decision === "HOLD") ?? [];
   return (
     <div className="mt-3">
-      <button type="button" onClick={runScreen} disabled={loading} className="rounded-full bg-rf-spark px-4 py-2 font-medium text-white hover:opacity-85 disabled:opacity-60">
+      <button type="button" onClick={runScreen} disabled={loading} className="min-h-11 rounded-full border border-rf-ink bg-rf-ink px-5 text-[15px] font-medium text-rf-white hover:opacity-85 disabled:opacity-60">
         {loading ? "Screening 120 payees…" : "Run live network screening"}
       </button>
       {error && <p role="alert" className="mt-2 text-sm text-rf-spark-text">{error}</p>}

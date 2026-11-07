@@ -116,9 +116,6 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
           <Link href={`/review/calendar?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-rf-slate hover:text-rf-ink">
             <HoldIcon className="size-4" /> Hold calendar →
           </Link>
-          <Link href={`/control-tower?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
-            Control tower →
-          </Link>
           <Link href="/fire-drill" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             Fire drill →
           </Link>
