@@ -83,17 +83,6 @@ export default async function RingDetailPage({ params, searchParams }: { params:
               ? `${ring.size} accounts from the future ring; all paid before Ringfence`
               : `${ring.size} accounts linked · ${caseFile?.claims_checked.checked ?? 0} of ${caseFile?.claims_checked.total ?? 0} claims checked`}
         </p>
-        <nav aria-label="Demo week" className="mt-3 flex flex-wrap gap-2 text-sm">
-          <Link href="/review/R-01?week=0" className={`rounded-full border px-3 py-1.5 ${week === 0 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
-            Week 0
-          </Link>
-          <Link href="/review/R-01?week=1" className={`rounded-full border px-3 py-1.5 ${week === 1 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
-            Week 1
-          </Link>
-          <Link href="/review/R-07?week=2" className={`rounded-full border px-3 py-1.5 ${week === 2 ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}>
-            Week 2
-          </Link>
-        </nav>
       </div>
 
       <div className="rounded-[20px] border border-rf-hairline bg-rf-white p-4">

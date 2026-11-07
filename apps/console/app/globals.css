@@ -35,17 +35,18 @@ body {
  * values as-is": its light-mode darkening exists only to pass AA against a *white* page (#C2381A
  * on white is ~5.1:1); against this dark page it drops to ~3.5:1 and fails AA for body text, so
  * dark mode reuses full --rf-spark (~6.1:1 on #111114) for coral text instead.
+ *
+ * Light by default, whatever the system says (the designer's prototype is light only); dark only
+ * when chosen from the account menu (top-bar.tsx), which sets data-theme on <html>.
  */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --rf-ink: #f2f2f0;
-    --rf-spark-text: #ff5a36;
-    --rf-mist: #1b1b1f;
-    --rf-white: #111114;
-    --rf-slate: #a3a3aa;
-    --rf-star-grey: #55555c;
-    --rf-hairline: #333338;
-  }
+:root[data-theme="dark"] {
+  --rf-ink: #f2f2f0;
+  --rf-spark-text: #ff5a36;
+  --rf-mist: #1b1b1f;
+  --rf-white: #111114;
+  --rf-slate: #a3a3aa;
+  --rf-star-grey: #55555c;
+  --rf-hairline: #333338;
 }
 
 /* Keep the Scheduler legible in the Ringfence ink / coral / mist palette. */

@@ -6,7 +6,7 @@ import { scoreRun, type ItemDecision } from "@ringfence/engine";
 import { loadWeekDemoMetadata, loadWeekRun, loadWeekTruth, parseDemoWeek, type DemoWeek } from "@/lib/fixtures";
 import { buildR12Learning } from "@/lib/learned-rule";
 import { prettifyReason } from "@/lib/reasons";
-import { HoldIcon, PayIcon, RuleIcon } from "@/app/icons";
+import { HoldIcon, PayIcon } from "@/app/icons";
 import { ReviewGrid, type ReviewRow } from "./data-grid";
 import { SurveyAppScreen } from "./survey-app-screen";
 
@@ -107,46 +107,22 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const falsePositives = week === 2 ? scored.decisions.filter((decision) => decision.decision === "HOLD" && truthByItem.get(decision.sender_item_id)?.group !== "ring") : [];
   const falseNegatives = week === 2 ? scored.decisions.filter((decision) => decision.decision === "PAY" && truthByItem.get(decision.sender_item_id)?.group === "ring") : [];
   const recovery = week === 4 ? loadWeekDemoMetadata(4)?.recovery : undefined;
-  const previousWeek: DemoWeek | undefined = week > 0 ? ((week - 1) as DemoWeek) : undefined;
-  const nextWeek: DemoWeek | undefined = week < 4 ? ((week + 1) as DemoWeek) : undefined;
-  const nextHref = nextWeek === undefined ? undefined : week === 2
-    ? `/review?week=${nextWeek}${adjusted ? "&adjusted=1" : ""}`
-    : `/review?week=${nextWeek}`;
 
   return (
-    <main className="flex h-dvh flex-col bg-rf-mist px-8 py-6 text-rf-ink">
+    <main className="flex h-[calc(100dvh-73px)] flex-col bg-rf-mist px-8 py-6 text-rf-ink">
       <div className="flex items-center justify-between">
         <h1 className="text-[32px] font-semibold tracking-[-0.03em]">Review queue</h1>
         <div className="flex items-center gap-4">
           <Link href={`/review/calendar?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-rf-slate hover:text-rf-ink">
             <HoldIcon className="size-4" /> Hold calendar →
           </Link>
-          <Link href={`/control-tower?week=${week}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
+          <Link href={`/control-tower?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             Control tower →
           </Link>
           <Link href="/fire-drill" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
             Fire drill →
           </Link>
-          <Link href={`/rules?week=${week}${adjusted ? "&adjusted=1" : ""}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-rf-slate hover:text-rf-ink">
-            <RuleIcon className="size-4" /> Rules →
-          </Link>
         </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/review?week=0" className="rounded-full border border-rf-hairline px-3 py-1.5 hover:bg-rf-white">
-          Reset demo
-        </Link>
-        {previousWeek !== undefined && (
-          <Link href={`/review?week=${previousWeek}${week === 3 && adjusted ? "&adjusted=1" : ""}`} className="rounded-full border border-rf-hairline px-3 py-1.5 hover:bg-rf-white">
-            Previous week
-          </Link>
-        )}
-        <span className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-rf-white">Week {week}</span>
-        {nextWeek !== undefined && nextHref && (
-          <Link href={nextHref} className="rounded-full bg-rf-ink px-3 py-1.5 font-medium text-rf-white hover:opacity-85">
-            Step to week {nextWeek}
-          </Link>
-        )}
       </div>
       {week === 2 && (
         <section className="mt-3 rounded-[16px] border border-rf-hairline bg-rf-white p-4 text-sm">

@@ -28,17 +28,6 @@ export default async function HoldCalendarPage({ searchParams }: { searchParams:
         <p className="mt-1 text-[17px] leading-[1.55] text-rf-slate">
           When this week's holds expire, grouped by ring or pair — so a reviewer can plan which cases need attention first.
         </p>
-        <nav aria-label="Demo week" className="mt-3 flex flex-wrap gap-2 text-sm">
-          {([0, 1, 2, 3, 4] as const).map((w) => (
-            <Link
-              key={w}
-              href={`/review/calendar?week=${w}${adjusted && w >= 3 ? "&adjusted=1" : ""}`}
-              className={`rounded-full border px-3 py-1.5 ${week === w ? "border-rf-ink bg-rf-ink text-rf-white" : "border-rf-hairline hover:bg-rf-white"}`}
-            >
-              Week {w}
-            </Link>
-          ))}
-        </nav>
       </div>
 
       {resources.length === 0 ? (

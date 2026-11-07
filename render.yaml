@@ -72,6 +72,10 @@ services:
         value: Survey app
       - key: RINGFENCE_SURVEY_API_KEY
         generateValue: true
+      # The ring network: a ring confirmed at one program is recognized at the other (survey app, week 4)
+      # by keyed hashes. Without it, confirming publishes nothing and the survey app matches nothing.
+      - key: RINGFENCE_NETWORK_KEY
+        generateValue: true
       - key: PAYPAL_LOGIN_CLIENT_ID
         sync: false
       - key: PAYPAL_LOGIN_CLIENT_SECRET

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { applyRule, checkClaims, investigate, redTeamRule, summarizeForAnalyst } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type RingSummary } from "@ringfence/engine";
@@ -116,41 +115,6 @@ export default async function ControlTowerPage({ searchParams }: { searchParams:
           Simulated Week {week}: ring graph, money kept against leaked, false holds, rule robustness, live Ring Watch and analyst read.
         </p>
       </div>
-      {/* State (which week you're looking at), the one action (advance the demo) and the escape
-          hatch back to the queue are visually distinct from each other: a tab group for state, one
-          coral button - the brand's one reserved highlight - for the action, a plain outlined pill
-          for navigation. Direct Week 0/1/2 tabs replace "Previous week", which only duplicated what
-          clicking a tab already does. */}
-      <nav aria-label="Demo week" className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-        <div className="flex gap-1 rounded-full border border-rf-hairline p-1">
-          {([0, 1, 2, 3, 4] as const).map((w) => (
-            <Link
-              key={w}
-              href={`/control-tower?week=${w}`}
-              aria-current={week === w ? "page" : undefined}
-              className={`rounded-full px-3 py-1 font-medium ${week === w ? "bg-rf-ink text-rf-white" : "text-rf-slate hover:bg-rf-mist"}`}
-            >
-              Week {w}
-            </Link>
-          ))}
-        </div>
-        {nextWeek !== undefined ? (
-          <Link href={`/control-tower?week=${nextWeek}${adjusted ? "&adjusted=1" : ""}`} className="rounded-full bg-rf-spark px-3 py-1.5 font-medium text-white hover:opacity-85">
-            Step to week {nextWeek} →
-          </Link>
-        ) : (
-          <span className="cursor-default rounded-full bg-rf-mist px-3 py-1.5 font-medium text-rf-slate">Week 4 is the most recent</span>
-        )}
-        <Link
-          href={`/review?week=${week}${adjusted ? "&adjusted=1" : ""}`}
-          className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink"
-        >
-          ← Week {week} review queue
-        </Link>
-        <Link href="/review?week=4" className="rounded-full border border-rf-hairline px-3 py-1.5 font-medium text-rf-slate hover:bg-rf-white hover:text-rf-ink">
-          Survey app demo
-        </Link>
-      </nav>
       {/* Flattened: no extra card (border/background/padding) wrapping AG Studio's own canvas,
           which already matches the page's mist background (studio/theme.ts) - this div exists
           only to give AG Studio a definite pixel height to measure itself against. Theory (42 rows
