@@ -1,13 +1,7 @@
-// Shared by the ring detail page and the control tower's ring-graph widget: lays out a ring's real
-// members and edges (the engine's own graph, not a redrawn approximation) ready for <RingGraph>.
+// The control tower's ring-graph widget: a ring's real members and edges (the engine's own graph,
+// not a redrawn approximation), laid out by computeLayout once the widget knows its size.
 import { buildGraph, type PayoutItem, type PayoutRun, type RingSummary } from "@ringfence/engine";
-import { computeLayout, type LayoutLink, type PositionedNode } from "./graph-layout";
-
-export interface RingLayout {
-  nodes: PositionedNode[];
-  links: LayoutLink[];
-  operatorIds: Set<string>;
-}
+import type { LayoutLink } from "./graph-layout";
 
 export interface RingGraphData {
   nodeIds: string[];
@@ -40,10 +34,4 @@ export function buildRingGraphData(ring: RingSummary, run: PayoutRun): RingGraph
   const operatorIds = new Set(members.filter((it) => it.context.device_hash === topDevice).map((it) => it.context.account_id));
 
   return { nodeIds: [...memberAccountIds], links, operatorIds };
-}
-
-export function layoutRing(ring: RingSummary, run: PayoutRun, size: { width: number; height: number }): RingLayout {
-  const { nodeIds, links, operatorIds } = buildRingGraphData(ring, run);
-  const layout = computeLayout(nodeIds, links, size);
-  return { nodes: layout.nodes, links: layout.links, operatorIds };
 }

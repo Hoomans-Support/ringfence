@@ -50,9 +50,9 @@ export interface AccountRow {
 function TwoLines({ value }: CustomCellRendererProps<AccountRow, [string, string]>) {
   if (!value) return null;
   return (
-    <span className="flex h-full flex-col justify-center leading-[1.3]">
-      <span className="font-sans text-[13px]">{value[0]}</span>
-      <span className="text-xs text-rf-slate">{value[1]}</span>
+    <span className="flex h-full min-w-0 flex-col justify-center leading-[1.3]" title={value.filter(Boolean).join(" · ")}>
+      <span className="truncate font-sans text-[13px]">{value[0]}</span>
+      <span className="truncate text-xs text-rf-slate">{value[1]}</span>
     </span>
   );
 }
@@ -70,10 +70,10 @@ function StatusCell({ data }: CustomCellRendererProps<AccountRow>) {
 export function AccountsGrid({ rows, onToggle, showAction }: { rows: AccountRow[]; onToggle: (key: string) => void; showAction: boolean }) {
   const columns: ColDef<AccountRow>[] = [
     { headerName: "Status", field: "status", width: 124, cellRenderer: StatusCell, cellClass: "pl-5!", headerClass: "pl-5!" },
-    { headerName: "Account", field: "account", width: 72 },
+    { headerName: "Account", field: "account", width: 92 },
     { headerName: "Signed up", field: "signedUp", width: 104, cellRenderer: TwoLines },
     { headerName: "Device", field: "device", width: 132, cellRenderer: TwoLines },
-    { headerName: "Payout linked to", field: "payout", flex: 1, minWidth: 180 },
+    { headerName: "Payout linked to", field: "payout", flex: 1, minWidth: 160 },
     { headerName: "Amount", field: "amount", width: 80, type: "rightAligned" },
     ...(showAction ? [{
       headerName: "", colId: "action", width: 110, sortable: false, cellClass: "flex! items-center justify-end pr-4!",
@@ -85,7 +85,7 @@ export function AccountsGrid({ rows, onToggle, showAction }: { rows: AccountRow[
     } satisfies ColDef<AccountRow>] : []),
   ];
   return (
-    <div className="overflow-x-auto">
+    <div className="rf-accounts overflow-x-auto">
       <div className="min-w-180">
         <AgGridProvider modules={modules}>
           <AgGridReact<AccountRow>

@@ -75,6 +75,46 @@ body {
   color: var(--rf-ink);
 }
 
+/* AG Grid's auto-height layout reserves 150px for a "no rows" message; the accounts table never
+   needs it, so a 2-account group isn't followed by a blank band. */
+.rf-accounts .ag-grid-scrolling-rows {
+  min-height: 0;
+}
+
+/* The case's zoomed-in "When" view (app/review/when-card.tsx): Bryntum Scheduler drawn as the
+   designer's dot plot - one borderless row, each event an ink dot, stacks growing up from the axis
+   (the body is flipped; dots are symmetric), no grid. The axis itself is drawn in when-card.tsx. */
+.rf-dotplot {
+  min-height: 0 !important;
+}
+
+.rf-dotplot,
+.rf-dotplot .b-grid-body-container,
+.rf-dotplot .b-grid-row,
+.rf-dotplot .b-grid-cell {
+  background: transparent;
+  border-color: transparent;
+}
+
+.rf-dotplot .b-grid-body-container {
+  transform: scaleY(-1);
+}
+
+.rf-dotplot .b-sch-event-wrap {
+  width: 12px !important;
+}
+
+.rf-dotplot .b-sch-event {
+  width: 12px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--rf-ink);
+  box-shadow: 0 0 0 2px var(--rf-white);
+}
+
 @theme inline {
   --color-rf-ink: var(--rf-ink);
   --color-rf-spark: var(--rf-spark);

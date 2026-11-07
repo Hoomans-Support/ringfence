@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useState } from "react";
 import type { DemoData } from "@/lib/demo";
 import { EXAMPLE_HISTORY, historyStats, liveRow, type HistoryRow } from "@/lib/history";
-import { decisionKey, useDemo, type DemoCase } from "../demo-store";
+import { decisionKey, useDemo, type DemoCase, type DemoMember } from "../demo-store";
 import { DecideButtons, Glyph, VerdictCapsule, shortDate, usd } from "../overview";
 import { AccountsGrid, type AccountRow } from "./accounts-grid";
+import { LinkedCard } from "./linked-card";
+import { WhenCard } from "./when-card";
 
 type Tab = "all" | "paused" | "second";
 const TABS: { key: Tab; label: string; hint: string }[] = [
@@ -208,17 +210,13 @@ function CaseDetail({ c, data, verdict, showAll, onShowAll, released, onToggle, 
         : ["Added to a paused group.", "Their future payouts are paused. Nothing was left to recover: the money was already sent."]
       : ["Marked as real members.", "We won't flag these accounts for the same reasons again."];
 
-  const rows: AccountRow[] = (showAll ? c.members : c.members.slice(0, ROWS_SHOWN)).map((m) => {
-    const isReleased = group && (verdict === "real" || released(m.itemId));
-    return {
-      key: m.itemId, released: isReleased, canAct: group && !verdict,
-      status: !group ? "Paid" : isReleased ? "Released" : verdict === "fraud" ? "Kept unpaid" : "Paused",
-      account: m.accountId, signedUp: signedUp(m.signupAt), device: m.deviceName ? [m.deviceName, m.device] : [m.device, ""],
-      payout: m.receiver, amount: `$${m.usd.toFixed(2)}`,
-    };
-  });
-  // The full ring page (graph, Bryntum sign-up timeline, checked case file) until those move in here.
-  const ringPage = group && !c.id.includes(":") && !c.id.startsWith("P-") && data.week <= 2 ? `/review/${c.id}?week=${Math.min(data.week, 1)}` : undefined;
+  const isReleased = (m: DemoMember) => verdict === "real" || released(m.itemId);
+  const memberStatus = (m: DemoMember) => (!group ? "Paid" : isReleased(m) ? "Released" : verdict === "fraud" ? "Kept unpaid" : "Paused");
+  const rows: AccountRow[] = (showAll ? c.members : c.members.slice(0, ROWS_SHOWN)).map((m) => ({
+    key: m.itemId, released: isReleased(m), canAct: !verdict, status: memberStatus(m),
+    account: m.accountId, signedUp: signedUp(m.signupAt), device: m.deviceName ? [m.deviceName, m.device] : [m.device, ""],
+    payout: m.receiver, amount: `$${m.usd.toFixed(2)}`,
+  }));
 
   return (
     <section className="flex min-w-0 flex-[999_1_600px] flex-col gap-6">
@@ -245,20 +243,24 @@ function CaseDetail({ c, data, verdict, showAll, onShowAll, released, onToggle, 
         </div>
       )}
 
-      <div className="overflow-hidden rounded-[20px] border border-rf-hairline">
-        <div className="flex items-center justify-between gap-3 border-b border-rf-hairline px-5 py-4">
-          <span className="text-base font-semibold">{group ? "Accounts in this group" : "The accounts"}</span>
-          <span className="text-[13px] text-rf-slate">{group ? "Release one if you know it's a real member" : "Already paid"}</span>
-        </div>
-        <AccountsGrid rows={rows} onToggle={onToggle} showAction={group} />
-        {c.members.length > ROWS_SHOWN && !showAll && (
-          <button type="button" onClick={onShowAll} className="w-full border-t border-rf-hairline px-5 py-3.5 text-left text-sm font-medium hover:bg-rf-mist">Show all {c.members.length} accounts</button>
-        )}
-        {c.members.some((m) => m.deviceName) && <p className="border-t border-rf-hairline px-5 py-3 text-xs text-rf-slate">Device names are examples; the ids beside them are the real device fingerprints.</p>}
-      </div>
-
-      {ringPage && (
-        <Link href={ringPage} className="self-start text-[15px] font-medium underline">How they&apos;re linked: graph, sign-up timeline and checked case file →</Link>
+      {group ? (
+        <>
+          <LinkedCard c={c} status={memberStatus} />
+          <WhenCard c={c} today={data.today} runName={data.runName} signupsByDay={data.signupsByDay} decided={Boolean(verdict)} />
+          <div className="overflow-hidden rounded-[20px] border border-rf-hairline">
+            <div className="flex items-center justify-between gap-3 border-b border-rf-hairline px-5 py-4">
+              <span className="text-base font-semibold">Accounts in this group</span>
+              <span className="text-[13px] text-rf-slate">Release one if you know it&apos;s a real member</span>
+            </div>
+            <AccountsGrid rows={rows} onToggle={onToggle} showAction />
+            {c.members.length > ROWS_SHOWN && !showAll && (
+              <button type="button" onClick={onShowAll} className="w-full border-t border-rf-hairline px-5 py-3.5 text-left text-sm font-medium hover:bg-rf-mist">Show all {c.members.length} accounts</button>
+            )}
+            {c.members.some((m) => m.deviceName) && <p className="border-t border-rf-hairline px-5 py-3 text-xs text-rf-slate">Device names are examples; the ids beside them are the real device fingerprints.</p>}
+          </div>
+        </>
+      ) : (
+        <SecondLook c={c} reference={data.cases.find((x) => x.kind === "group" && x.verdict === "fraud")} />
       )}
 
       {!verdict && (
@@ -273,6 +275,82 @@ function CaseDetail({ c, data, verdict, showAll, onShowAll, released, onToggle, 
         </div>
       )}
     </section>
+  );
+}
+
+/** A paid second look, as the designer lays it out: the accounts in brief, and how they compare
+ *  with the paused group they share a link with. */
+function SecondLook({ c, reference }: { c: DemoCase; reference?: DemoCase }) {
+  const byAccount = [...c.members].sort((a, b) => a.accountId.localeCompare(b.accountId, "en", { numeric: true }));
+  const byTime = [...c.members].sort((a, b) => Date.parse(a.signupAt) - Date.parse(b.signupAt));
+  const [d1, t1] = signedUp(byTime[0]!.signupAt);
+  const [d2, t2] = signedUp(byTime.at(-1)!.signupAt);
+  const pattern = (email: string) => email.replace(/\d+(?=@)/, "#");
+  const samePattern = new Set(c.members.map((m) => pattern(m.receiver))).size === 1;
+  const first = byAccount[0]!;
+  const last = byAccount.at(-1)!;
+  const each = c.members[0]!.usd;
+  const facts: { k: string; v: string; example?: boolean }[] = [
+    { k: "Accounts", v: c.size === 1 ? first.accountId : `${first.accountId} … ${last.accountId}` },
+    { k: "Signed up", v: d1 === d2 ? `${d1}, ${t1}–${t2}` : `${d1} – ${d2}` },
+    { k: "Payouts linked to", v: samePattern ? `${first.receiver.split("@")[0]} … ${last.receiver.match(/(\d+)@/)?.[1] ?? ""}@${first.receiver.split("@")[1]}` : `${c.size} different payout emails` },
+    { k: "Paid", v: c.members.every((m) => m.usd === each) ? `${c.size} × $${each} = ${usd(c.usd)}, ${c.paidIn ?? "this"} run` : `${usd(c.usd)}, ${c.paidIn ?? "this"} run` },
+    ...(c.moneyNote && c.paidIn !== undefined && c.recoverableUsd > 0
+      ? [{ k: "Still recoverable", v: `${usd(c.recoverableUsd)} · not collected yet`, example: true }, { k: "Already collected", v: usd(c.usd - c.recoverableUsd), example: true }]
+      : c.moneyNote === "Paid · all collected" ? [{ k: "Still recoverable", v: `$0 · all ${c.size} collected`, example: true }] : []),
+  ];
+
+  const compare: { tag: "MATCH" | "CLOSE" | "NO"; text: string }[] = [];
+  if (reference) {
+    const refName = reference.name ?? "the paused group";
+    const refDevices = new Set(reference.members.map((m) => m.device));
+    const sameDevices = new Set(c.members.filter((m) => refDevices.has(m.device)).map((m) => m.device)).size;
+    const devices = new Set(c.members.map((m) => m.device)).size;
+    const networks = new Set(c.members.map((m) => m.ipPrefix)).size;
+    compare.push(sameDevices
+      ? { tag: "MATCH", text: `Same ${sameDevices} device${sameDevices === 1 ? "" : "s"} as ${refName}` }
+      : { tag: "NO", text: `${devices} different devices${networks > 1 ? ` on ${networks} different networks` : ""}` });
+    const refReferrers = new Set(reference.members.map((m) => m.referrer));
+    const referrers = new Set(c.members.map((m) => m.referrer));
+    compare.push([...referrers].every((r) => refReferrers.has(r))
+      ? { tag: "MATCH", text: `Same referrer, ${[...referrers][0]}` }
+      : referrers.size === 1 ? { tag: "CLOSE", text: `One shared referrer, a regular member, not ${refName}'s` } : { tag: "NO", text: "Different referrers" });
+    const refPatterns = new Set(reference.members.map((m) => pattern(m.receiver)));
+    if (samePattern && refPatterns.has(pattern(c.members[0]!.receiver))) compare.push({ tag: "MATCH", text: `Same numbered payout emails as ${refName}` });
+    const quickAndQuiet = c.members.every((m) => m.onboardingSeconds < 120 && m.activity === 0);
+    const secs = c.members.map((m) => m.onboardingSeconds);
+    compare.push(quickAndQuiet
+      ? { tag: "MATCH", text: "Each finished sign-up in under 2 minutes, then did nothing" }
+      : { tag: "NO", text: `Took ${Math.min(...secs)}–${Math.max(...secs)} seconds to sign up, then kept using the app` });
+  }
+  const TAG = { MATCH: "bg-rf-ink text-rf-white", CLOSE: "bg-rf-hairline text-rf-ink", NO: "bg-rf-white text-rf-slate" };
+
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+      <div className="flex flex-col gap-4 rounded-[20px] border border-rf-hairline p-6">
+        <div className="font-mono text-xs tracking-[0.08em] text-rf-slate">THE ACCOUNTS</div>
+        {facts.map((f) => (
+          <div key={f.k} className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-2 text-[13px] text-rf-slate">
+              {f.k}
+              {f.example && <span className="rounded-md border border-dashed border-rf-slate px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-[0.08em]">EXAMPLE</span>}
+            </span>
+            <span className="font-mono text-sm">{f.v}</span>
+          </div>
+        ))}
+      </div>
+      {reference && (
+        <div className="flex flex-col gap-4 rounded-[20px] bg-rf-mist p-6">
+          <div className="font-mono text-xs tracking-[0.08em] text-rf-slate">COMPARED WITH {(reference.name ?? "the paused group").toUpperCase()}</div>
+          {compare.map((x) => (
+            <div key={x.text} className="flex items-start gap-3">
+              <span className={`w-14 flex-none rounded-full py-0.75 text-center font-mono text-[11px] tracking-[0.06em] ${TAG[x.tag]}`}>{x.tag}</span>
+              <span className="text-[15px] leading-[1.45]">{x.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { buildDemo } from "../lib/demo";
+import { deriveFindings } from "../lib/findings";
+
+describe("deriveFindings", () => {
+  it("reads the roommate pair as two active people on one laptop", () => {
+    const pair = buildDemo(1, false).cases.find((c) => c.name === "Group 13")!;
+    expect(deriveFindings(pair.members).map((f) => f.text)).toEqual([
+      "Both signed in from one laptop",
+      "Signed up 4 hours apart",
+      "Both finished sign-up in under 2 minutes",
+      "But they kept using the app afterwards",
+      "And they used different networks",
+    ]);
+  });
+
+  it("gives a ring its checked case file instead", () => {
+    const ring = buildDemo(1, false).cases.find((c) => c.name === "Group 12")!;
+    expect(ring.caseFile?.claims_checked).toEqual({ checked: 8, total: 8 });
+  });
+});
 
 describe("buildDemo", () => {
   it("week 1 gives the designer's four cases from the real fixtures, fraud first", () => {

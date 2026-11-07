@@ -2,7 +2,7 @@
 // split, the cases waiting for a decision (paused groups and paid "second looks") and the learned
 // rules. The per-week decisions are the review queue's own (same scoreRun, same learned-rule and
 // network-match overrides), only reshaped. Fixtures never change, so each week is built once.
-import { applyRule } from "@ringfence/agents";
+import { applyRule, checkClaims, investigate } from "@ringfence/agents";
 import { scoreRun, type ItemDecision, type PayoutItem } from "@ringfence/engine";
 import type { DemoCase, DemoMember, DemoRule, DemoWeekIndex, IconKey, Verdict } from "@/app/demo-store";
 import { loadWeekDemoMetadata, loadWeekRun, loadWeekTruth, type DemoWeek } from "./fixtures";
@@ -28,7 +28,12 @@ export interface DemoData {
   /** A sentence about where this week sits in the story, when there's more to say than the cases. */
   note?: string;
   network?: { accounts: number; source: string };
+  /** Sign-ups per day across the whole run, by UTC+7 date (YYYY-MM-DD), for the "When" bar chart. */
+  signupsByDay: Record<string, number>;
 }
+
+/** A UTC+7 calendar date (the team's time zone, which every date on these screens uses). */
+export const jakartaDay = (iso: string) => new Date(Date.parse(iso) + 7 * 3_600_000).toISOString().slice(0, 10);
 
 const HOLD_DAYS = 7;
 const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
@@ -55,6 +60,8 @@ const membersOf = (items: PayoutItem[]) => items.map(memberOf).sort((a, b) => a.
 const memberOf = (it: PayoutItem): DemoMember => ({
   itemId: it.sender_item_id, accountId: it.context.account_id, signupAt: it.context.signup_at,
   device: it.context.device_hash, deviceName: DEVICE_NAMES[it.context.device_hash], receiver: it.receiver, usd: Number(it.amount.value),
+  referrer: it.context.referrer_id ?? "", ipPrefix: it.context.ip_prefix ?? "",
+  onboardingSeconds: it.context.onboarding_seconds ?? 0, activity: it.context.activity_after_onboarding ?? 0,
 });
 
 const spanMinutes = (items: PayoutItem[]) => {
@@ -167,7 +174,10 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
     const summary = verdict === "fraud"
       ? `Ringfence's read: looks like one person. All ${n} signed up within ${spanMinutes(members)} minutes.`
       : `Ringfence's read: likely real people. ${links.length ? `${list(links).replace(/^one/, "One")} ${links.length === 1 ? "is" : "are"} their only link, and` : "Nothing else links them, and"} ${n === 2 ? "both" : "all"} kept using the app after sign-up.`;
-    return { ...base, id: key, name, label: name?.toUpperCase() ?? key, title, facts: factsOf(members), headline: `${n} accounts linked by ${list(links) || "shared signals"}`, summary };
+    // A ring gets the investigator's case file, each claim checked against the run (the ring page's own).
+    const ring = isRing ? scored.rings.find((r) => r.ring_id === key) : undefined;
+    return { ...base, id: key, name, label: name?.toUpperCase() ?? key, title, facts: factsOf(members), headline: `${n} accounts linked by ${list(links) || "shared signals"}`, summary,
+      caseFile: ring ? checkClaims(investigate(ring, run), run) : undefined };
   });
 
   // Paid, but worth a second look: they share a link with a paused group, or only a referrer.
@@ -180,7 +190,7 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
     const devices = new Set(linked.map((it) => it.context.device_hash));
     const total = amount(linked);
     seconds.push({
-      id: "second:w44", kind: "second", label: `SECOND LOOK · PAID ${runName(earlier.sender_batch_header.sender_batch_id).toUpperCase()}`,
+      id: "second:w44", kind: "second", label: `SECOND LOOK · PAID ${runName(earlier.sender_batch_header.sender_batch_id).toUpperCase()}`, paidIn: runName(earlier.sender_batch_header.sender_batch_id),
       title: `${linked.length} accounts linked to Group 12`, verdict: verdictOf(linked), size: linked.length, usd: total,
       facts: [{ icon: "device", text: `Same ${devices.size} devices` }, { icon: "person", text: "Same referrer" }, { icon: "clock", text: `Paid in ${runName(earlier.sender_batch_header.sender_batch_id)}` }],
       // The fixtures carry no claim status; this split is the designer's example.
@@ -198,7 +208,7 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
     const coworkers = items(truth.filter((l) => l.group === "coworkers").map((l) => l.sender_item_id));
     if (coworkers.length > 0) {
       seconds.push({
-        id: "second:coworkers", kind: "second", label: `SECOND LOOK · PAID ${runLabel.toUpperCase()}`,
+        id: "second:coworkers", kind: "second", label: `SECOND LOOK · PAID ${runLabel.toUpperCase()}`, paidIn: runLabel,
         title: `${coworkers.length} accounts, one referrer`, verdict: verdictOf(coworkers), size: coworkers.length, usd: amount(coworkers),
         facts: factsOf(coworkers), moneyNote: "Paid · all collected", recoverableUsd: 0,
         hint: "Not fraud stops flags like this · Fraud pauses future payouts",
@@ -214,7 +224,7 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
       .filter((it) => decisions.find((d) => d.sender_item_id === it.sender_item_id)?.decision === "PAY");
     if (slipped.length > 0) {
       seconds.push({
-        id: "second:slipped", kind: "second", label: `SECOND LOOK · PAID ${runLabel.toUpperCase()}`,
+        id: "second:slipped", kind: "second", label: `SECOND LOOK · PAID ${runLabel.toUpperCase()}`, paidIn: runLabel,
         title: `${slipped.length} accounts linked to Group 12`, verdict: verdictOf(slipped), size: slipped.length, usd: amount(slipped),
         facts: factsOf(slipped), moneyNote: "Paid this run", recoverableUsd: 0,
         hint: "Not fraud stops flags like this · Fraud pauses future payouts",
@@ -272,6 +282,11 @@ function build(week: DemoWeek, adjusted: boolean): DemoData {
       : `PAYOUT RUN · ${runLabel.toUpperCase()} · ${usd(amount(run.items))}`,
     payees: run.items.length, totalUsd: amount(run.items), paid: paid.length, paidUsd: amount(items(paid.map((d) => d.sender_item_id))),
     cases: [...groupCases, ...seconds], rules, note,
+    signupsByDay: run.items.reduce<Record<string, number>>((days, it) => {
+      const day = jakartaDay(it.context.signup_at);
+      days[day] = (days[day] ?? 0) + 1;
+      return days;
+    }, {}),
     network: week === 4 ? { accounts: networkMatches.size, source: "Group 12" } : undefined,
   };
 }

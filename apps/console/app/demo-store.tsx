@@ -4,6 +4,7 @@
 // counts) so one choice shows up everywhere, the way the designer's prototype keeps one store.
 // Nothing here reaches the API: like the week stepper, it is walkthrough state, and it lives only
 // until the tab is closed or reloaded.
+import type { CaseFile } from "@ringfence/agents";
 import Link from "next/link";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -19,6 +20,10 @@ export interface DemoMember {
   deviceName?: string;
   receiver: string;
   usd: number;
+  referrer: string;
+  ipPrefix: string;
+  onboardingSeconds: number;
+  activity: number;
 }
 
 export interface DemoCase {
@@ -46,6 +51,10 @@ export interface DemoCase {
   summary: string;
   askHint: string;
   members: DemoMember[];
+  /** Rings only: the investigator's case file, every claim checked against the run (packages/agents). */
+  caseFile?: CaseFile;
+  /** Second looks only: the run they were paid in ("Week 44"). */
+  paidIn?: string;
 }
 
 export interface DemoRule {
