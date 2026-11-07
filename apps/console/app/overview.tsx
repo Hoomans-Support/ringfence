@@ -251,7 +251,7 @@ export function Overview({ data }: { data: DemoData }) {
           </div>
           <div className="mt-auto flex flex-wrap justify-between gap-x-4 gap-y-2 text-sm">
             <Link href={decidedLink} className="font-medium underline">See every decision →</Link>
-            <Link href="/fire-drill" className="text-rf-slate underline hover:text-rf-ink">How Ringfence does on a test program →</Link>
+            <Link href={`/rules?${q}#compare`} className="text-rf-slate underline hover:text-rf-ink">How Ringfence does on a test program →</Link>
           </div>
         </div>
         <div className="flex flex-col gap-4 rounded-[20px] border border-rf-hairline p-6">

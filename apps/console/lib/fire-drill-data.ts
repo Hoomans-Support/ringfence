@@ -14,6 +14,8 @@ export interface SweepRow {
   label: string;
   gate: Gate;
   leakedPer1000Usd: number;
+  /** Honest members held per run of 1,000 test payouts (averaged, so it can be fractional). */
+  honestHeld: number;
   honestHeldPct: number;
   precisionPct: number;
   recallPct: number;
@@ -46,11 +48,12 @@ export function parseFireDrillMarkdown(markdown: string): FireDrillData {
     }
     const match = ROW_RE.exec(line.trim());
     if (!match || !section) continue;
-    const [, label, gate, leaked, , honestHeldPct, precisionPct, recallPct] = match;
+    const [, label, gate, leaked, honestHeld, honestHeldPct, precisionPct, recallPct] = match;
     const row: SweepRow = {
       label: label as string,
       gate: gate as Gate,
       leakedPer1000Usd: Number(leaked),
+      honestHeld: Number(honestHeld),
       honestHeldPct: Number(honestHeldPct),
       precisionPct: Number(precisionPct),
       recallPct: Number(recallPct),

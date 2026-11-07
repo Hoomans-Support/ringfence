@@ -32,6 +32,7 @@ describe("parseFireDrillMarkdown", () => {
       label: "1%",
       gate: "no gate",
       leakedPer1000Usd: 200,
+      honestHeld: 0,
       honestHeldPct: 0,
       precisionPct: 100,
       recallPct: 0,

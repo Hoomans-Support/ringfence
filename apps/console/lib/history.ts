@@ -1,4 +1,4 @@
-// The Decided history: the designer's EXAMPLE rows (made-up decisions by Budi's team in Weeks 42-44,
+// The Decided history: the designer's EXAMPLE rows (made-up decisions by Rina's team in Weeks 42-44,
 // always labelled as examples on screen) plus whatever is decided in this session. The Overview's
 // record card and the Decided tab both read their totals from here, so they always agree.
 import type { DemoCase, Verdict } from "@/app/demo-store";
@@ -35,7 +35,7 @@ const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
 /** One row for a case decided in this session. */
 export function liveRow(c: DemoCase, verdict: Verdict, runName: string): HistoryRow {
   const base = { title: c.name ? `${c.name} · ${c.size} accounts` : c.title, sub: c.kind === "second" ? "Paid, second look" : c.facts.map((f) => f.text).slice(0, 2).join(" · "),
-    run: runName.replace("Week", "Wk"), read: c.verdict, by: "Budi (you)", when: "Just now", agreed: c.verdict === verdict, kind: c.kind, example: false, caseId: c.id };
+    run: runName.replace("Week", "Wk"), read: c.verdict, by: "Rina (you)", when: "Just now", agreed: c.verdict === verdict, kind: c.kind, example: false, caseId: c.id };
   if (c.kind === "group") {
     return verdict === "fraud"
       ? { ...base, decision: "Fraud · kept unpaid", money: `${usd(c.usd)} kept`, chip: "done", kept: c.usd, recovered: 0, lost: 0 }

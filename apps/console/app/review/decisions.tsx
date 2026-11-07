@@ -99,7 +99,7 @@ export function Decisions({ data, initialCase, initialTab }: { data: DemoData; i
               <span className="text-sm leading-normal">
                 Ringfence has run BudgetApp&apos;s payouts since Week 42. Rows marked{" "}
                 <span className="rounded-[5px] border border-dashed border-rf-slate px-1.5 py-0.5 font-mono text-[11px] tracking-[0.06em] text-rf-slate">EXAMPLE</span>{" "}
-                under Decided are made-up decisions by Budi&apos;s team from Weeks 42–44, to show how history looks. Decide a case under To decide and it moves there, with a Reopen link.
+                under Decided are made-up decisions by Rina&apos;s team from Weeks 42–44, to show how history looks. Decide a case under To decide and it moves there, with a Reopen link.
               </span>
               {data.note && <span className="text-sm leading-normal text-rf-slate">{data.note}</span>}
             </div>

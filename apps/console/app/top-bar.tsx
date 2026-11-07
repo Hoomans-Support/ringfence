@@ -46,9 +46,10 @@ function AccountMenu() {
   };
   return (
     <details ref={menu} className="relative">
-      <summary title="Signed in as Budi" className="flex cursor-pointer list-none items-center gap-2 rounded-full py-1 pr-2 pl-1 text-sm hover:bg-rf-mist [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full bg-rf-mist text-[13px] font-semibold">B</span>
-        Budi
+      {/* Rina, BudgetApp's investigator: the same person who confirms rings and approves rules in the API's tests. */}
+      <summary title="Signed in as Rina" className="flex cursor-pointer list-none items-center gap-2 rounded-full py-1 pr-2 pl-1 text-sm hover:bg-rf-mist [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full bg-rf-mist text-[13px] font-semibold">R</span>
+        Rina
       </summary>
       <div className="absolute right-0 z-20 mt-2 w-48 rounded-2xl border border-rf-hairline bg-rf-white p-1 shadow-[0_8px_24px_rgba(17,17,20,0.12)]">
         <button type="button" role="switch" aria-checked={dark} onClick={toggle} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-rf-mist">
