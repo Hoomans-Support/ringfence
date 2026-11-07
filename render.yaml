@@ -133,6 +133,12 @@ services:
         sync: false
       - key: GEMINI_API_KEY # optional: the case file falls back to its scripted sentences without it
         sync: false
+      # Optional: AG Studio's AI assistant in the control tower's edit mode, through OpenRouter. Without
+      # the key the assistant panel simply isn't offered. The model is the cheapest that handles tools well.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-oss-120b
 
 databases:
   - name: ringfence-db

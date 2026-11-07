@@ -14,18 +14,18 @@ export default function FireDrillPage() {
     : (1 - ringfence.leakedPer1000Usd / noGate.leakedPer1000Usd) * 100;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 bg-rf-mist px-8 py-6 text-rf-ink">
-      <div>
-        <Link href="/review" className="text-sm font-medium text-rf-slate hover:text-rf-ink">
-          ← Review queue
-        </Link>
-        <h1 className="mt-2 text-[32px] font-semibold tracking-[-0.03em]">Fire drill</h1>
-        <p className="mt-1 max-w-2xl text-[17px] leading-[1.55] text-rf-slate">
-          One synthetic referral program of 1,000 payees, run three ways and scored against its own ground truth, averaged
-          over 5 seeds (<code className="font-mono">npm run fire-drill</code>, regenerated into{" "}
+    <main className="mx-auto flex w-full max-w-300 flex-col gap-8 px-8 pt-12 pb-20 max-[720px]:px-4">
+      <section className="flex flex-col gap-4">
+        <Link href="/rules#compare" className="text-sm font-medium text-rf-slate hover:text-rf-ink">← Learned rules</Link>
+        <div className="font-mono text-xs tracking-[0.08em] text-rf-slate">PRACTICE RUN · 1,000 TEST PAYOUTS · 5 SEEDS</div>
+        <h1 className="text-[48px] leading-[1.05] font-semibold tracking-[-0.035em] max-[720px]:text-[36px]">Fire drill</h1>
+        <p className="max-w-[60ch] text-[17px] leading-[1.55] text-rf-slate">
+          One made-up referral program of 1,000 payees, run three ways and scored against its own ground truth, averaged
+          over 5 seeds (<code className="font-mono">npm run fire-drill</code>, written to{" "}
           <code className="font-mono">docs/fire-drill.md</code>).
         </p>
-      </div>
+      </section>
+      <div className="flex max-w-4xl flex-col gap-8">
 
       <section className="rounded-[20px] border border-rf-hairline bg-rf-white p-6">
         <p className="font-mono text-xs uppercase tracking-wide text-rf-slate">At an assumed 5% ring share</p>
@@ -134,6 +134,7 @@ export default function FireDrillPage() {
         Numbers are read from <code className="font-mono">docs/fire-drill.md</code>, committed by{" "}
         <code className="font-mono">npm run fire-drill</code> — this page doesn't re-run the simulation itself.
       </p>
+      </div>
     </main>
   );
 }

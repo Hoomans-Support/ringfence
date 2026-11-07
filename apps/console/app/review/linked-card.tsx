@@ -3,7 +3,8 @@
 // "How they're linked": the designer's hub-and-spoke picture of one case, drawn from its real
 // accounts. The hub is what ties them together (one referrer, else the most-shared device); shared
 // devices sit around it with the accounts that used them; anything else hangs off the hub directly.
-// Hovering a dot shows that account under the graph. Beside it, "What we found".
+// Hovering a dot shows that account under the graph. The same picture (RingDiagram) is the control
+// tower's ring-graph widget, so both screens show the ring one way.
 import { useState } from "react";
 import type { DemoCase, DemoMember } from "../demo-store";
 import { claimEvidence, deriveFindings, deviceNoun } from "@/lib/findings";
@@ -53,19 +54,35 @@ function layout(members: DemoMember[], label: string) {
   return { hub, deviceSpots, spots };
 }
 
-function Line({ a, b, opacity }: { a: Spot; b: Spot; opacity: number }) {
-  return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--rf-ink)" strokeWidth={1.5} opacity={opacity} vectorEffect="non-scaling-stroke" />;
+/** What the diagram's symbols mean, for the legend beside (or under) it. */
+export function legendFor(members: DemoMember[], label: string) {
+  const { hub, deviceSpots } = layout(members, label);
+  return [
+    { look: "size-4 rounded-full bg-rf-spark", text: hub.legend },
+    ...(deviceSpots.length ? [{ look: "size-3.5 rounded-[3px] border-2 border-rf-ink bg-rf-white", text: "A shared device, with the accounts that used it." }] : []),
+    { look: "size-2.25 rounded-full bg-rf-ink", text: "An account. Hover for its details." },
+  ];
 }
 
-export function LinkedCard({ c, status }: { c: DemoCase; status: (m: DemoMember) => string }) {
+// The draw-in on mount (globals.css: rf-draw grows a line from its start, rf-fade fades a mark in):
+// hub first, then the spokes to each device, the devices, then each account's line and dot.
+const delay = (ms: number) => ({ animationDelay: `${ms}ms` });
+
+function Line({ a, b, opacity, wait }: { a: Spot; b: Spot; opacity: number; wait: number }) {
+  return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--rf-ink)" strokeWidth={1.5} opacity={opacity} pathLength={1} className="rf-draw" style={delay(wait)} />;
+}
+
+/** The hub-and-spoke graph of one group's accounts with its hover panel underneath. */
+export function RingDiagram({ members, label, status }: { members: DemoMember[]; label: string; status: (m: DemoMember) => string }) {
   const [hover, setHover] = useState<number | "hub">(0);
-  const { hub, deviceSpots, spots } = layout(c.members, c.title);
-  const hovered = hover === "hub" ? undefined : c.members[hover];
-  const sorted = [...c.members].sort((a, b) => Date.parse(a.signupAt) - Date.parse(b.signupAt));
+  const { hub, deviceSpots, spots } = layout(members, label);
+  const hovered = hover === "hub" ? undefined : members[hover];
+  const sorted = [...members].sort((a, b) => Date.parse(a.signupAt) - Date.parse(b.signupAt));
   const spanMin = Math.round((Date.parse(sorted.at(-1)!.signupAt) - Date.parse(sorted[0]!.signupAt)) / 60_000);
-  const findings = c.caseFile ? c.caseFile.claims.map((cl) => ({ text: cl.text, evidence: claimEvidence(cl) })) : deriveFindings(c.members);
-  const checked = c.caseFile ? `${c.caseFile.claims_checked.checked} OF ${c.caseFile.claims_checked.total} FINDINGS RE-CHECKED AGAINST THE RAW DATA` : "CHECKED AGAINST THE RAW DATA";
+  const devices = new Set(members.map((m) => m.device)).size;
+  const networks = new Set(members.map((m) => m.ipPrefix)).size;
   const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }).replace(/^(\w+),/, "$1");
+  const accountWait = (i: number) => 450 + i * 18;
 
   const tip = hovered
     ? { title: `Account ${hovered.accountId}`, status: status(hovered), rows: [
@@ -75,16 +92,79 @@ export function LinkedCard({ c, status }: { c: DemoCase; status: (m: DemoMember)
         ["Sign-up took", `${hovered.onboardingSeconds}s · ${hovered.activity} action${hovered.activity === 1 ? "" : "s"} after`],
       ] }
     : { title: hub.value, status: hub.kind === "referrer" ? "Shared referrer" : hub.kind === "device" ? "Shared device" : "Common pattern", rows: [
-        ["Links", `${c.members.length} accounts${c.members.length > 2 ? ` in ${spanMin < 120 ? `${spanMin} minutes` : "this run"}` : ""}`],
-        ["Through", deviceSpots.length ? `${deviceSpots.length} shared devices` : `${new Set(c.members.map((m) => m.device)).size} device${new Set(c.members.map((m) => m.device)).size === 1 ? "" : "s"}`],
-        ["Networks", `${new Set(c.members.map((m) => m.ipPrefix)).size === 1 ? "One" : new Set(c.members.map((m) => m.ipPrefix)).size}`],
+        ["Links", `${members.length} accounts${members.length > 2 ? ` in ${spanMin < 120 ? `${spanMin} minutes` : "this run"}` : ""}`],
+        ["Through", deviceSpots.length ? `${deviceSpots.length} shared devices` : `${devices} device${devices === 1 ? "" : "s"}`],
+        ["Networks", networks === 1 ? "One" : String(networks)],
       ] };
 
-  const legend = [
-    { look: "size-4 rounded-full bg-rf-spark", text: hub.legend },
-    ...(deviceSpots.length ? [{ look: "size-3.5 rounded-[3px] border-2 border-rf-ink bg-rf-white", text: "A shared device, with the accounts that used it." }] : []),
-    { look: "size-2.25 rounded-full bg-rf-ink", text: "An account in this case. Hover for its details." },
-  ];
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div role="img" aria-label={`${hub.legend}; ${members.length} accounts.`} className="relative aspect-13/9 w-full overflow-hidden rounded-2xl bg-rf-mist">
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" aria-hidden="true">
+          {deviceSpots.map((d, i) => <Line key={d.id} a={{ x: CX, y: CY }} b={d.at} opacity={0.9} wait={120 + i * 60} />)}
+          {members.map((m, i) => {
+            const at = spots.get(m.itemId)!;
+            const from = deviceSpots.find((d) => d.id === m.device)?.at ?? { x: CX, y: CY };
+            return <Line key={m.itemId} a={from} b={at} opacity={hover === i ? 1 : 0.3} wait={accountWait(i)} />;
+          })}
+        </svg>
+        {deviceSpots.map((d, i) => (
+          <div key={d.id}>
+            <span className="rf-fade absolute size-4 -translate-1/2 rounded-sm border-2 border-rf-ink bg-rf-white" style={{ left: pct(d.at.x, W), top: pct(d.at.y, H), ...delay(300 + i * 60) }} />
+            <span className="rf-fade absolute -translate-x-1/2 rounded-xl border border-rf-hairline bg-rf-white px-2.5 py-1.5 text-center whitespace-nowrap"
+              // The designer's placement: the top device's label to its right, the others below their dots.
+              style={{ ...(Math.sin(d.angle) < -0.5 ? { left: pct(d.at.x + 140, W), top: pct(d.at.y - 14, H) } : { left: pct(d.at.x, W), top: pct(d.at.y + 54, H) }), ...delay(900) }}>
+              <span className="block text-xs leading-[1.2] font-medium">{d.name} · {d.count} accounts</span>
+              <span className="block font-mono text-[10px] leading-[1.2] tracking-[0.04em] text-rf-slate">{d.id}</span>
+            </span>
+          </div>
+        ))}
+        {members.length === 2 && members.map((m) => {
+          const at = spots.get(m.itemId)!;
+          return <span key={`${m.itemId}-label`} className="rf-fade pointer-events-none absolute -translate-x-1/2 text-[13px] font-medium" style={{ left: pct(at.x, W), top: pct(at.y - 34, H), ...delay(900) }}>{m.accountId}</span>;
+        })}
+        {members.map((m, i) => {
+          const at = spots.get(m.itemId)!;
+          const on = hover === i;
+          return (
+            <button key={m.itemId} type="button" aria-label={`${m.accountId}, ${status(m).toLowerCase()}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)}
+              className="absolute flex size-5.5 -translate-1/2 items-center justify-center" style={{ left: pct(at.x, W), top: pct(at.y, H) }}>
+              <span className={`rf-fade rounded-full bg-rf-ink ${on ? "size-3.25 shadow-[0_0_0_2px_var(--rf-mist),0_0_0_4px_var(--rf-ink)]" : "size-2.25 shadow-[0_0_0_2px_var(--rf-mist)]"}`} style={delay(accountWait(i) + 250)} />
+            </button>
+          );
+        })}
+        <button type="button" aria-label={`${hub.kicker}: ${hub.value}`} onMouseEnter={() => setHover("hub")} onFocus={() => setHover("hub")}
+          className={`rf-fade absolute size-5.5 -translate-1/2 rounded-full bg-rf-spark ${hover === "hub" ? "shadow-[0_0_0_4px_var(--rf-mist),0_0_0_6px_var(--rf-ink)]" : "shadow-[0_0_0_4px_var(--rf-mist)]"}`}
+          style={{ left: pct(CX, W), top: pct(CY, H) }} />
+        <div className="rf-fade pointer-events-none absolute flex -translate-x-1/2 flex-col items-center gap-0.5" style={{ left: pct(CX, W), top: pct(CY + 18, H), ...delay(900) }}>
+          <span className="font-mono text-[10px] tracking-[0.08em] text-rf-slate">{hub.kicker}</span>
+          <span className="rounded-full border border-rf-ink bg-rf-white px-2 py-0.5 font-mono text-[11px] whitespace-nowrap">{hub.value}</span>
+        </div>
+      </div>
+      <div aria-live="polite" className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-rf-ink bg-rf-white p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex flex-col gap-0.5">
+            <span className="font-mono text-[11px] tracking-[0.08em] text-rf-slate">SELECTED DOT · HOVER ANOTHER TO SWITCH</span>
+            <span className="font-mono text-[13px] tracking-[0.04em]">{tip.title}</span>
+          </span>
+          <span className="text-xs font-medium text-rf-slate">{tip.status}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          {tip.rows.map(([k, v]) => (
+            <div key={k} className="flex min-w-0 flex-col gap-px">
+              <span className="text-[11px] text-rf-slate">{k}</span>
+              <span className="font-mono text-xs leading-[1.35] wrap-anywhere">{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function LinkedCard({ c, status }: { c: DemoCase; status: (m: DemoMember) => string }) {
+  const findings = c.caseFile ? c.caseFile.claims.map((cl) => ({ text: cl.text, evidence: claimEvidence(cl) })) : deriveFindings(c.members);
+  const checked = c.caseFile ? `${c.caseFile.claims_checked.checked} OF ${c.caseFile.claims_checked.total} FINDINGS RE-CHECKED AGAINST THE RAW DATA` : "CHECKED AGAINST THE RAW DATA";
 
   return (
     <div className="flex flex-col gap-4 rounded-[20px] border border-rf-hairline p-6">
@@ -93,69 +173,11 @@ export function LinkedCard({ c, status }: { c: DemoCase; status: (m: DemoMember)
         <span className="font-mono text-xs tracking-[0.06em] text-rf-slate">HOVER A DOT · DETAILS SHOW BELOW THE GRAPH</span>
       </div>
       <div className="flex gap-7 max-[1180px]:flex-wrap">
-        <div className="flex w-110 max-w-full flex-none flex-col gap-3">
-          <div role="img" aria-label={`${hub.legend}; ${c.members.length} accounts.`} className="relative aspect-13/9 w-full overflow-hidden rounded-2xl bg-rf-mist">
-            <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" aria-hidden="true">
-              {deviceSpots.map((d) => <Line key={d.id} a={{ x: CX, y: CY }} b={d.at} opacity={0.9} />)}
-              {c.members.map((m, i) => {
-                const at = spots.get(m.itemId)!;
-                const from = deviceSpots.find((d) => d.id === m.device)?.at ?? { x: CX, y: CY };
-                return <Line key={m.itemId} a={from} b={at} opacity={hover === i ? 1 : 0.3} />;
-              })}
-            </svg>
-            {deviceSpots.map((d) => (
-              <div key={d.id}>
-                <span className="absolute size-4 -translate-1/2 rounded-sm border-2 border-rf-ink bg-rf-white" style={{ left: pct(d.at.x, W), top: pct(d.at.y, H) }} />
-                <span className="absolute -translate-x-1/2 rounded-xl border border-rf-hairline bg-rf-white px-2.5 py-1.5 text-center whitespace-nowrap"
-                  // The designer's placement: the top device's label to its right, the others below their dots.
-                  style={Math.sin(d.angle) < -0.5 ? { left: pct(d.at.x + 125, W), top: pct(d.at.y - 14, H) } : { left: pct(d.at.x, W), top: pct(d.at.y + 54, H) }}>
-                  <span className="block text-xs leading-[1.2] font-medium">{d.name} · {d.count} accounts</span>
-                  <span className="block font-mono text-[10px] leading-[1.2] tracking-[0.04em] text-rf-slate">{d.id}</span>
-                </span>
-              </div>
-            ))}
-            {c.members.length === 2 && c.members.map((m) => {
-              const at = spots.get(m.itemId)!;
-              return <span key={`${m.itemId}-label`} className="pointer-events-none absolute -translate-x-1/2 text-[13px] font-medium" style={{ left: pct(at.x, W), top: pct(at.y - 34, H) }}>{m.accountId}</span>;
-            })}
-            {c.members.map((m, i) => {
-              const at = spots.get(m.itemId)!;
-              const on = hover === i;
-              return (
-                <button key={m.itemId} type="button" aria-label={`${m.accountId}, ${status(m).toLowerCase()}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)}
-                  className="absolute flex size-5.5 -translate-1/2 items-center justify-center" style={{ left: pct(at.x, W), top: pct(at.y, H) }}>
-                  <span className={`rounded-full bg-rf-ink ${on ? "size-3.25 shadow-[0_0_0_2px_var(--rf-mist),0_0_0_4px_var(--rf-ink)]" : "size-2.25 shadow-[0_0_0_2px_var(--rf-mist)]"}`} />
-                </button>
-              );
-            })}
-            <button type="button" aria-label={`${hub.kicker}: ${hub.value}`} onMouseEnter={() => setHover("hub")} onFocus={() => setHover("hub")}
-              className={`absolute size-5.5 -translate-1/2 rounded-full bg-rf-spark ${hover === "hub" ? "shadow-[0_0_0_4px_var(--rf-mist),0_0_0_6px_var(--rf-ink)]" : "shadow-[0_0_0_4px_var(--rf-mist)]"}`}
-              style={{ left: pct(CX, W), top: pct(CY, H) }} />
-            <div className="pointer-events-none absolute flex -translate-x-1/2 flex-col items-center gap-0.5" style={{ left: pct(CX, W), top: pct(CY + 18, H) }}>
-              <span className="font-mono text-[10px] tracking-[0.08em] text-rf-slate">{hub.kicker}</span>
-              <span className="rounded-full border border-rf-ink bg-rf-white px-2 py-0.5 font-mono text-[11px] whitespace-nowrap">{hub.value}</span>
-            </div>
-          </div>
-          <div aria-live="polite" className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-rf-ink bg-rf-white p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex flex-col gap-0.5">
-                <span className="font-mono text-[11px] tracking-[0.08em] text-rf-slate">SELECTED DOT · HOVER ANOTHER TO SWITCH</span>
-                <span className="font-mono text-[13px] tracking-[0.04em]">{tip.title}</span>
-              </span>
-              <span className="text-xs font-medium text-rf-slate">{tip.status}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              {tip.rows.map(([k, v]) => (
-                <div key={k} className="flex min-w-0 flex-col gap-px">
-                  <span className="text-[11px] text-rf-slate">{k}</span>
-                  <span className="font-mono text-xs leading-[1.35] wrap-anywhere">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex w-110 max-w-full flex-none">
+          <RingDiagram members={c.members} label={c.title} status={status} />
         </div>
         <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-4">
-          {legend.map((l) => (
+          {legendFor(c.members, c.title).map((l) => (
             <div key={l.text} className="flex items-start gap-3">
               <span className="flex size-5.5 flex-none items-center justify-center"><span className={l.look} /></span>
               <span className="text-[15px] leading-[1.45]">{l.text}</span>

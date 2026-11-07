@@ -1,90 +1,67 @@
 "use client";
 
+// The hold calendar, drawn by Bryntum Scheduler: one row per paused group, a bar from its first
+// sign-up to its 7-day hold limit, fitted to the width so every deadline is in view at once, with
+// the demo's own "today" marked. Bars past their limit on that day take the overdue style.
 import { useEffect, useRef } from "react";
 
 type Resource = { id: string; name: string };
-type CalendarEvent = { id: string; resourceId: string; name: string; startDate: string; endDate: string; cls?: string };
-type BryntumSchedulerInstance = { destroy: () => void; scrollToDate: (date: Date) => void };
+type CalendarEvent = { id: string; resourceId: string; name: string; startDate: string; endDate: string };
+type BryntumSchedulerInstance = { destroy: () => void };
+const DAY = 86_400_000;
 
-export function HoldCalendar({ resources, events }: { resources: Resource[]; events: CalendarEvent[] }) {
+export function HoldCalendar({ resources, events, today }: { resources: Resource[]; events: CalendarEvent[]; today: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const schedulerRef = useRef<BryntumSchedulerInstance | null>(null);
-
-  const earliestStart = events.reduce((min, e) => {
-    const d = new Date(e.startDate);
-    return d < min ? d : min;
-  }, new Date(events[0]?.startDate ?? new Date().toISOString()));
-  const latestEnd = events.reduce((max, e) => {
-    const d = new Date(e.endDate);
-    return d > max ? d : max;
-  }, new Date(events[0]?.endDate ?? new Date().toISOString()));
 
   useEffect(() => {
     let disposed = false;
     let scheduler: BryntumSchedulerInstance | undefined;
-    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
+    const todayMs = Date.parse(today);
+    // From the day before the first sign-up to the day after the last deadline (or today, if later).
+    const start = Math.floor(Math.min(...events.map((e) => Date.parse(e.startDate))) / DAY) * DAY - DAY;
+    const end = Math.ceil(Math.max(todayMs, ...events.map((e) => Date.parse(e.endDate))) / DAY) * DAY + DAY;
 
     const schedulerUrl = "/api/vendor/bryntum";
-    void import(/* webpackIgnore: true */ schedulerUrl).then(({ Scheduler }: {
-      Scheduler: new (config: Record<string, unknown>) => BryntumSchedulerInstance;
-    }) => {
+    void import(/* webpackIgnore: true */ schedulerUrl).then(({ Scheduler }: { Scheduler: new (config: Record<string, unknown>) => BryntumSchedulerInstance }) => {
       if (disposed || !hostRef.current) return;
       scheduler = new Scheduler({
         appendTo: hostRef.current,
         autoHeight: true,
-        rowHeight: 32,
-        barMargin: 4,
-        startDate: earliestStart,
-        endDate: latestEnd,
-        viewPreset: "weekAndDay",
-        columns: [{ text: "Held group", field: "name", width: 160 }],
+        readOnly: true,
+        forceFit: true,
+        rowHeight: 48,
+        barMargin: 10,
+        timeZone: "Asia/Jakarta",
+        startDate: new Date(start),
+        endDate: new Date(end),
+        viewPreset: { base: "weekAndDay", headers: [{ unit: "day", dateFormat: "ddd D" }] },
+        columns: [{ text: "Paused group", field: "name", width: 190 }],
         resources,
-        events: events.map((e) => ({ ...e, cls: Date.parse(e.endDate) < Date.now() ? "rf-overdue-event" : undefined, startDate: new Date(e.startDate), endDate: new Date(e.endDate) })),
-        features: { eventTooltip: true },
+        events: events.map((e) => ({ ...e, cls: Date.parse(e.endDate) < todayMs ? "rf-overdue-event" : undefined, startDate: new Date(e.startDate), endDate: new Date(e.endDate) })),
+        timeRanges: [{ id: "today", startDate: new Date(todayMs), cls: "rf-today" }],
+        zoomOnMouseWheel: false,
+        zoomOnTimeAxisDoubleClick: false,
+        features: { eventTooltip: true, timeRanges: { showHeaderElements: false }, eventMenu: false, scheduleMenu: false, cellMenu: false, headerMenu: false, timeAxisHeaderMenu: false },
       });
-      schedulerRef.current = scheduler;
-      // weekAndDay snaps its visible range to the start of the containing calendar week, which can
-      // be several empty days before the earliest real hold - scroll past them once rendered.
-      // Immediately after construction the widget hasn't finished its own layout pass yet, so
-      // scrollToDate silently no-ops there; a microtask-deferred call lands after that pass. Guarded
-      // by `disposed` in case the component unmounts (and destroys the scheduler) in that window.
-      scrollTimer = setTimeout(() => {
-        if (!disposed) scheduler?.scrollToDate(earliestStart);
-      }, 0);
-    });
+    }, () => undefined);
 
     return () => {
       disposed = true;
-      clearTimeout(scrollTimer);
       scheduler?.destroy();
-      schedulerRef.current = null;
     };
-  }, [events, resources, earliestStart, latestEnd]);
+  }, [events, resources, today]);
 
   return (
     <div className="overflow-hidden rounded-[20px] border border-rf-hairline bg-rf-white">
-      <div className="flex items-center justify-between gap-4 border-b border-rf-hairline px-4 py-3">
-        <p className="text-sm text-rf-slate">
-          {resources.length} held group{resources.length === 1 ? "" : "s"} · each bar runs from sign-up to its 7-day hold expiry
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => schedulerRef.current?.scrollToDate(earliestStart)}
-            className="rounded-full border border-rf-hairline px-3 py-1.5 text-sm hover:bg-rf-mist"
-          >
-            Jump to earliest hold
-          </button>
-          <button
-            type="button"
-            onClick={() => schedulerRef.current?.scrollToDate(latestEnd)}
-            className="rounded-full bg-rf-ink px-3 py-1.5 text-sm text-rf-white hover:opacity-85"
-          >
-            Jump to latest expiry
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-rf-hairline px-5 py-4">
+        <span className="text-base font-semibold">{resources.length} paused group{resources.length === 1 ? "" : "s"}</span>
+        <span className="flex items-center gap-4 text-[13px] text-rf-slate">
+          <span className="flex items-center gap-2"><span className="h-2.5 w-5 rounded-full bg-rf-spark" />Sign-up to 7-day limit</span>
+          <span className="flex items-center gap-2"><span className="h-2.5 w-5 rounded-full bg-rf-spark-text outline-2 outline-offset-1 outline-rf-ink" />Past its limit</span>
+          <span className="flex items-center gap-2"><span className="h-3 w-0.5 bg-rf-ink" />Today</span>
+        </span>
       </div>
-      <div ref={hostRef} className="ringfence-scheduler" aria-label="Calendar of hold expiry dates" />
+      <div ref={hostRef} className="ringfence-scheduler" aria-label="Calendar of hold limits" />
     </div>
   );
 }

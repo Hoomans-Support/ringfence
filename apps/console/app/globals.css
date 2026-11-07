@@ -71,8 +71,60 @@ body {
 
 .ringfence-scheduler .b-grid-header,
 .ringfence-scheduler .b-grid-header-container {
-  background: var(--rf-mist);
-  color: var(--rf-ink);
+  background: var(--rf-white);
+  color: var(--rf-slate);
+}
+
+/* The hold calendar's "today" marker: a zero-length Bryntum time range, drawn as a plain ink line
+   instead of Bryntum's own colourized one (the card's legend names it). */
+.ringfence-scheduler .b-sch-time-range.rf-today {
+  border-inline-start: 2px solid var(--rf-ink) !important;
+  background: transparent !important;
+}
+
+/* AG Studio only outlines widgets in edit mode; the control tower is view-only on a white page, so
+   its widgets get the hairline card border every other card in the console has. Studio's widget
+   cells sit flush against each other, so the outline is drawn 8px inside each cell: a 16px gap. */
+.ag-studio-layout-widget::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--rf-hairline);
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* The ring diagram's draw-in (app/review/linked-card.tsx), played once when it mounts: lines grow
+   from their start (each line has pathLength=1), marks fade in. Opacity only, since the marks are
+   positioned with transforms. Off entirely for anyone who asks for reduced motion. */
+@keyframes rf-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes rf-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.rf-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: rf-draw 500ms ease-out forwards;
+}
+
+.rf-fade {
+  animation: rf-fade 350ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-draw,
+  .rf-fade {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 /* AG Grid's auto-height layout reserves 150px for a "no rows" message; the accounts table never

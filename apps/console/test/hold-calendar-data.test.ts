@@ -10,13 +10,13 @@ describe("buildHoldCalendarData", () => {
     expect(events).toEqual([]);
   });
 
-  it("groups week 1's held items into exactly the ring and the pair, sized correctly", () => {
+  it("groups week 1's held items into exactly the ring and the pair, named and sized as Decisions shows them", () => {
     const { resources, events } = buildHoldCalendarData(1);
-    expect(resources.map((r) => r.id).sort()).toEqual(["P-01", "R-12"]);
+    expect(resources.map((r) => r.name)).toEqual(["Group 12", "Group 13"]);
 
-    const byId = new Map(events.map((e) => [e.id, e]));
-    expect(byId.get("R-12")?.name).toBe("23 accounts");
-    expect(byId.get("P-01")?.name).toBe("2 accounts");
+    const sizeByName = new Map(resources.map((r) => [r.name, events.find((e) => e.resourceId === r.id)?.name]));
+    expect(sizeByName.get("Group 12")).toBe("23 accounts");
+    expect(sizeByName.get("Group 13")).toBe("2 accounts");
   });
 
   it("gives every event a 7-day window from its earliest sign-up", () => {

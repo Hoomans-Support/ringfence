@@ -19,18 +19,17 @@ export const ringfenceStudioTheme = studioTheme.withParams({
   iconColor: token("ink"),
   rowHoverColor: token("mist"),
 
-  // No frame: the canvas is the page's own mist background. Widgets are the shell's cards.
+  // No frame: the canvas is the page's own white. Its padding is also the gap between widgets, so
+  // it stays; control-tower/page.tsx pulls the canvas out by the same 16px so the widgets (the
+  // console's usual hairline cards) line up with the page's edges like every other screen's cards.
   studioWrapperBorder: false,
   studioWrapperBorderRadius: 0,
   studioWrapperSpacing: 0,
-  studioWrapperBackgroundColor: token("mist"),
+  studioWrapperBackgroundColor: token("white"),
   studioCanvasBorder: false,
   studioCanvasBorderRadius: 0,
   studioCanvasShadow: false,
-  studioCanvasBackgroundColor: token("mist"),
-  // Trimmed from 24/18 (was ~1006px tall at 1440 wide, overflowing a ~900px viewport) so the whole
-  // page fits without scrolling at the spec's target size, now that each stat card also carries
-  // more content (a baseline line, a release button, a retrain button) than it used to.
+  studioCanvasBackgroundColor: token("white"),
   studioCanvasPadding: 16,
   studioCanvasRowHeight: 16,
   studioCanvasFontFamily: "var(--font-sans)",
@@ -83,6 +82,11 @@ export const ringfenceStudioTheme = studioTheme.withParams({
   gridRowHoverColor: token("mist"),
   gridWrapperBorder: false,
 
+  // One palette for every built-in chart, in series order: ink for money paid or kept, coral for
+  // fraud, grey for the rest (control-tower.tsx orders each chart's series to match).
+  chartPaletteFills1Color: token("ink"),
+  chartPaletteFills2Color: token("spark"),
+  chartPaletteFills3Color: token("star-grey"),
   chartFontFamily: "var(--font-sans)",
   chartTextColor: token("ink"),
   chartSubtleTextColor: token("slate"),
