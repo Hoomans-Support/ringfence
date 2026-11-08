@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="asset/ringfence-mark-transparent-ink.png" alt="Ringfence" width="96" />
+  <img src="asset/ringfence-tagline-dark.png" alt="ringfence — Ready for the fake-account era" width="720" />
 </p>
-
-<h1 align="center">Ringfence</h1>
 
 <p align="center"><b>Pay the real ones. Hold the ring.</b><br/>
 A checkpoint a reward program's payouts pass through right before PayPal sends them: it holds the accounts one operator is secretly running, and pays everyone else on time.</p>
