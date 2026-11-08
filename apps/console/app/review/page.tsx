@@ -14,7 +14,8 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
   const data = buildDemo(parseDemoWeek(week), adjusted === "1");
   // A ring's checked case file, rewritten into plain sentences by the one real model call when
   // GEMINI_API_KEY is set (under the spend cap); otherwise its scripted sentences, unchanged.
-  const cases = await Promise.all(data.cases.map(async (c) => (c.caseFile ? { ...c, caseFile: await narrateClaims(c.caseFile, { spendCap: sharedLlmSpendCap() }) } : c)));
+  const spendCap = sharedLlmSpendCap();
+  const cases = await Promise.all(data.cases.map(async (c) => (c.caseFile ? { ...c, caseFile: await narrateClaims(c.caseFile, { spendCap }) } : c)));
   // key: a new week (or case link) starts the page fresh instead of keeping the last selection.
   return <Decisions key={`${data.week}${data.adjusted}${caseId ?? ""}${tab ?? ""}`} data={{ ...data, cases }} initialCase={caseId} initialTab={tab} />;
 }

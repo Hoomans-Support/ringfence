@@ -6,6 +6,7 @@
 // studioAiModels) with the server-side key, and translates the reply back into AG Studio's shape.
 import type { AgLlmRequest, AgLlmResponse } from "ag-studio";
 import { retryMs, studioAiModels, toChatMessages, withThoughtSignatures } from "@/lib/studio-ai";
+import { sharedLlmSpendCap } from "@/lib/llm-spend-cap";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,9 @@ export const runtime = "nodejs";
 // can't run up the bill. ponytail: per-process counter, resets on restart; a real deployment would
 // meter per user.
 const MAX_TOKENS = 4096;
-const MAX_CALLS = Number(process.env.STUDIO_AI_MAX_CALLS ?? 400);
+const configuredMaxCalls = Number(process.env.STUDIO_AI_MAX_CALLS ?? 400);
+const MAX_CALLS = Number.isFinite(configuredMaxCalls) && configuredMaxCalls > 0 ? configuredMaxCalls : 400;
+const ESTIMATED_CALL_COST_USD = 0.001;
 let calls = 0;
 // A model that answered 429 (its quota used up), and when it may be tried again, as it said.
 // ponytail: per process, like the counter above.
@@ -55,6 +58,9 @@ export async function POST(req: Request) {
   let json: Reply = {};
   let problem = failed("unavailable", "Every AI model is resting after using its quota; try again shortly.");
   for (const m of models.filter((x) => (restingUntil.get(x.model) ?? 0) <= Date.now())) {
+    const spendCap = sharedLlmSpendCap();
+    if (!spendCap.canAfford(ESTIMATED_CALL_COST_USD)) return Response.json(failed("budget", "The AI assistant has reached this server's spend cap."), { status: 429 });
+    spendCap.record(ESTIMATED_CALL_COST_USD);
     const upstream = await fetch(m.endpoint, {
       method: "POST",
       headers: { Authorization: `Bearer ${m.key}`, "Content-Type": "application/json", "X-Title": "Ringfence Insights" },
@@ -63,7 +69,7 @@ export async function POST(req: Request) {
       // (one stalled for 5 minutes in testing), and stop when the browser does.
       signal: AbortSignal.any([req.signal, AbortSignal.timeout(90_000)]),
     }).catch((err: unknown) => err as Error);
-    if (upstream instanceof Error) { problem = failed("network", upstream.message); continue; }
+    if (upstream instanceof Error) { spendCap.release(ESTIMATED_CALL_COST_USD); problem = failed("network", upstream.message); continue; }
     // Gemini wraps its errors in an array; OpenRouter doesn't.
     const raw = (await upstream.json().catch(() => ({}))) as Reply | Reply[];
     json = Array.isArray(raw) ? (raw[0] ?? {}) : raw;

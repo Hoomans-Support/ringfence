@@ -3,11 +3,16 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 export const runtime = "nodejs";
+const configuredMaxCalls = Number(process.env.SURVEY_APP_MAX_CALLS ?? 20);
+const MAX_CALLS = Number.isFinite(configuredMaxCalls) && configuredMaxCalls > 0 ? configuredMaxCalls : 20;
+let calls = 0;
 
 export async function POST() {
   const apiUrl = process.env.RINGFENCE_API_URL;
   const apiKey = process.env.RINGFENCE_SURVEY_API_KEY;
   if (!apiUrl || !apiKey) return Response.json({ error: "Survey app screening is not configured on this console." }, { status: 503 });
+  if (calls >= MAX_CALLS) return Response.json({ error: "Survey app screening has used this server's call budget for now." }, { status: 429 });
+  calls++;
 
   try {
     const fixturePath = [

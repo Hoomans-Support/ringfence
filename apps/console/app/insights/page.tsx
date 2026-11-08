@@ -53,6 +53,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           of 16px plus that padding and the Ask bar, so the page, not Studio, does the scrolling. */}
       <div className="-mx-6 -mt-6 h-380">
         {/* key={week}: AG Studio reads its widgets and data once, at mount; a new week remounts it. */}
+        {/* AG Studio validates this licence in its client-side provider, as its official React setup requires. */}
         <Insights key={`${week}${adjusted}`} licenseKey={process.env.AG_STUDIO} aiEnabled={studioAiModels().length > 0} ringWatch={ringWatch} rows={rows} />
       </div>
     </main>

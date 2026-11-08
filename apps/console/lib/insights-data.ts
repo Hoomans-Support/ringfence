@@ -6,6 +6,7 @@
 import type { DemoCase } from "@/app/demo-store";
 import { buildDemo } from "./demo";
 import { loadWeekRun, loadWeekTruth, type DemoWeek } from "./fixtures";
+import { maskEmail } from "@ringfence/engine";
 
 export interface InsightRow {
   run: string;
@@ -60,10 +61,10 @@ function rowsFor(week: DemoWeek, adjusted: boolean): InsightRow[] {
     const by = caughtBy(c, isFraud);
     return {
       run, order,
-      outcome: !c ? "Paid on time" : c.verdict === "fraud" ? "Paused · likely fraud" : "Paused · likely real",
+      outcome: !c ? "Succeeded" : c.verdict === "fraud" ? "Paused · likely fraud" : "Paused · likely real",
       caughtBy: by,
       group: c ? (c.name ?? c.title) : "Not paused",
-      account: it.context.account_id, payout: it.receiver, device: it.context.device_hash,
+      account: it.context.account_id, payout: maskEmail(it.receiver), device: it.context.device_hash,
       amount: usd, count: 1,
       paid: c ? 0 : 1, paused: c ? 1 : 0, fraud: isFraud ? 1 : 0, mistaken: c && !isFraud ? 1 : 0,
       byEngine: by === "Linked-group engine" ? 1 : 0, byRule: by === "Learned rule" ? 1 : 0,

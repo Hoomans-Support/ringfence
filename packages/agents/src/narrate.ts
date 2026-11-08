@@ -84,16 +84,15 @@ export async function narrateClaims(caseFile: CaseFile, options: NarrateOptions 
     console.warn("narrateClaims: falling back to scripted text — spend cap would be exceeded");
     return caseFile;
   }
+  options.spendCap?.record(ESTIMATED_COST_PER_CALL_USD);
 
   const sanitizedClaims = caseFile.claims.map((c) => ({ id: c.id, check: sanitizeForModel(c.check) }));
 
   let rewritten: Record<string, string>;
   try {
     rewritten = await generate(sanitizedClaims, memberCount);
-    // Recorded only now, on success - a failed call (network, rate limit, bad JSON) never
-    // permanently consumes budget for a call that cost nothing.
-    options.spendCap?.record(ESTIMATED_COST_PER_CALL_USD);
   } catch (err) {
+    options.spendCap?.release(ESTIMATED_COST_PER_CALL_USD);
     // Never breaks the page over this - the scripted sentences are always a safe fallback - but a
     // silent catch with zero trace makes a real outage (bad key, quota, model rename) indistinguishable
     // from "working as designed, nothing to say." Server-side only; never touches the rendered page.

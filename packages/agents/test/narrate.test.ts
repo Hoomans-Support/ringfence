@@ -113,6 +113,18 @@ describe("narrateClaims", () => {
     expect(spendCap.spentUsd).toBeCloseTo(afterOne * 2, 6);
   });
 
+  it("reserves a shared cap before concurrent case-file generators start", async () => {
+    const spendCap = createSpendCap(0.001);
+    const generate = vi.fn(async () => {
+      await Promise.resolve();
+      return { c1: "rewritten", c2: "rewritten" };
+    });
+    await Promise.all([narrateClaims(caseFile(), { generate, spendCap }), narrateClaims(caseFile(), { generate, spendCap })]);
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(spendCap.spentUsd).toBe(0.001);
+  });
+
   it("masks an alias_pattern claim's email-shaped alias_key before any generator sees it", async () => {
     const withAlias: CaseFile = {
       ...caseFile(),

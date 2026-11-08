@@ -22,6 +22,8 @@ export interface SpendCap {
   canAfford(costUsd: number): boolean;
   /** Records a model call's cost. Throws ModelSpendCapExceededError instead of recording it if that would exceed the cap. */
   record(costUsd: number): void;
+  /** Removes a synchronous reservation when the provider call fails before incurring cost. */
+  release(costUsd: number): void;
 }
 
 export function createSpendCap(limitUsd: number): SpendCap {
@@ -36,6 +38,9 @@ export function createSpendCap(limitUsd: number): SpendCap {
     record(costUsd: number) {
       if (spent + costUsd > limitUsd) throw new ModelSpendCapExceededError(costUsd, spent, limitUsd);
       spent += costUsd;
+    },
+    release(costUsd: number) {
+      spent = Math.max(0, spent - costUsd);
     },
   };
 }

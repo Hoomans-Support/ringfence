@@ -28,4 +28,11 @@ describe("buildInsightRows", () => {
   it("gives every fraud payee exactly one of the four chart measures, and no one else any", () => {
     for (const r of buildInsightRows(4, false)) expect(r.byEngine + r.byRule + r.byNetwork + r.missed).toBe(r.fraud);
   });
+
+  it("uses item-level outcomes and masks payout addresses in the Studio data source", () => {
+    const rows = buildInsightRows(1, false);
+    expect(rows.some((row) => row.outcome === "Succeeded")).toBe(true);
+    expect(rows.some((row) => row.outcome === "Paid on time")).toBe(false);
+    expect(rows.every((row) => !row.payout.includes("@"))).toBe(true);
+  });
 });

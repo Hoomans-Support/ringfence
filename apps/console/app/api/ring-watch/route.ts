@@ -1,3 +1,6 @@
+import { scoreRun } from "@ringfence/engine";
+import { loadWeekRun, loadWeekTruth } from "../../../lib/fixtures";
+
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
@@ -8,6 +11,16 @@ export async function GET(request: Request) {
   const ringId = searchParams.get("ring_id");
   if (!apiUrl || !apiKey) return Response.json({ error: "Ring Watch is not configured." }, { status: 503 });
   if (!runId || !ringId) return Response.json({ error: "run_id and ring_id are required." }, { status: 400 });
+  const demoRun = loadWeekRun(1);
+  const rings = scoreRun(demoRun).rings;
+  const allowedRingIds = new Set(rings.flatMap((ring) => {
+    const members = new Set(demoRun.items.filter((item) => ring.member_sender_item_ids.includes(item.sender_item_id)).map((item) => item.context.account_id));
+    const label = loadWeekTruth(1).find((truth) => members.has(truth.account_id) && truth.ring_label)?.ring_label;
+    return [ring.ring_id, ...(label ? [label] : [])];
+  }));
+  if (runId !== demoRun.sender_batch_header.sender_batch_id || !allowedRingIds.has(ringId)) {
+    return Response.json({ error: "Ring Watch only serves the configured demo ring." }, { status: 404 });
+  }
 
   const url = new URL(`${apiUrl.replace(/\/$/, "")}/v1/rings/${encodeURIComponent(ringId)}`);
   url.searchParams.set("run_id", runId);
