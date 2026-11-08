@@ -1,6 +1,6 @@
-// The control tower's AG Studio AI assistant, server side. AG Studio ships the chat panel and its
+// Insights' AG Studio AI assistant, server side. AG Studio ships the chat panel and its
 // agents but no model connection (its docs: "AG Studio ships no adapters"), and recommends keeping
-// the provider key off the browser. So the browser adapter (control-tower/studio/ai.ts) posts AG
+// the provider key off the browser. So the browser adapter (insights/studio/ai.ts) posts AG
 // Studio's request here; this translates it to OpenRouter's OpenAI-compatible Chat Completions
 // (messages, tool calls, tool results, structured output), calls the model with the server-side
 // key, and translates the reply back into AG Studio's response shape.
@@ -49,9 +49,11 @@ export async function POST(req: Request) {
 
   const upstream = await fetch(ENDPOINT, {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Ringfence control tower" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Ringfence Insights" },
     body: JSON.stringify(body),
-    signal: req.signal,
+    // A model call normally takes 2-6s; give up on a stalled provider rather than hang the assistant
+    // (one stalled for 5 minutes in testing), and stop when the browser does.
+    signal: AbortSignal.any([req.signal, AbortSignal.timeout(90_000)]),
   }).catch((err: unknown) => err as Error);
   if (upstream instanceof Error) return Response.json(failed("network", upstream.message));
   const json = (await upstream.json().catch(() => ({}))) as {

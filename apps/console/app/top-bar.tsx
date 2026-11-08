@@ -13,8 +13,8 @@ const NAV = [
   { href: "/", label: "Overview", match: (p: string) => p === "/", count: undefined },
   { href: "/review", label: "Decisions", match: (p: string) => p.startsWith("/review") || p === "/survey-app", count: "cases" },
   { href: "/rules", label: "Learned rules", match: (p: string) => p.startsWith("/rules"), count: "rules" },
-  // Not in the designer's prototype: the AG Studio dashboard, kept in the nav so it's easy to find.
-  { href: "/control-tower", label: "Control tower", match: (p: string) => p.startsWith("/control-tower"), count: undefined },
+  // Not in the designer's prototype: the AG Studio dashboard across every run, kept in the nav so it's easy to find.
+  { href: "/insights", label: "Insights", match: (p: string) => p.startsWith("/insights"), count: undefined },
 ] as const;
 
 // The demo's five weeks (?week=0-4), labelled with the payout-run week the pages themselves name

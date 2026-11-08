@@ -3,8 +3,7 @@
 // "How they're linked": the designer's hub-and-spoke picture of one case, drawn from its real
 // accounts. The hub is what ties them together (one referrer, else the most-shared device); shared
 // devices sit around it with the accounts that used them; anything else hangs off the hub directly.
-// Hovering a dot shows that account under the graph. The same picture (RingDiagram) is the control
-// tower's ring-graph widget, so both screens show the ring one way.
+// Hovering a dot shows that account under the graph.
 import { useState } from "react";
 import type { DemoCase, DemoMember } from "../demo-store";
 import { claimEvidence, deriveFindings, deviceNoun } from "@/lib/findings";
@@ -55,7 +54,7 @@ function layout(members: DemoMember[], label: string) {
 }
 
 /** What the diagram's symbols mean, for the legend beside (or under) it. */
-export function legendFor(members: DemoMember[], label: string) {
+function legendFor(members: DemoMember[], label: string) {
   const { hub, deviceSpots } = layout(members, label);
   return [
     { look: "size-4 rounded-full bg-rf-spark", text: hub.legend },
@@ -73,7 +72,7 @@ function Line({ a, b, opacity, wait }: { a: Spot; b: Spot; opacity: number; wait
 }
 
 /** The hub-and-spoke graph of one group's accounts with its hover panel underneath. */
-export function RingDiagram({ members, label, status }: { members: DemoMember[]; label: string; status: (m: DemoMember) => string }) {
+function RingDiagram({ members, label, status }: { members: DemoMember[]; label: string; status: (m: DemoMember) => string }) {
   const [hover, setHover] = useState<number | "hub">(0);
   const { hub, deviceSpots, spots } = layout(members, label);
   const hovered = hover === "hub" ? undefined : members[hover];

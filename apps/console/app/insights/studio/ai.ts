@@ -43,10 +43,15 @@ export const studioAiAdapter: AgLlmAdapter = {
   },
 };
 
-/** Suggestions shown in an empty chat: each names the data plainly, so the model maps it correctly
- *  (asked for "paid on time", a cheap model summed every payout, paused ones included). */
+/** Suggestions shown under the Ask bar and in an empty chat. Each names the data's own fields
+ *  plainly, so the model maps it correctly (asked for "paid on time", a cheap model once summed
+ *  every payout, paused ones included; asked for payees "counted by outcome", it went looking for
+ *  a payee id). Each uses fields whose ids are the plain words (kept, leaked, amount, outcome,
+ *  group): the cheap model guesses ids from names and missed `caughtBy` and `atStake`. All three are
+ *  column or bar charts, which it builds reliably; a donut and a line chart sent it round in
+ *  circles, and so did asking it to also show the chart's title (or running it at temperature 0). */
 export const promptStarters: AgAiPromptStarter[] = [
-  { label: "Paused by group", prompt: "Add a bar chart of the paused accounts, counted by group." },
-  { label: "Payees by status", prompt: "Add a pie chart of this run's payees, counted by status." },
-  { label: "Leaks by run", prompt: "Add a line chart of the money leaked to fraud in each payout run." },
+  { label: "Kept vs leaked, by run", prompt: "Add a column chart of the money kept from fraud and the money leaked to fraud in each payout run." },
+  { label: "Money kept, by group", prompt: "Add a column chart of the money kept from fraud for each group." },
+  { label: "Average payout by outcome", prompt: "Add a bar chart of the average payout amount for each outcome." },
 ];

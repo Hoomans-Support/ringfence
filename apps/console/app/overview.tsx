@@ -209,7 +209,7 @@ export function Overview({ data }: { data: DemoData }) {
             note={realGroups.length ? `${usd(sum(realGroups, (c) => c.usd))} in ${named(realGroups)}${decidedNote(realGroups) ? ` · ${decidedNote(realGroups)}` : ""}` : "Nothing paused"}
           />
         </div>
-        <Link href={`/control-tower?${q}`} className="self-end text-sm font-medium text-rf-slate hover:text-rf-ink">Live view of this run in the control tower →</Link>
+        <Link href={`/insights?${q}`} className="self-end text-sm font-medium text-rf-slate hover:text-rf-ink">Every run so far, in Insights →</Link>
       </section>
 
       <section className="flex flex-col gap-4">

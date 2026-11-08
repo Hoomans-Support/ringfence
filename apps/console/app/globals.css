@@ -82,7 +82,7 @@ body {
   background: transparent !important;
 }
 
-/* AG Studio only outlines widgets in edit mode; the control tower is view-only on a white page, so
+/* AG Studio only outlines widgets in edit mode; Insights is view-only on a white page, so
    its widgets get the hairline card border every other card in the console has. Studio's widget
    cells sit flush against each other, so the outline is drawn 8px inside each cell: a 16px gap. */
 .ag-studio-layout-widget::after {
