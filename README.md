@@ -74,31 +74,33 @@ Every proposed rule is attacked with 200 disguised copies of the ring it came fr
 
 ### Control tower
 
-An editable AG Studio dashboard over real data, not a fixed set of widgets: three data sources (this run's payouts, its paused accounts, and every run so far) feed Studio's own KPI tiles, donut, column chart, group filter, and paused-accounts grid, alongside three custom widgets — the ring diagram (the same picture Decisions draws), a live Ring Watch poll, and a plain-English analyst read. "Edit dashboard" switches Studio into edit mode, where anyone can move, resize, restyle or add a widget by hand — or ask AG Studio's own AI assistant to do it in a sentence ("Add a bar chart of the paused accounts, counted by group"), through a server route backed by OpenRouter (`OPENROUTER_API_KEY`, defaulting to `openai/gpt-oss-120b`); without that key the panel simply isn't offered.
+An editable AG Studio dashboard over real data, not a fixed set of widgets: built-in KPI tiles, charts and a group filter sit alongside three custom widgets — the ring diagram (the same picture Decisions draws), a live Ring Watch poll, and a plain-English analyst read. "Edit dashboard" switches Studio into edit mode, where anyone can move, resize, restyle or add a widget by hand — or ask AG Studio's own AI assistant to do it in a sentence ("Add a bar chart of the paused accounts, counted by group"). The assistant needs an OpenRouter key to be offered at all — see [Run it locally](#run-it-locally).
 
-Ring Watch is the one widget that's always live: it polls the real API every eight seconds for the ring's current member states. To see it update, open the same ring in a second tab and confirm or release the hold there.
+Ring Watch is the one widget that's always live: open the same ring in a second tab and confirm or release the hold there to see it update here.
 
 ### Survey app and the ring network
 
-Week 48 folds the survey-app scenario into Overview and Decisions rather than a separate stepper step. Its fixture has 120 payees; six reuse a Group 12 device. Recognizing that device across programs runs on `RINGFENCE_NETWORK_KEY`-keyed hashes: a ring confirmed at one program publishes a fingerprint, never member data, that a second program's run can match against. The on-page live screening control exercises the API's cross-program matcher when configured. `/survey-app` redirects into the Week 48 Decisions view. The $460 recovery figure is expressly fixture-backed and does not represent a live PayPal cancellation.
+Week 48 folds the survey-app scenario into Overview and Decisions rather than a separate stepper step. Its fixture has 120 payees; six reuse a Group 12 device. A ring confirmed at one program is recognized at another by a keyed hash of its devices and payout addresses, never member data — the on-page live screening control exercises this when the API side is configured. `/survey-app` redirects into the Week 48 Decisions view. The $460 recovery figure is fixture-backed, not a live PayPal cancellation.
 
 ## Architecture
 
+How the pieces fit together under the hood — for what you actually see and click, see [Walkthrough](#walkthrough) above.
+
 ```mermaid
 flowchart LR
-  PROG[Program] -->|POST /v1/payout-runs| API
-  CONSOLE[Investigator console] -->|reads & decides| API
-  AGENT[AI agent] -->|"screen_payees / explain_ring<br/>MCP, read-only"| API
-  PP[PayPal] -->|webhooks, signature-verified| API
-  CRON[Render Cron Job · hourly] -->|reconcile, cancel unclaimed fraud, retry| API
+  PROG[Program] -->|POST /v1/payout-runs| CORE
+  CONSOLE[Investigator console] -->|reads & decides| CORE
+  AGENT[AI agent] -->|"screen_payees / explain_ring<br/>MCP, read-only"| CORE
+  CRON[Render Cron Job · hourly] -->|reconcile, sweep cancels| CORE
 
   subgraph API[apps/api — Fastify + Postgres, row-level security]
-    ENGINE["packages/engine<br/>groups rings/pairs, scores rules, runs the red team"]
-    AGENTS["packages/agents<br/>MCP tools, spend cap, the one real model call"]
-    PAYPALPKG["packages/paypal<br/>sends payouts, verifies webhooks"]
+    CORE[Routes] --> ENGINE["packages/engine<br/>rings/pairs, rule scoring, red team"]
+    CORE --> AGENTS["packages/agents<br/>MCP tools, spend cap, the one real model call"]
+    CORE --> PAYPALPKG["packages/paypal<br/>sends payouts, verifies webhooks"]
   end
 
-  API -->|Payouts| PP
+  PP((PayPal)) -->|webhooks, verified| CORE
+  PAYPALPKG -->|Payouts| PP
 ```
 
 | Path | What lives there |
@@ -161,7 +163,7 @@ claude mcp add --transport http ringfence https://<api host>/mcp --header "Autho
 
 ## Run it locally
 
-Nothing to install or sign up for first — this runs with an in-memory database and a fake PayPal built into the app, so no network calls leave your machine:
+For developing on Ringfence itself — the [live console](https://ringfence-console.onrender.com) already covers trying it. In-memory database, fake PayPal built in, nothing leaves your machine:
 
 ```bash
 npm install
@@ -242,4 +244,6 @@ Every service deploys from the `ringfence` branch — Render's own `main` no lon
 
 ## Built with
 
-PayPal Payouts API · PayPal sandbox · **AG Grid** + **AG Studio** (Studio Agent Framework) · **Bryntum Scheduler** · **Render** (2 Web Services, Cron Job, Postgres) · **APIMatic** (generated TypeScript SDK + Context Plugin) · Model Context Protocol (MCP) · Next.js 16 · Fastify · Postgres.
+**Sponsor tools** — PayPal Payouts API (sandbox) · AG Grid + AG Studio (Studio Agent Framework) · Bryntum Scheduler · Render (2 Web Services, Cron Job, Postgres) · APIMatic (generated TypeScript SDK + Context Plugin)
+
+**Everything else** — Next.js 16 · Fastify · Postgres · Model Context Protocol (MCP)
