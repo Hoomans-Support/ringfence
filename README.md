@@ -46,17 +46,19 @@ Ringfence uses a few words on purpose, consistently, in this doc and in the code
 
 | Who | Does this | Behind the scenes |
 | --- | --- | --- |
-| **Program owner** | Sends a PayPal Payouts batch to `POST /v1/payout-runs` | Ringfence groups linked accounts into rings and pairs, scores every active rule against the run, and sends the clear payouts to PayPal as one batch, exactly once |
+| **Program owner** | Sends a PayPal Payouts batch to `POST /v1/payout-runs` | Ringfence groups linked accounts into rings and pairs, scores every active rule against the run, and sends the clear payouts to PayPal — see [Payout API](#payout-api) |
 | **Investigator** | Opens a paused case in **Decisions** | A hub-and-spoke graph of how the accounts are linked, a Bryntum sign-up timeline, and a case file where every claim is checked against the real data, not just stated |
 | **Investigator** | Clicks **Fraud** or **Not fraud** | Fraud holds the group for good, remembers its devices and payout addresses (confirmed fraud), and can propose a new rule from it. Not fraud releases it into a batch of its own |
-| **Investigator** | Opens **Learned rules**, flips a proposal **On** | Ringfence already attacked it with 200 disguised copies of the ring it came from and recorded what it missed — the investigator approves a rule, never writes one |
+| **Investigator** | Opens **Learned rules**, flips a proposal **On** | Ringfence already red-teamed it before showing it — see [Learned rules](#learned-rules) for how |
 | **A held payee** | Taps their own pay link | Proves they own the PayPal address themselves, through PayPal's own login (`/self-release/start`) — no new account or password, and it never touches a ring or pair's shared decision |
-| **An AI agent** | Calls `screen_payees` over MCP before paying | Read-only: the key that can screen can't move money, and the one place a real model gets called runs under a hard spend cap |
+| **An AI agent** | Calls `screen_payees` over MCP before paying | Read-only — see [Safety by design](#safety-by-design) |
 | **Another program** | Confirms a ring as fraud | Its devices and payout addresses are published as a keyed hash; a second program's run recognizes them without either program seeing the other's member data |
 
 ## Walkthrough
 
 ![Walkthrough: deciding Group 12 is fraud in Decisions, turning on a learned rule, then editing the live Control tower dashboard](docs/screenshots/walkthrough.gif)
+
+Try it yourself on the **[live console](https://ringfence-console.onrender.com)**: Week 45 is already loaded, so you can open Group 12 under **Decisions**, decide it, and watch **Learned rules** and the **Control tower** react — it's all client-side walkthrough state, so nothing you click there is permanent.
 
 ### Overview
 
@@ -108,10 +110,14 @@ flowchart LR
 | `packages/engine` | Groups accounts into rings and pairs, scores proposed rules, runs the red-team attack |
 | `packages/agents` | MCP tools, the hard spending cap, the one real AI model call (a case-file claim → a plain sentence) |
 | `packages/paypal` | PayPal sends, webhook verification, "Log in with PayPal" — real sandbox or a built-in fake |
-| `packages/sdk` | A generated TypeScript client for Ringfence's own API, plus an agent Context Plugin — see [below](#built-with-the-apimatic-context-plugin) |
+| `packages/sdk` | A generated TypeScript client for Ringfence's own API, plus an agent Context Plugin — see [below](#the-apimatic-context-plugin) |
 | `scripts/` | Demo data generation, smoke tests, chaos/fire-drill tests, the real-sandbox week-1 run |
 | `docs/` | OpenAPI spec, Postman collection, agent-facing docs, recorded test runs |
 | `GLOSSARY.md` | Every term this repo uses on purpose, and the ones it deliberately avoids |
+
+### The APIMatic Context Plugin
+
+We fed Ringfence's own OpenAPI spec ([docs/openapi.yaml](docs/openapi.yaml)) into the APIMatic CLI to generate [packages/sdk](packages/sdk): a real TypeScript client (94 files — auth, pagination, retries, error handling, one model per schema) plus a Context Plugin, a file that teaches a coding agent (Claude Code, Cursor, Codex) how to call that client correctly, in TypeScript, C#, and Python. It's verified, not just generated: `npm install`, `typecheck`, `lint`, and the SDK's own smoke test all pass clean in `packages/sdk`, with 0 vulnerabilities. We also evaluated APIMatic's PayPal-side Context Plugin — the other half of this sponsor's intended use — and found it doesn't cover Payouts, the one PayPal product this build uses, so we generated our own SDK instead.
 
 ## Safety by design
 
@@ -125,10 +131,6 @@ flowchart LR
 - **Forward-only payout states.** A late PayPal event can't move a succeeded payout back to an earlier state.
 - **Verified webhooks.** PayPal's status-change notifications are signature-verified before anything is acted on.
 - **Secrets never touch the repo.** Render secrets are `sync: false`; the API key, MCP key and admin token are generated by Render, not typed in.
-
-## Built with the APIMatic Context Plugin
-
-We fed Ringfence's own OpenAPI spec ([docs/openapi.yaml](docs/openapi.yaml)) into the APIMatic CLI to generate [packages/sdk](packages/sdk): a real TypeScript client (94 files — auth, pagination, retries, error handling, one model per schema) plus a Context Plugin, a file that teaches a coding agent (Claude Code, Cursor, Codex) how to call that client correctly, in TypeScript, C#, and Python. It's verified, not just generated: `npm install`, `typecheck`, `lint`, and the SDK's own smoke test all pass clean in `packages/sdk`, with 0 vulnerabilities. We also evaluated APIMatic's PayPal-side Context Plugin — the other half of this sponsor's intended use — and found it doesn't cover Payouts, the one PayPal product this build uses, so we generated our own SDK instead.
 
 ## Payout API
 
@@ -151,7 +153,7 @@ Import the [Postman collection](docs/postman/Ringfence.postman_collection.json) 
 
 A payee with an individually held payout can prove they own their PayPal address themselves, through `/self-release/start` and `/self-release/callback` — PayPal's own login flow, no new account or password. Ring and pair members, and shared rule holds, can't use this; a person has to decide those.
 
-An agent that pays people out should screen its payees over MCP first, using the program's read-only `RINGFENCE_MCP_KEY` (every route that actually moves money refuses that key). For example, in Claude Code:
+An agent that pays people out should screen its payees over MCP first, using the program's read-only `RINGFENCE_MCP_KEY`. For example, in Claude Code:
 
 ```bash
 claude mcp add --transport http ringfence https://<api host>/mcp --header "Authorization: Bearer <mcp key>"
@@ -229,16 +231,6 @@ Every service deploys from the `ringfence` branch — Render's own `main` no lon
 2. In the PayPal developer dashboard, register `https://<api host>/v1/webhooks/paypal` for the `PAYMENT.PAYOUTS-ITEM.*` events, then set that webhook's ID as the API's `PAYPAL_WEBHOOK_ID`.
 3. Render generates the API key and admin token for you; find them in the API service's Environment tab.
 4. On the console service, optionally set `AG_STUDIO`, `GEMINI_API_KEY` and `OPENROUTER_API_KEY` — see [Run it locally](#run-it-locally) for what each does. All three are optional; each feature falls back gracefully without its key.
-
-## For judges: a quick test
-
-1. Open the **[live console](https://ringfence-console.onrender.com)** — Week 45's run is already loaded.
-2. Under **Decisions**, open **Group 12** (23 accounts): see how they're linked, their sign-up burst, and the case file where every claim is checked against the data.
-3. Click **Fraud** — this is client-side walkthrough state, so it's safe to click and resets on reload. Ringfence already red-teamed a rule from this exact ring with 200 disguised copies before anyone saw it.
-4. Open **Learned rules**: Rule R-01, "Referral bursts," caught 48 of 200 — turn it on and it applies from the next run.
-5. Open **Control tower**: the same run as a live AG Studio dashboard — KPI tiles, the ring graph, kept vs. leaked across every run so far.
-6. Step to **Week 46** with the stepper (top right): Ringfence reviews Week 45's real outcome and offers R-01-v2, widened against what the first version missed.
-7. For the API side: `curl https://paypal-hackathon-service.onrender.com/health`, or screen a payee read-only over MCP — see [Payout API](#payout-api).
 
 ## Verifying it works
 
