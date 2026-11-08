@@ -56,33 +56,25 @@ Ringfence uses a few words on purpose, consistently, in this doc and in the code
 
 ## Walkthrough
 
+![Walkthrough: deciding Group 12 is fraud in Decisions, turning on a learned rule, then editing the live Control tower dashboard](docs/screenshots/walkthrough.gif)
+
 ### Overview
 
 The landing screen: this run's split of paid, paused-as-fraud and paused-as-real; everything that still needs a decision, soonest deadline first; and the program's record (money lost, kept, and recovered, plus how often the investigator agreed with Ringfence). A second card surfaces anything another program has recognized through the ring network.
 
-![Overview screen: 4 things need a decision this run, led by Group 12's 23 linked accounts](docs/screenshots/overview.png)
-
 Week 44 starts clean, before Ringfence runs. Week 45 exposes Group 12's 23 linked accounts (the R-12 ring) and the roommate pair. Week 46 reviews Week 45's real outcome and offers R-01-v2, a rule widened against the disguises it missed. Week 47 re-applies whichever rule was accepted against Group 12's return in new disguises. Week 48 folds survey-app's cross-program match — six accounts reusing a Group 12 device — and a simulated unclaimed-payout recovery into the same screens.
-
-![Week 44's empty Overview: "Nothing needs you this run," before Ringfence has run at all](docs/screenshots/overview-empty.png)
 
 ### Decisions
 
 Every case Ringfence raises, once: under **To decide** until the investigator acts, then **Decided** with what happened to the money. Opening a case shows a hub-and-spoke graph of how the accounts are linked, a Bryntum-drawn dot plot of their sign-up times, the checked case file, and — for a ring — the rule proposed from it with its red-team score. The member table is AG Grid; the hold calendar (7-day deadlines) and the fire-drill comparison are linked off this screen.
 
-![Decisions screen: Group 12's case open, its 23 accounts linked by one referrer and three shared devices, with every claim checked](docs/screenshots/decisions.png)
-
 ### Learned rules
 
 Every proposed rule is attacked with 200 disguised copies of the ring it came from before anyone sees it: Rule R-01 ("Referral bursts," learned from Group 12) caught 48. The ones it missed are saved as open cases — the next revision widens whichever check a majority of its saved misses would beat, and only a fresh attack that actually catches those exact disguises again closes them: R-01-v2 widens the sign-up window and would close 13 more.
 
-![Learned rules screen: Rule R-01 learned from Group 12, its conditions, and its 48-of-200 red-team score](docs/screenshots/learned-rules.png)
-
 ### Control tower
 
 An editable AG Studio dashboard over real data, not a fixed set of widgets: three data sources (this run's payouts, its paused accounts, and every run so far) feed Studio's own KPI tiles, donut, column chart, group filter, and paused-accounts grid, alongside three custom widgets — the ring diagram (the same picture Decisions draws), a live Ring Watch poll, and a plain-English analyst read. "Edit dashboard" switches Studio into edit mode, where anyone can move, resize, restyle or add a widget by hand — or ask AG Studio's own AI assistant to do it in a sentence ("Add a bar chart of the paused accounts, counted by group"), through a server route backed by OpenRouter (`OPENROUTER_API_KEY`, defaulting to `openai/gpt-oss-120b`); without that key the panel simply isn't offered.
-
-![Control tower: KPI tiles, the Group 12 ring graph, where payees went, and kept vs. leaked by payout run](docs/screenshots/control-tower.png)
 
 Ring Watch is the one widget that's always live: it polls the real API every eight seconds for the ring's current member states. To see it update, open the same ring in a second tab and confirm or release the hold there.
 
@@ -92,17 +84,21 @@ Week 48 folds the survey-app scenario into Overview and Decisions rather than a 
 
 ## Architecture
 
-```
-PayPal Payouts request ──► POST /v1/payout-runs ──────────────┐
-                                                                │
-Investigator console (Next.js) ◄── reads & decides ────────────┤   apps/api
-AI agent ◄── screen_payees / explain_ring (MCP, read-only) ────┤   Fastify + Postgres (row-level security)
-                                                                │
-                               packages/engine ─────────────────┤   groups rings/pairs, scores rules, runs the red team
-                               packages/agents ──────────────────┤   MCP tools, spend cap, the one real model call
-                               packages/paypal ──────────────────┴─► PayPal Payouts (sandbox or built-in fake)
+```mermaid
+flowchart LR
+  PROG[Program] -->|POST /v1/payout-runs| API
+  CONSOLE[Investigator console] -->|reads & decides| API
+  AGENT[AI agent] -->|"screen_payees / explain_ring<br/>MCP, read-only"| API
+  PP[PayPal] -->|webhooks, signature-verified| API
+  CRON[Render Cron Job · hourly] -->|reconcile, cancel unclaimed fraud, retry| API
 
-Render Cron Job (hourly) ──► reconcile with PayPal, cancel unclaimed fraud payouts, retry refused sends
+  subgraph API[apps/api — Fastify + Postgres, row-level security]
+    ENGINE["packages/engine<br/>groups rings/pairs, scores rules, runs the red team"]
+    AGENTS["packages/agents<br/>MCP tools, spend cap, the one real model call"]
+    PAYPALPKG["packages/paypal<br/>sends payouts, verifies webhooks"]
+  end
+
+  API -->|Payouts| PP
 ```
 
 | Path | What lives there |
