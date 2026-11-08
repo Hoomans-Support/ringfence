@@ -3,8 +3,17 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
-  "workspaces": ["packages/engine", "packages/agents", "packages/paypal", "scripts/demo-generator", "apps/console", "apps/api"],
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/engine",
+    "packages/agents",
+    "packages/paypal",
+    "scripts/demo-generator",
+    "apps/console",
+    "apps/api"
+  ],
   "scripts": {
     "test": "vitest run",
     "demo:generate": "tsx scripts/demo-generator/src/cli.ts",
@@ -25,5 +34,10 @@
   "dependencies": {
     "graphology": "^0.25.4",
     "graphology-communities-louvain": "^2.0.1"
+  },
+  "allowScripts": {
+    "@bryntum/scheduler-trial@7.3.8": true,
+    "@bryntum/scheduler-trial-lib@1.0.1": true,
+    "esbuild@0.28.2": true
   }
 }
