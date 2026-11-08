@@ -46,19 +46,17 @@ Ringfence uses a few words on purpose, consistently, in this doc and in the code
 
 | Who | Does this | Behind the scenes |
 | --- | --- | --- |
-| **Program owner** | Sends a PayPal Payouts batch to `POST /v1/payout-runs` | Ringfence groups linked accounts into rings and pairs, scores every active rule against the run, and sends the clear payouts to PayPal — see [Payout API](#payout-api) |
-| **Investigator** | Opens a paused case in **Decisions** | A hub-and-spoke graph of how the accounts are linked, a Bryntum sign-up timeline, and a case file where every claim is checked against the real data, not just stated |
-| **Investigator** | Clicks **Fraud** or **Not fraud** | Fraud holds the group for good, remembers its devices and payout addresses (confirmed fraud), and can propose a new rule from it. Not fraud releases it into a batch of its own |
-| **Investigator** | Opens **Learned rules**, flips a proposal **On** | Ringfence already red-teamed it before showing it — see [Learned rules](#learned-rules) for how |
-| **A held payee** | Taps their own pay link | Proves they own the PayPal address themselves, through PayPal's own login (`/self-release/start`) — no new account or password, and it never touches a ring or pair's shared decision |
+| **Program owner** | Sends a PayPal Payouts batch to `POST /v1/payout-runs` | Decides and sends the clear payouts — see [Payout API](#payout-api) |
+| **Investigator** | Opens a paused case in **Decisions** | A link graph, sign-up timeline and a checked case file — see [Decisions](#decisions) |
+| **Investigator** | Clicks **Fraud** or **Not fraud** | Fraud holds it for good and can write a rule; Not fraud pays it — see [Safety by design](#safety-by-design) |
+| **Investigator** | Opens **Learned rules**, flips a proposal **On** | Already red-teamed before anyone sees it — see [Learned rules](#learned-rules) |
+| **A held payee** | Taps their own pay link | PayPal's own login, no new account — see [Payout API](#payout-api) |
 | **An AI agent** | Calls `screen_payees` over MCP before paying | Read-only — see [Safety by design](#safety-by-design) |
-| **Another program** | Confirms a ring as fraud | Its devices and payout addresses are published as a keyed hash; a second program's run recognizes them without either program seeing the other's member data |
+| **Another program** | Confirms a ring as fraud | Recognized elsewhere by a keyed hash, never member data — see [the ring network](#survey-app-and-the-ring-network) |
 
 ## Walkthrough
 
 ![Walkthrough: deciding Group 12 is fraud in Decisions, turning on a learned rule, then editing the live Control tower dashboard](docs/screenshots/walkthrough.gif)
-
-Try it yourself on the **[live console](https://ringfence-console.onrender.com)**: Week 45 is already loaded, so you can open Group 12 under **Decisions**, decide it, and watch **Learned rules** and the **Control tower** react — it's all client-side walkthrough state, so nothing you click there is permanent.
 
 ### Overview
 
