@@ -143,6 +143,14 @@ describe("POST /v1/payout-runs", () => {
     expect(res.json().error).toMatch(/unique/);
   });
 
+  it("rejects duplicate account ids as a bad request before scoring", async () => {
+    const { app } = await setup();
+    const body = { ...week1, sender_batch_header: { sender_batch_id: "duplicate_accounts" }, items: week1.items.slice(0, 2).map((item: (typeof week1.items)[number]) => ({ ...item, context: { ...item.context, account_id: "same-account" } })) };
+    const response = await app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: body });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/account_id.*unique/);
+  });
+
   it("accepts a plain PayPal body with no context: every payee is its own unlinked account", async () => {
     const { app } = await setup();
     const plain = {

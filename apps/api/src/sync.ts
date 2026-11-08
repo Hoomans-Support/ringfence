@@ -156,6 +156,11 @@ export async function reconcile(db: Db, paypal: PayPalClient): Promise<{ batches
       else if (send?.status === "done") gaps.push({ sender_batch_id: batch.sender_batch_id, issue: "batch_id_unknown" });
       continue;
     }
+    const [pending] = await withProgram(db, batch.program_id, (q) => q.query<{ pending: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM items WHERE program_id = $1 AND batch_id = $2 AND state IN ('queued', 'sent', 'unclaimed')) AS pending`,
+      [batch.program_id, batch.sender_batch_id],
+    ));
+    if (!pending?.pending) continue;
     const result = await applyBatch(db, batch, paypal);
     applied += result.applied;
     const atPayPal = new Map(result.seen.map((i) => [i.payout_item.sender_item_id, i] as const));

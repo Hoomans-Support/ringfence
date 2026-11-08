@@ -56,6 +56,22 @@ describe("ring and pair numbers", () => {
     expect(groupsOf(survey.decisions)).toEqual({ rings: ["R-01"], pairs: ["P-01"] });
   });
 
+  it("concurrent run submissions reserve distinct ring and pair numbers", async () => {
+    const { app } = await setup();
+    const [first, second] = await Promise.all([
+      app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: named("race_a") }),
+      app.inject({ method: "POST", url: "/v1/payout-runs", headers: auth, payload: named("race_b") }),
+    ]);
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    const a = groupsOf(first.json().decisions);
+    const b = groupsOf(second.json().decisions);
+    expect(new Set([...a.rings, ...b.rings]).size).toBe(2);
+    expect(new Set([...a.pairs, ...b.pairs]).size).toBe(2);
+    // PGlite serializes its in-memory transactions; this catches regressions in this harness but
+    // does not replace exercising PostgreSQL's row lock under real concurrent connections.
+  });
+
   it("a program created with a starting ring number numbers its first ring from it", async () => {
     const { app, db } = await setup();
     await ensureProgram(db, "demo", "Demo budgeting app", "demo-key", undefined, { firstRingNumber: 12 });

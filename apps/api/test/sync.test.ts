@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockPayPal, type WebhookEvent } from "@ringfence/paypal";
 import { pollBatches, reconcile } from "../src/sync";
 import { asBudgetApp, auth, crashOnceAt, setup, week1 } from "./helpers";
@@ -48,6 +48,16 @@ describe("webhooks", () => {
     expect((await states()).succeeded).toBe(1);
   });
 
+  it("accepts a genuine reversal from succeeded to failed", async () => {
+    const { mock, batchId, states, deliver } = await sentRun();
+    await mock.getBatch(batchId);
+    const success = mock.events.find((event) => event.event_type === "PAYMENT.PAYOUTS-ITEM.SUCCEEDED")!;
+    expect((await deliver(success)).outcome).toBe("applied");
+    const reversal = { ...success, id: "WH-REVERSAL", event_type: "PAYMENT.PAYOUTS-ITEM.REVERSED", resource: { ...success.resource, transaction_status: "REVERSED" as const } };
+    expect((await deliver(reversal)).outcome).toBe("applied");
+    expect((await states()).failed).toBe(1);
+  });
+
   it("answers 5xx when PayPal can't be asked to verify, so PayPal redelivers instead of the event being dropped", async () => {
     const mock = new MockPayPal();
     const { app } = await setup({ ...mock, createBatch: mock.createBatch.bind(mock), getBatch: mock.getBatch.bind(mock), getItem: mock.getItem.bind(mock), cancelItem: mock.cancelItem.bind(mock), verifyWebhook: () => Promise.reject(new Error("fetch failed: ECONNRESET")) });
@@ -78,6 +88,16 @@ describe("poller", () => {
 });
 
 describe("reconciler", () => {
+  it("does not re-fetch a batch after every item has settled", async () => {
+    const { db, mock } = await sentRun();
+    await pollBatches(db, mock);
+    await asBudgetApp(db, "UPDATE items SET state = 'returned' WHERE state = 'unclaimed'");
+    const getBatch = vi.spyOn(mock, "getBatch");
+    await reconcile(db, mock);
+    expect(getBatch).not.toHaveBeenCalled();
+    getBatch.mockRestore();
+  });
+
   it("applies what PayPal moved forward and reports every gap it can't explain", async () => {
     const { db, mock, states } = await sentRun();
     await pollBatches(db, mock);

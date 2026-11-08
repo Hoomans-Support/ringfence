@@ -73,6 +73,8 @@ async function recordRun(db: Db, programId: string, body: RunRequest, importedBa
   const runId = body.sender_batch_header.sender_batch_id;
   const ids = new Set(body.items.map((i) => i.sender_item_id));
   if (ids.size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
+  const accounts = new Set(body.items.map((i) => i.context?.account_id ?? `unknown:${i.sender_item_id}`));
+  if (accounts.size !== body.items.length) throw new ApiError(400, "account_id must be unique within a run");
 
   const receivedAt = new Date().toISOString();
   const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
@@ -192,6 +194,7 @@ export interface ScreenResult {
 /** The same decisions a run would get right now, with nothing stored and nothing sent. */
 export async function screenRun(db: Db, programId: string, body: RunRequest): Promise<ScreenResult> {
   if (new Set(body.items.map((i) => i.sender_item_id)).size !== body.items.length) throw new ApiError(400, "sender_item_id must be unique within a run");
+  if (new Set(body.items.map((i) => i.context?.account_id ?? `unknown:${i.sender_item_id}`)).size !== body.items.length) throw new ApiError(400, "account_id must be unique within a run");
   const receivedAt = new Date().toISOString();
   const run: PayoutRun = { sender_batch_header: body.sender_batch_header, items: body.items.map((i) => normalize(i, receivedAt)) };
   const result = await withProgram(db, programId, (q) => decideRun(q, programId, run));

@@ -5,6 +5,7 @@
  *   npm start -w @ringfence/api      reads ../../.env; DATABASE_URL defaults to an in-memory PGlite
  */
 import { pathToFileURL } from "node:url";
+import { createHash, timingSafeEqual } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { PayPalClient } from "@ringfence/paypal";
 import { boot } from "./boot";
@@ -197,7 +198,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
       const { created, runId } = await submitRun(db, req.programId, req.body);
       let sent = true;
       if (created && inlineSend) {
-        sent = await drainOutbox(db, paypal, { only: runId }).then(() => true, () => false);
+        sent = await drainOutbox(db, paypal, { only: runId }).then((count) => count > 0, () => false);
       }
       const run = await getRun(db, req.programId, runId);
       return reply.code(!created ? 200 : sent ? 201 : 202).send(run);
@@ -218,7 +219,7 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
       const release = await releaseHolds(db, req.programId, req.body);
       let sent = true;
       if (release.created && inlineSend) {
-        sent = await drainOutbox(db, paypal, { only: release.sender_batch_id }).then(() => true, () => false);
+        sent = await drainOutbox(db, paypal, { only: release.sender_batch_id }).then((count) => count > 0, () => false);
       }
       const [batch] = await db.query<{ payout_batch_id: string | null; batch_status: string | null }>(
         "SELECT payout_batch_id, batch_status FROM batches WHERE program_id = $1 AND sender_batch_id = $2",
@@ -315,7 +316,9 @@ export function buildApp({ db, paypal, inlineSend = true, adminToken = process.e
   );
 
   app.get("/v1/webhooks/events", async (req, reply) => {
-    if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) return reply.code(404).send({ error: "not found" });
+    const expected = adminToken ? createHash("sha256").update(`Bearer ${adminToken}`).digest() : undefined;
+    const supplied = createHash("sha256").update(req.headers.authorization ?? "").digest();
+    if (!expected || !timingSafeEqual(supplied, expected)) return reply.code(404).send({ error: "not found" });
     return db.query("SELECT event_id, event_type, payout_batch_id, transaction_status, applied, received_at FROM webhook_events ORDER BY received_at DESC LIMIT 20");
   });
 

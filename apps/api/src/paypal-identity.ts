@@ -20,9 +20,10 @@ export function createPayPalIdentityProvider(opts: {
 }): IdentityProvider {
   const redirectUrl = opts.redirectUrl ?? process.env.RINGFENCE_SELF_RELEASE_REDIRECT_URL ??
     `${process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${process.env.PORT ?? 3000}`}/self-release/callback`;
+  const connectHost = new URL(opts.baseUrl).hostname.includes("sandbox") ? "www.sandbox.paypal.com" : "www.paypal.com";
   return {
     authorizeUrl(state) {
-      const url = new URL("https://www.sandbox.paypal.com/connect");
+      const url = new URL(`https://${connectHost}/connect`);
       url.searchParams.set("flowEntry", "static");
       url.searchParams.set("client_id", opts.clientId);
       url.searchParams.set("response_type", "code");

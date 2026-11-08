@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asBudgetApp, auth, setup } from "./helpers";
 import { withProgram } from "../src/db";
-import { signState, type IdentityProvider } from "../src/paypal-identity";
+import { createPayPalIdentityProvider, signState, type IdentityProvider } from "../src/paypal-identity";
 
 const key = "test-self-release-key";
 const email = "payee@example.test";
@@ -25,6 +25,13 @@ async function prepared(provider: IdentityProvider = fakeIdentity) {
 }
 
 describe("payee self-release", () => {
+  it("uses the OAuth connect host matching the configured PayPal environment", () => {
+    const sandbox = createPayPalIdentityProvider({ clientId: "id", clientSecret: "secret", baseUrl: "https://api-m.sandbox.paypal.com" });
+    const live = createPayPalIdentityProvider({ clientId: "id", clientSecret: "secret", baseUrl: "https://api-m.paypal.com" });
+    expect(new URL(sandbox.authorizeUrl("state")).hostname).toBe("www.sandbox.paypal.com");
+    expect(new URL(live.authorizeUrl("state")).hostname).toBe("www.paypal.com");
+  });
+
   it("releases a solo-held payout after PayPal verifies its matching email", async () => {
     const { app, db, runId } = await prepared();
     const start = await app.inject({ url: `/self-release/start?program_id=budgetapp&run_id=${runId}&sender_item_id=solo_item` });
