@@ -1,3 +1,4 @@
+// shortcut: full multi-process crash drills are intentionally manual/local because they require Docker and real PostgreSQL.
 /**
  * Chaos run (FR-15): the demo's payout weeks, with the executor killed at 5 crash points, then
  * proof that every payee was paid exactly once and every cancel landed once.

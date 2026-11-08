@@ -6,8 +6,6 @@ export { investigate } from "./investigate";
 export { hasGeminiKey } from "./llm";
 export { narrateClaims } from "./narrate";
 export type { ClaimTextGenerator, NarrateOptions } from "./narrate";
-export { summarizeForAnalyst } from "./ring-analyst";
-export type { AnalystMoney, RingAnalystGenerator, RingAnalystOptions } from "./ring-analyst";
 export { holdEmailCopy, releaseEmailCopy } from "./payee-email";
 export type { PayeeEmail } from "./payee-email";
 export { closeCaughtCases, recordOpenCases } from "./red-team-cases";

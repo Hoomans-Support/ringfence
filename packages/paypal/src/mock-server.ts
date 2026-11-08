@@ -29,7 +29,7 @@ export interface MockServer {
 
 export async function startMockServer(
   mock: MockPayPal = new MockPayPal(),
-  opts: { port?: number; webhookUrl?: string } = {},
+  opts: { port?: number; webhookUrl?: string; pageSize?: number } = {},
 ): Promise<MockServer> {
   let requests = 0;
   let tokens = 0;
@@ -75,7 +75,11 @@ export async function startMockServer(
         return send(201, { batch_header: { payout_batch_id: created.payout_batch_id, batch_status: created.batch_status } });
       }
       if (method === "GET" && (m = /^\/v1\/payments\/payouts\/([^/]+)$/.exec(pathname))) {
-        return send(200, { ...(await mock.getBatch(decodeURIComponent(m[1] ?? ""))), total_pages: 1 });
+        const full = await mock.getBatch(decodeURIComponent(m[1] ?? ""));
+        const pageSize = opts.pageSize ?? 1000;
+        const query = new URL(req.url ?? "/", "http://mock").searchParams;
+        const page = Math.max(1, Number(query.get("page") ?? 1));
+        return send(200, { ...full, items: full.items.slice((page - 1) * pageSize, page * pageSize), total_pages: Math.max(1, Math.ceil(full.items.length / pageSize)) });
       }
       if (method === "GET" && (m = /^\/v1\/payments\/payouts-item\/([^/]+)$/.exec(pathname))) {
         return send(200, await mock.getItem(decodeURIComponent(m[1] ?? "")));

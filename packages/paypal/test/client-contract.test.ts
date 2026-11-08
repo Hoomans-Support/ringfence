@@ -41,6 +41,16 @@ describe.each(clients)("PayPalClient contract: %s", (_name, make) => {
     ]);
   });
 
+  it("reads every page when a batch is larger than the server page size", async () => {
+    const mock = new MockPayPal({ isUnclaimed });
+    const server = await startMockServer(mock, { pageSize: 2 });
+    servers.push(server);
+    const client = createRealClient({ baseUrl: server.url, clientId: "id", clientSecret: "secret", webhookId: "WH-1", minIntervalMs: 0 });
+    const created = await client.createBatch(batch("run_pages", Array.from({ length: 5 }, (_, i) => `p${i}@example.test`)), "run_pages");
+    const result = await client.getBatch(created.payout_batch_id!);
+    expect(result.items.map((i) => i.payout_item.sender_item_id)).toEqual(["run_pages_0", "run_pages_1", "run_pages_2", "run_pages_3", "run_pages_4"]);
+  });
+
   it("never pays twice: a resent batch, same request id or not, is refused as a duplicate (the sandbox names no original)", async () => {
     const { client, mock } = await make();
     const first = await client.createBatch(batch("run_b", ["lee@example.test"]), "run_b");

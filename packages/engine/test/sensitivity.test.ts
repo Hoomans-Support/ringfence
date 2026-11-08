@@ -40,6 +40,7 @@ describe("seed sensitivity on Week 1's generator", () => {
       const { decisions, rings } = scoreRun(run);
 
       expect(run.items).toHaveLength(412);
+      expect(new Set(run.items.map((item) => item.receiver)).size).toBe(run.items.length);
 
       const ring = rings.find((r) => r.size === 23);
       expect(ring).toBeDefined();

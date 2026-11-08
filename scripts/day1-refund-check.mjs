@@ -1,16 +1,10 @@
 // Day 1 gate: create capture orders, wait for sandbox buyer approval, capture, then refund.
 // Usage: node scripts/day1-refund-check.mjs [count]   (default 2: first refunded partly, second fully)
-import { readFileSync } from "node:fs";
+process.loadEnvFile(".env");
 
-const env = Object.fromEntries(
-  readFileSync(new URL("../.env", import.meta.url), "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l.trim() && !l.startsWith("#") && l.includes("="))
-    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()])
-);
-const BASE = env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
+const BASE = process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
 if (!BASE.includes("sandbox")) throw new Error("SANDBOX_ONLY: refusing to run against a live host");
-if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET) throw new Error("Fill PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in .env");
+if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) throw new Error("Fill PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in .env");
 
 // Args: a number creates that many new orders (default 2); order IDs reuse existing, already-created orders.
 const arg = process.argv.slice(2);
@@ -36,7 +30,7 @@ async function api(path, { method = "GET", body, token, requestId } = {}) {
 const auth = await fetch(BASE + "/v1/oauth2/token", {
   method: "POST",
   headers: {
-    Authorization: "Basic " + Buffer.from(`${env.PAYPAL_CLIENT_ID}:${env.PAYPAL_CLIENT_SECRET}`).toString("base64"),
+    Authorization: "Basic " + Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString("base64"),
     "Content-Type": "application/x-www-form-urlencoded",
   },
   body: "grant_type=client_credentials",
