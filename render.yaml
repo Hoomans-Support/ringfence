@@ -131,10 +131,12 @@ services:
         fromService: { type: web, name: paypal-hackathon-service, envVarKey: RINGFENCE_SURVEY_API_KEY }
       - key: AG_STUDIO # AG Studio licence key for the Insights dashboard
         sync: false
-      - key: GEMINI_API_KEY # optional: the case file falls back to its scripted sentences without it
+      # Optional, free tier: the case file's narration (scripted sentences without it) and AG Studio's AI
+      # assistant on Insights (the Ask bar, and edit mode; not offered without a model key).
+      - key: GEMINI_API_KEY
         sync: false
-      # Optional: AG Studio's AI assistant on Insights (the Ask bar, and edit mode), through OpenRouter.
-      # Without the key neither is offered. The model is the cheapest that handles tools well.
+      # Optional, paid: the assistant's last resort through OpenRouter, once the free Gemini models have
+      # used their daily quota (or the only one, without GEMINI_API_KEY).
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL

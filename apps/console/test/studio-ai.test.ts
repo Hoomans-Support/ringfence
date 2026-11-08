@@ -1,6 +1,6 @@
 import type { AgLlmRequest } from "ag-studio";
 import { describe, expect, it } from "vitest";
-import { toChatMessages } from "../lib/studio-ai";
+import { retryMs, toChatMessages } from "../lib/studio-ai";
 
 describe("toChatMessages", () => {
   it("turns AG Studio's turn into Chat Completions messages, one assistant turn per batch of tool calls", () => {
@@ -32,5 +32,14 @@ describe("toChatMessages", () => {
       { role: "tool", tool_call_id: "call_1", content: "{\"ok\":true}" },
       { role: "tool", tool_call_id: "call_2", content: "{\"fields\":[]}" },
     ]);
+  });
+});
+
+describe("retryMs", () => {
+  it("reads how long a rate-limited model asks to wait, else a minute", () => {
+    expect(retryMs("Quota exceeded. Please retry in 19m17.12s.")).toBe(1_157_120);
+    expect(retryMs("Please retry in 1h2m3s")).toBe(3_723_000);
+    expect(retryMs("Please retry in 45.5s.")).toBe(45_500);
+    expect(retryMs("Too many requests")).toBe(60_000);
   });
 });

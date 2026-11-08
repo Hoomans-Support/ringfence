@@ -1,27 +1,29 @@
 // Insights' AG Studio AI assistant, server side. AG Studio ships the chat panel and its
 // agents but no model connection (its docs: "AG Studio ships no adapters"), and recommends keeping
 // the provider key off the browser. So the browser adapter (insights/studio/ai.ts) posts AG
-// Studio's request here; this translates it to OpenRouter's OpenAI-compatible Chat Completions
-// (messages, tool calls, tool results, structured output), calls the model with the server-side
-// key, and translates the reply back into AG Studio's response shape.
+// Studio's request here; this translates it to OpenAI-compatible Chat Completions (messages, tool
+// calls, tool results, structured output), calls a model (Gemini's free tier first, then OpenRouter:
+// studioAiModels) with the server-side key, and translates the reply back into AG Studio's shape.
 import type { AgLlmRequest, AgLlmResponse } from "ag-studio";
-import { toChatMessages } from "@/lib/studio-ai";
+import { retryMs, studioAiModels, toChatMessages, withThoughtSignatures } from "@/lib/studio-ai";
 
 export const runtime = "nodejs";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 // The console is public: cap each reply and the calls one server process will make, so a visitor
 // can't run up the bill. ponytail: per-process counter, resets on restart; a real deployment would
 // meter per user.
 const MAX_TOKENS = 4096;
 const MAX_CALLS = Number(process.env.STUDIO_AI_MAX_CALLS ?? 400);
 let calls = 0;
+// A model that answered 429 (its quota used up), and when it may be tried again, as it said.
+// ponytail: per process, like the counter above.
+const restingUntil = new Map<string, number>();
 
 const failed = (code: string, message: string): AgLlmResponse => ({ id: `err-${Date.now()}`, createdAt: Date.now(), status: "failed", output: [], error: { code, message } });
 
 export async function POST(req: Request) {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) return Response.json(failed("not_configured", "The AI assistant isn't configured on this console."), { status: 503 });
+  const models = studioAiModels();
+  if (!models.length) return Response.json(failed("not_configured", "The AI assistant isn't configured on this console."), { status: 503 });
   if (calls >= MAX_CALLS) return Response.json(failed("budget", "The AI assistant has used this server's call budget for now."), { status: 429 });
   calls++;
 
@@ -32,11 +34,8 @@ export async function POST(req: Request) {
     const results = request.input.filter((i) => i.type === "function_call_output").slice(-3).map((i) => (i.type === "function_call_output" ? i.output.slice(0, 400) : ""));
     console.log("[studio-ai] tools:", request.tools?.map((t) => t.name).join(","), "| format:", request.responseFormat?.type, "| last results:", JSON.stringify(results));
   }
-  const body: Record<string, unknown> = {
-    model: process.env.OPENROUTER_MODEL ?? "openai/gpt-oss-120b",
-    messages: toChatMessages(request),
-    max_tokens: MAX_TOKENS,
-  };
+  const messages = toChatMessages(request);
+  const body: Record<string, unknown> = { max_tokens: MAX_TOKENS };
   if (request.tools?.length) {
     body.tools = request.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
     const choice = request.toolChoice;
@@ -47,23 +46,35 @@ export async function POST(req: Request) {
     body.response_format = { type: "json_schema", json_schema: { name: f.name, description: f.description, schema: f.schema, strict: false } };
   }
 
-  const upstream = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Ringfence Insights" },
-    body: JSON.stringify(body),
-    // A model call normally takes 2-6s; give up on a stalled provider rather than hang the assistant
-    // (one stalled for 5 minutes in testing), and stop when the browser does.
-    signal: AbortSignal.any([req.signal, AbortSignal.timeout(90_000)]),
-  }).catch((err: unknown) => err as Error);
-  if (upstream instanceof Error) return Response.json(failed("network", upstream.message));
-  const json = (await upstream.json().catch(() => ({}))) as {
+  // Each model in turn until one answers; one that's resting (quota used up) is skipped.
+  type Reply = {
     id?: string; model?: string; error?: { message?: string; code?: string | number };
     choices?: { finish_reason?: string; message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
-  if (!upstream.ok || json.error || !json.choices?.[0]) {
-    return Response.json(failed(String(json.error?.code ?? upstream.status), json.error?.message ?? `OpenRouter answered ${upstream.status}`));
+  let json: Reply = {};
+  let problem = failed("unavailable", "Every AI model is resting after using its quota; try again shortly.");
+  for (const m of models.filter((x) => (restingUntil.get(x.model) ?? 0) <= Date.now())) {
+    const upstream = await fetch(m.endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${m.key}`, "Content-Type": "application/json", "X-Title": "Ringfence Insights" },
+      body: JSON.stringify({ ...body, model: m.model, messages: m.gemini ? withThoughtSignatures(messages) : messages }),
+      // A model call normally takes 2-6s; give up on a stalled provider rather than hang the assistant
+      // (one stalled for 5 minutes in testing), and stop when the browser does.
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(90_000)]),
+    }).catch((err: unknown) => err as Error);
+    if (upstream instanceof Error) { problem = failed("network", upstream.message); continue; }
+    // Gemini wraps its errors in an array; OpenRouter doesn't.
+    const raw = (await upstream.json().catch(() => ({}))) as Reply | Reply[];
+    json = Array.isArray(raw) ? (raw[0] ?? {}) : raw;
+    if (upstream.ok && !json.error && json.choices?.[0]) break;
+    const message = json.error?.message ?? `${m.model} answered ${upstream.status}`;
+    if (upstream.status === 429) restingUntil.set(m.model, Date.now() + Math.min(retryMs(message), 86_400_000));
+    console.warn(`[studio-ai] ${m.model} answered ${upstream.status}; trying the next model.`);
+    problem = failed(String(json.error?.code ?? upstream.status), message);
+    json = {};
   }
+  if (!json.choices?.[0]) return Response.json(problem);
 
   const choice = json.choices[0];
   if (process.env.STUDIO_AI_DEBUG) console.log("[studio-ai] reply:", choice.finish_reason, (choice.message?.content ?? "").slice(0, 200).replace(/\n/g, " "), "| calls:", JSON.stringify((choice.message?.tool_calls ?? []).map((c) => `${c.function.name}(${c.function.arguments.slice(0, 300)})`)));

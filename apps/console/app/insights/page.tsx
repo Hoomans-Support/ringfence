@@ -4,6 +4,7 @@ import { scoreRun } from "@ringfence/engine";
 import { buildDemo } from "@/lib/demo";
 import { buildInsightRows } from "@/lib/insights-data";
 import { loadWeekRun, loadWeekTruth, parseDemoWeek } from "@/lib/fixtures";
+import { studioAiModels } from "@/lib/studio-ai";
 import { Insights, type InsightsData } from "./insights";
 
 export const metadata: Metadata = { title: "Insights" };
@@ -52,7 +53,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           of 16px plus that padding and the Ask bar, so the page, not Studio, does the scrolling. */}
       <div className="-mx-6 -mt-6 h-380">
         {/* key={week}: AG Studio reads its widgets and data once, at mount; a new week remounts it. */}
-        <Insights key={`${week}${adjusted}`} licenseKey={process.env.AG_STUDIO} aiEnabled={Boolean(process.env.OPENROUTER_API_KEY)} ringWatch={ringWatch} rows={rows} />
+        <Insights key={`${week}${adjusted}`} licenseKey={process.env.AG_STUDIO} aiEnabled={studioAiModels().length > 0} ringWatch={ringWatch} rows={rows} />
       </div>
     </main>
   );
