@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="asset/ringfence-tagline-dark.png" alt="ringfence — Ready for the fake-account era" width="720" />
+  <img src="asset/ringfence-logo-transparent-ink.png" alt="ringfence" width="560" />
 </p>
 
 <p align="center"><b>Pay the real ones. Hold the ring.</b><br/>
