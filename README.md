@@ -86,22 +86,10 @@ Week 48 folds the survey-app scenario into Overview and Decisions rather than a 
 
 How the pieces fit together under the hood — for what you actually see and click, see [Walkthrough](#walkthrough) above.
 
-```mermaid
-flowchart LR
-  PROG[Program] -->|POST /v1/payout-runs| CORE
-  CONSOLE[Investigator console] -->|reads & decides| CORE
-  AGENT[AI agent] -->|"screen_payees / explain_ring<br/>MCP, read-only"| CORE
-  CRON[Render Cron Job · hourly] -->|reconcile, sweep cancels| CORE
-
-  subgraph API[apps/api — Fastify + Postgres, row-level security]
-    CORE[Routes] --> ENGINE["packages/engine<br/>rings/pairs, rule scoring, red team"]
-    CORE --> AGENTS["packages/agents<br/>MCP tools, spend cap, the one real model call"]
-    CORE --> PAYPALPKG["packages/paypal<br/>sends payouts, verifies webhooks"]
-  end
-
-  PP((PayPal)) -->|webhooks, verified| CORE
-  PAYPALPKG -->|Payouts| PP
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="asset/ringfence-architecture-dark.png">
+  <img src="asset/ringfence-architecture-light.png" alt="Architecture: Program, Investigator console, AI agent (MCP, read-only) and the hourly Render cron job all call into Routes, apps/api's one entry point. Routes fans out to packages/engine (rings/pairs, rule scoring, red team) and packages/agents (MCP tools, spend cap, the one real model call), and to packages/paypal, the only package that moves money — it sends payouts to PayPal and verifies PayPal's webhooks back in." width="820">
+</picture>
 
 | Path | What lives there |
 | --- | --- |
@@ -201,22 +189,10 @@ All three are optional — `apps/console/.env.example` has the full list.
 
 ## Deploying to Render
 
-```mermaid
-flowchart LR
-  PP[PayPal webhooks] -->|verified| API
-  J[Investigators / judges] -->|console UI| CONSOLE
-  AGENT[AI agent] -->|MCP, read-only| API
-  subgraph Render[Render]
-    API[paypal-hackathon-service<br/>API + inline worker · free]
-    CRON[ringfence-reconcile<br/>Cron Job · hourly]
-    CONSOLE[ringfence-console<br/>Next.js console · free]
-    DB[(ringfence-db<br/>Postgres)]
-  end
-  CONSOLE -->|reads & decides| API
-  API --> DB
-  CRON -->|reconcile, sweep cancels| API
-  API -->|Payouts, Orders| PAYPAL[PayPal sandbox]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="asset/ringfence-hosting-dark.png">
+  <img src="asset/ringfence-hosting-light.png" alt="Hosting: Investigators/judges call the Console, PayPal webhooks and the AI agent (MCP, read-only) call the Payout API directly, and the hourly Reconcile cron job also calls the Payout API. The Console reads from and sends to the Payout API, which reads and writes ringfence-db (Postgres) and sends Payouts and Orders requests to the PayPal sandbox. All four services — Console, Payout API, Reconcile and ringfence-db — run on Render." width="820">
+</picture>
 
 | Service | Type | Why it exists |
 | --- | --- | --- |
