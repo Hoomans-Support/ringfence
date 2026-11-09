@@ -23,11 +23,11 @@ export interface HistoryRow {
 }
 
 export const EXAMPLE_HISTORY: HistoryRow[] = [
-  { title: "Group 11 · 2 accounts", sub: "1 shared tablet", run: "Wk 44", read: "real", decision: "Not fraud · released", by: "Rina", when: "Thu 29 Oct, 16:40", money: "$40 sent · Unclaimed", chip: "waiting", agreed: true, kept: 0, recovered: 0, lost: 0, kind: "group", example: true },
-  { title: "3 accounts, one referrer", sub: "Paid, second look", run: "Wk 43", read: "real", decision: "Not fraud · left paid", by: "Rina", when: "Thu 22 Oct, 11:05", money: "$60 sent · Collected", chip: "neutral", agreed: true, kept: 0, recovered: 0, lost: 0, kind: "second", example: true },
-  { title: "Group 10 · 11 accounts", sub: "1 payout email · 2 devices", run: "Wk 43", read: "fraud", decision: "Fraud · kept unpaid", by: "Dimas", when: "Wed 21 Oct, 09:30", money: "$60 recovered", chip: "neutral", agreed: true, kept: 220, recovered: 60, lost: 0, kind: "group", example: true },
-  { title: "Group 9 · 2 accounts", sub: "1 shared device", run: "Wk 42", read: "fraud", decision: "Not fraud · released", by: "Rina", when: "Thu 15 Oct, 14:12", money: "$40 sent · Collected", chip: "neutral", agreed: false, kept: 0, recovered: 0, lost: 0, kind: "group", example: true },
-  { title: "Group 8 · 6 accounts", sub: "1 referrer · 1 device", run: "Wk 42", read: "fraud", decision: "Fraud · kept unpaid", by: "Rina", when: "Wed 14 Oct, 10:02", money: "$120 kept", chip: "done", agreed: true, kept: 120, recovered: 0, lost: 0, kind: "group", example: true },
+  { title: "Group 11 · 2 accounts", sub: "1 shared tablet", run: "Wk 44", read: "real", decision: "Not fraud · released", by: "Rina", when: "Thu 29 Oct, 16:40", money: "$40 · Unclaimed", chip: "waiting", agreed: true, kept: 0, recovered: 0, lost: 0, kind: "group", example: true },
+  { title: "3 accounts, one referrer", sub: "Paid, second look", run: "Wk 43", read: "real", decision: "Not fraud · left paid", by: "Rina", when: "Thu 22 Oct, 11:05", money: "$60 · Collected", chip: "neutral", agreed: true, kept: 0, recovered: 0, lost: 0, kind: "second", example: true },
+  { title: "Group 10 · 11 accounts", sub: "1 payout email · 2 devices", run: "Wk 43", read: "fraud", decision: "Fraud · kept unpaid", by: "Dimas", when: "Wed 21 Oct, 09:30", money: "$60 · Recovered", chip: "neutral", agreed: true, kept: 220, recovered: 60, lost: 0, kind: "group", example: true },
+  { title: "Group 9 · 2 accounts", sub: "1 shared device", run: "Wk 42", read: "fraud", decision: "Not fraud · released", by: "Rina", when: "Thu 15 Oct, 14:12", money: "$40 · Collected", chip: "neutral", agreed: false, kept: 0, recovered: 0, lost: 0, kind: "group", example: true },
+  { title: "Group 8 · 6 accounts", sub: "1 referrer · 1 device", run: "Wk 42", read: "fraud", decision: "Fraud · kept unpaid", by: "Rina", when: "Wed 14 Oct, 10:02", money: "$120 · Kept", chip: "done", agreed: true, kept: 120, recovered: 0, lost: 0, kind: "group", example: true },
 ];
 
 const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
@@ -38,13 +38,13 @@ export function liveRow(c: DemoCase, verdict: Verdict, runName: string): History
     run: runName.replace("Week", "Wk"), read: c.verdict, by: "Rina (you)", when: "Just now", agreed: c.verdict === verdict, kind: c.kind, example: false, caseId: c.id };
   if (c.kind === "group") {
     return verdict === "fraud"
-      ? { ...base, decision: "Fraud · kept unpaid", money: `${usd(c.usd)} kept`, chip: "done", kept: c.usd, recovered: 0, lost: 0 }
+      ? { ...base, decision: "Fraud · kept unpaid", money: `${usd(c.usd)} · Kept`, chip: "done", kept: c.usd, recovered: 0, lost: 0 }
       : { ...base, decision: "Not fraud · released", money: `${usd(c.usd)} · Sending`, chip: "waiting", kept: 0, recovered: 0, lost: 0 };
   }
   return verdict === "fraud"
-    ? { ...base, decision: c.recoverableUsd ? "Fraud · recovering" : "Fraud · future payouts paused", money: c.recoverableUsd ? `Recovering ${usd(c.recoverableUsd)}` : `${usd(c.usd)} already collected`,
+    ? { ...base, decision: c.recoverableUsd ? "Fraud · recovering" : "Fraud · future payouts paused", money: c.recoverableUsd ? `${usd(c.recoverableUsd)} · Recovering` : `${usd(c.usd)} · Already collected`,
         chip: c.recoverableUsd ? "waiting" : "neutral", kept: 0, recovered: c.recoverableUsd, lost: c.usd - c.recoverableUsd }
-    : { ...base, decision: "Not fraud · left paid", money: `${usd(c.usd)} sent · Collected`, chip: "neutral", kept: 0, recovered: 0, lost: 0 };
+    : { ...base, decision: "Not fraud · left paid", money: `${usd(c.usd)} · Collected`, chip: "neutral", kept: 0, recovered: 0, lost: 0 };
 }
 
 export function historyStats(rows: HistoryRow[]) {
