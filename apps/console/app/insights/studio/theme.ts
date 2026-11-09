@@ -57,6 +57,13 @@ export const ringfenceStudioTheme = studioTheme.withParams({
   // it shows up on browser focus with nothing to resize, so it's neutralized to the ordinary
   // card border instead of the brand's one reserved highlight colour.
   studioWidgetResizeBorderColor: token("hairline"),
+  // The widget toolbar (CSV export on the grid and pivot, CSV + PNG on charts) as one of the
+  // console's pills: hairline outline, ink icons, mist on hover. globals.css keeps it on screen.
+  studioWidgetToolbarBorder: line("hairline"),
+  studioWidgetToolbarShadow: false,
+  studioWidgetToolbarButtonColor: token("ink"),
+  studioWidgetToolbarButtonHoverBackgroundColor: token("mist"),
+  studioWidgetToolbarHeight: 32,
 
   studioPanelContainerBackgroundColor: token("white"),
   studioPanelContainerBorder: line("hairline"),

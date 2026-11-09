@@ -94,6 +94,19 @@ body {
   pointer-events: none;
 }
 
+/* Studio's export buttons (CSV on the grid and pivot, CSV + PNG on charts) only appear on hover,
+   floating half off the card's top edge. In view mode they stay on screen as a pill in the card's
+   title row, so "download this table" is visible at a glance. Edit mode keeps Studio's own hover
+   toolbar, which also carries duplicate/delete there. */
+.rf-insights-view .ag-studio-widget-toolbar:has(.ag-studio-widget-toolbar-button) {
+  display: flex;
+  opacity: 1;
+  transform: none;
+  top: 24px;
+  right: 24px;
+  border-radius: 999px;
+}
+
 /* The ring diagram's draw-in (app/review/linked-card.tsx), played once when it mounts: lines grow
    from their start (each line has pathLength=1), marks fade in. Opacity only, since the marks are
    positioned with transforms. Off entirely for anyone who asks for reduced motion. */

@@ -217,7 +217,7 @@ function ReadyInsights({ licenseKey, aiEnabled, ringWatch, rows }: InsightsData)
       {mode === "edit" && (
         <p className="px-6 text-sm text-rf-slate">Editing: drag, resize or restyle any widget, or add one over the same data from the panels{aiEnabled ? ". The AI assistant builds what you ask for on the right" : ""}.</p>
       )}
-      <div ref={canvas} className="min-h-0 flex-1">
+      <div ref={canvas} className={`min-h-0 flex-1 ${mode === "view" ? "rf-insights-view" : ""}`}>
         {/* AG Studio's documented React integration validates its licence key in this client-side provider. */}
         <AgStudioProvider licenseKey={licenseKey} modules={aiEnabled ? [AgStudioAiModule] : []}>
           <AgStudio<InsightsRegistry>
