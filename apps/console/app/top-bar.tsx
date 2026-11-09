@@ -65,12 +65,14 @@ function AccountMenu() {
 
 export function Logo() {
   return (
-    <svg aria-hidden="true" width={24} height={24} viewBox="0 0 24 24">
-      <path d="M4 12L12 4L20 12L12 20Z" fill="none" stroke="var(--rf-ink)" strokeWidth={1.5} />
-      <circle cx={4} cy={12} r={2.5} fill="var(--rf-ink)" />
-      <circle cx={12} cy={4} r={2.5} fill="var(--rf-ink)" />
-      <circle cx={20} cy={12} r={2.5} fill="var(--rf-ink)" />
-      <circle cx={12} cy={20} r={3.5} fill="var(--rf-spark)" />
+    // The mark from asset/ringfence-logo-transparent-ink.png, traced in that image's own pixel space so it
+    // stays crisp and follows the ink/spark tokens into dark mode (the PNG's ink would vanish there).
+    <svg aria-hidden="true" width={16} height={16} viewBox="104 154 240 240">
+      <path d="M202 177L320 220L277 361L127 318Z" fill="none" stroke="var(--rf-ink)" strokeWidth={10} strokeLinejoin="round" />
+      <circle cx={202} cy={177} r={22} fill="var(--rf-ink)" />
+      <circle cx={320} cy={220} r={22} fill="var(--rf-ink)" />
+      <circle cx={127} cy={318} r={22} fill="var(--rf-ink)" />
+      <circle cx={277} cy={361} r={32} fill="var(--rf-spark)" />
     </svg>
   );
 }
@@ -94,7 +96,7 @@ export function TopBar() {
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-rf-hairline bg-rf-white px-8 py-4">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-        <Link href={`/?week=${week}${adjusted}`} className="flex items-center gap-2 text-[20px] font-semibold tracking-[-0.04em] text-rf-ink no-underline">
+        <Link href={`/?week=${week}${adjusted}`} className="flex items-center gap-2.5 text-[20px] font-bold tracking-[-0.04em] text-rf-ink no-underline">
           <Logo />
           ringfence
         </Link>

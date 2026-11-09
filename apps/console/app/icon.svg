@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="98 149 252 252">
+  <!-- The top bar's mark (app/top-bar.tsx), drawn heavier so it holds up at 16px; light ink on dark tabs. -->
+  <style>.ink{fill:#111114;stroke:#111114}@media (prefers-color-scheme:dark){.ink{fill:#f2f2f0;stroke:#f2f2f0}}</style>
+  <path class="ink" d="M202 177L320 220L277 361L127 318Z" fill="none" style="fill:none" stroke-width="16" stroke-linejoin="round"/>
+  <circle class="ink" cx="202" cy="177" r="28"/>
+  <circle class="ink" cx="320" cy="220" r="28"/>
+  <circle class="ink" cx="127" cy="318" r="28"/>
+  <circle cx="277" cy="361" r="40" fill="#ff5a36"/>
+</svg>
