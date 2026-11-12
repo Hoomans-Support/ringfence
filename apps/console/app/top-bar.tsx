@@ -106,6 +106,9 @@ export function TopBar() {
             return (
               <Link
                 key={item.href}
+                // Every page is dynamic, so the default prefetch stops at a loading skeleton and each
+                // click waits a full round trip. Prefetch the whole page: the data is fixture-only.
+                prefetch
                 href={`${item.href}?week=${week}${adjusted}`}
                 aria-current={active ? "page" : undefined}
                 className={`flex min-h-10 items-center gap-2 rounded-full px-4 text-[15px] ${active ? "bg-rf-ink text-rf-white" : "text-rf-ink hover:bg-rf-mist"}`}
